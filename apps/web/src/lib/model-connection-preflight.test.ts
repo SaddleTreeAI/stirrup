@@ -38,7 +38,41 @@ describe("sanitizeModelConnectionError", () => {
 
   it("keeps the text around a redacted JSON value", () => {
     expect(sanitizeModelConnectionError('{"api_key": "EXAMPLE_PLACEHOLDER", "code": 401}')).toBe(
-      '{"•••", "code": 401}',
+      '{"•••, "code": 401}',
+    );
+  });
+
+  it.each([
+    ["a quoted value with a space", '{"api_key": "EXAMPLE PLACEHOLDER"}', "PLACEHOLDER"],
+    [
+      "a quoted value with a comma and brace",
+      'api_key: "EX,AMPLE}PLACEHOLDER" rest',
+      "PLACEHOLDER",
+    ],
+    ["a single-quoted value with a space", "api_key='EXAMPLE PLACEHOLDER'", "PLACEHOLDER"],
+  ])("redacts the whole quoted value in %s", (_label, raw, secret) => {
+    expect(sanitizeModelConnectionError(raw)).not.toContain(secret);
+  });
+});
+
+describe("quoted credential redaction boundaries", () => {
+  it.each([
+    ['api_key: "EXAMPLE SPACE" rest', "••• rest"],
+    ["api-key='EXAMPLE,BRACE}VALUE' rest", "••• rest"],
+    [String.raw`apiKey="EXAMPLE\" STILL_PRIVATE" rest`, "••• rest"],
+    [String.raw`apiKey='EXAMPLE\' STILL_PRIVATE' rest`, "••• rest"],
+    [String.raw`apiKey="EXAMPLE\\ STILL_PRIVATE" rest`, "••• rest"],
+    ['api_key: "EXAMPLE\nSTILL_PRIVATE" rest', "••• rest"],
+    ['api_key: "" rest', "••• rest"],
+    ["api_key=EXAMPLE_VALUE, code=401", "•••, code=401"],
+    ["api_key=\"FIRST PRIVATE\" apiKey='SECOND PRIVATE' rest", "••• ••• rest"],
+  ])("redacts the complete value and retains surrounding context: %s", (raw, expected) => {
+    expect(sanitizeModelConnectionError(raw)).toBe(expected);
+  });
+
+  it("leaves an ordinary diagnostic unchanged", () => {
+    expect(sanitizeModelConnectionError("Connection failed: code=401")).toBe(
+      "Connection failed: code=401",
     );
   });
 });
