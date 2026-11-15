@@ -333,11 +333,20 @@ describe("live page helper one-time code fill", () => {
     });
 
     it("draws them as dots when the widget draws its slots a moment later", async () => {
-      const { fill, set } = widget(10);
-      fill("123456");
-      expect(set).not.toHaveBeenCalled();
-      await new Promise((resolve) => setTimeout(resolve, 120));
-      expect(set).toHaveBeenCalledWith("-webkit-text-security", "disc", "important");
+      vi.useFakeTimers();
+      const { domWindow, fill, set } = widget(10);
+      try {
+        fill("123456");
+        expect(set).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(10);
+        expect(domWindow.document.querySelector("#widget > div")?.textContent).toBe("1");
+        expect(set).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(40);
+        expect(set).toHaveBeenCalledWith("-webkit-text-security", "disc", "important");
+      } finally {
+        domWindow.close();
+        vi.useRealTimers();
+      }
     });
 
     it("finds a code written with dashes shown without them, and gives the slots back when the box is refilled", () => {
