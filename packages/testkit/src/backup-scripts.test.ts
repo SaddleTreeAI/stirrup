@@ -385,6 +385,7 @@ describe("development backup failures", () => {
 
   it("keeps reused artifacts private and unreplaced when the database dump fails", () => {
     const f = fixture();
+    mkdirSync(path.join(f.checkout, "data"));
     const output = path.join(f.checkout, "backups/example");
     for (const name of ["rakazo.sql", "homes.tgz"]) {
       write(path.join(output, name), "old backup");
@@ -405,6 +406,7 @@ describe("development backup failures", () => {
 
   it.each(["directory", "artifact"])("does not write through a backup %s symlink", (kind) => {
     const f = fixture();
+    mkdirSync(path.join(f.checkout, "data"));
     const target = path.join(f.root, "outside");
     const output = path.join(f.checkout, "backups/example");
     if (kind === "directory") {
@@ -426,12 +428,31 @@ describe("development backup failures", () => {
     expect(f.commands()).toEqual([]);
   });
 
-  it.each(["absent", "skipped"])("allows an empty archive when data is %s", (scenario) => {
+  it.each([false, true])(
+    "refuses missing data before touching backups: existing %s",
+    (existing) => {
+      const f = fixture();
+      const output = path.join(f.checkout, "backups/example");
+      if (existing) {
+        write(path.join(output, "rakazo.sql"), "old database");
+        write(path.join(output, "homes.tgz"), "old homes");
+      }
+      const result = f.run("scripts/backup.sh", ["example"]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("RAKAZO_BACKUP_SKIP_HOMES=1");
+      expect(result.stdout).not.toContain("Backup written");
+      expect(f.commands()).toEqual([]);
+      if (existing) {
+        expect(readFileSync(path.join(output, "rakazo.sql"), "utf8")).toBe("old database");
+        expect(readFileSync(path.join(output, "homes.tgz"), "utf8")).toBe("old homes");
+      } else expect(existsSync(output)).toBe(false);
+    },
+  );
+
+  it.each([false, true])("allows an explicit database-only backup: data exists %s", (hasData) => {
     const f = fixture();
-    if (scenario === "skipped") write(path.join(f.checkout, "data/home.txt"), "example home");
-    const result = f.run("scripts/backup.sh", ["example"], {
-      RAKAZO_BACKUP_SKIP_HOMES: scenario === "skipped" ? "1" : "0",
-    });
+    if (hasData) write(path.join(f.checkout, "data/home.txt"), "example home");
+    const result = f.run("scripts/backup.sh", ["example"], { RAKAZO_BACKUP_SKIP_HOMES: "1" });
     expect(result.status, result.stderr).toBe(0);
     expect(contents(path.join(f.checkout, "backups/example/homes.tgz"))).toBe("");
   });
