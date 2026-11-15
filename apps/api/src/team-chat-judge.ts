@@ -14,7 +14,7 @@ import {
   serializeModelSecret,
   toOAuthCredential,
 } from "@rakazo/adapters";
-import { redactSecrets } from "@rakazo/core";
+import { redactSecrets, sanitizeMessagingLabel } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { findModelCredential, recordUsage } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -65,13 +65,13 @@ export function renderTeamChatEngagementPrompt(input: {
   messages: TeamChatEngagementMessage[];
 }): string {
   const channel = input.channelName
-    ? `#${input.channelName} (${input.channelId})`
+    ? `#${sanitizeMessagingLabel(input.channelName)} (${input.channelId})`
     : input.channelId;
   const messages = input.messages
     .slice(-MAX_MESSAGES)
     .map(
       (message) =>
-        `[${message.eventId}] ${cleanLine(message.senderName)} (${cleanLine(message.senderId)}): ${truncate(message.content, MAX_MESSAGE_CHARS)}`,
+        `[${message.eventId}] ${sanitizeMessagingLabel(message.senderName)} (${cleanLine(message.senderId)}): ${truncate(message.content, MAX_MESSAGE_CHARS)}`,
     )
     .join("\n");
   return [
