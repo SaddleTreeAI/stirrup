@@ -1,4 +1,4 @@
-name: Inspect Stirrup store metadata
+name: Update Stirrup store metadata
 on:
   workflow_dispatch:
     inputs:
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24
-      - name: Read metadata state without modifying the listing
+      - name: Update the existing editable listing and report safe error codes
         env:
           MOBILE_DISTRIBUTION_CONFIG: ${{ secrets.MOBILE_DISTRIBUTION_CONFIG }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -36,9 +36,9 @@ jobs:
             const key = createPrivateKey(pem.includes('BEGIN PRIVATE KEY') ? pem : Buffer.from(pem,'base64'));
             const signature = sign('sha256',Buffer.from(payload),{key,dsaEncoding:'ieee-p1363'}).toString('base64url');
             const token = `${payload}.${signature}`;
-            async function read(path, resource) {
+            async function read(path, resource, update) {
               stage = resource;
-              const response = await fetch(`https://api.appstoreconnect.apple.com/v1/${path}`,{headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(30000)});
+              const response = await fetch(`https://api.appstoreconnect.apple.com/v1/${path}`,{method:update?'PATCH':'GET',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(update?{body:JSON.stringify(update)}:{}),signal:AbortSignal.timeout(30000)});
               const body = await response.json();
               if (!response.ok) {
                 const codes = (body.errors ?? []).map(e=>e.code).filter(c=>typeof c==='string' && /^[A-Z0-9_.-]+$/.test(c));
@@ -51,12 +51,19 @@ jobs:
             console.log(JSON.stringify({resource:'appInfos',states:infos.map(i=>({appStoreState:i.attributes.appStoreState,state:i.attributes.state}))}));
             for (const info of infos) {
               const locales = await read(`appInfos/${encodeURIComponent(info.id)}/appInfoLocalizations?limit=200`,'appInfoLocalizations');
+              if (info.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION') {
+                for (const locale of locales) {
+                  if (locale.attributes.name === 'Stirrup' && locale.attributes.privacyPolicyUrl === 'https://saddletree.ai/privacy') continue;
+                  await read(`appInfoLocalizations/${encodeURIComponent(locale.id)}`, 'updateLocalization', {data:{type:'appInfoLocalizations',id:locale.id,attributes:{name:'Stirrup',privacyPolicyUrl:'https://saddletree.ai/privacy'}}});
+                  console.log('Updated one existing localization.');
+                }
+              }
               console.log(JSON.stringify({resource:'appInfoLocalizations',state:info.attributes.appStoreState,count:locales.length,namedStirrup:locales.filter(l=>l.attributes.name==='Stirrup').length,companyPrivacy:locales.filter(l=>l.attributes.privacyPolicyUrl==='https://saddletree.ai/privacy').length}));
             }
             const versions = await read(`apps/${encodeURIComponent(appId)}/appStoreVersions?limit=200`,'appStoreVersions');
             console.log(JSON.stringify({resource:'appStoreVersions',versions:versions.map(v=>({platform:v.attributes.platform,state:v.attributes.appStoreState,version:v.attributes.versionString}))}));
           } catch {
-            console.error(`Read-only metadata inspection stopped at ${stage}.`);
+            console.error(`Metadata update stopped at ${stage}.`);
             process.exitCode = 1;
           }
           JS
