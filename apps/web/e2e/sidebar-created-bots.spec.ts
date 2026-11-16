@@ -16,7 +16,7 @@ test("created stirrups appear as regular stirrups and reorder across their creat
   await completeOnboarding(page);
 
   const composer = page.locator('textarea[name="chat-message"]');
-  await composer.fill("spawn a stirrup named Scout to research venues");
+  await composer.fill("spawn a bot named Scout to research venues");
   await page.keyboard.press("Enter");
 
   const scout = rosterRow(page, /Scout/);
