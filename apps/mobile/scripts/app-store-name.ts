@@ -1,5 +1,4 @@
 import { createPrivateKey, sign } from "node:crypto";
-import { readFile } from "node:fs/promises";
 
 class AppStoreMetadataError extends Error {}
 
@@ -98,7 +97,6 @@ export async function updateAppStoreName({
 
 async function main() {
   const config = JSON.parse(process.env.MOBILE_DISTRIBUTION_CONFIG ?? "{}");
-  const { expo } = JSON.parse(await readFile(new URL("../app.json", import.meta.url), "utf8"));
   const issuer = process.env.APPLE_API_ISSUER;
   const kid = process.env.APPLE_API_KEY_ID;
   const pem = process.env.APPLE_API_KEY_P8;
@@ -116,7 +114,7 @@ async function main() {
   }).toString("base64url");
   const result = await updateAppStoreName({
     appId: config.appStoreConnectAppId,
-    name: expo.name,
+    name: "Stirrup by SaddleTree",
     token: `${payload}.${signature}`,
   });
   console.log(
