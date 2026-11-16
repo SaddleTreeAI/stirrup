@@ -1,4 +1,4 @@
-name: Repair Stirrup signing capability
+name: Inspect Stirrup beta build
 on:
   workflow_dispatch:
     inputs:
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 24
-      - name: Enable the required capability on the existing app only
+      - name: Read processing and TestFlight state of the existing build
         env:
           MOBILE_DISTRIBUTION_CONFIG: ${{ secrets.MOBILE_DISTRIBUTION_CONFIG }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -37,9 +37,9 @@ jobs:
             const key = createPrivateKey(pem.includes('BEGIN PRIVATE KEY') ? pem : Buffer.from(pem,'base64'));
             const signature = sign('sha256',Buffer.from(payload),{key,dsaEncoding:'ieee-p1363'}).toString('base64url');
             const token = `${payload}.${signature}`;
-            async function read(path, resource, update) {
+            async function read(path, resource) {
               stage = resource;
-              const response = await fetch(`https://api.appstoreconnect.apple.com/v1/${path}`,{method:update?'POST':'GET',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(update?{body:JSON.stringify(update)}:{}),signal:AbortSignal.timeout(30000)});
+              const response = await fetch(`https://api.appstoreconnect.apple.com/v1/${path}`,{method:'GET',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(30000)});
               const body = await response.json();
               if (!response.ok) {
                 const codes = (body.errors ?? []).map(e=>e.code).filter(c=>typeof c==='string' && /^[A-Z0-9_.-]+$/.test(c));
@@ -51,21 +51,19 @@ jobs:
             }
             const app = await read(`apps/${encodeURIComponent(appId)}`, 'existingApp');
             if (app.attributes.bundleId !== config.bundleIdentifier) throw new Error();
-            const ids = await read(`bundleIds?filter[identifier]=${encodeURIComponent(config.bundleIdentifier)}&limit=200`, 'existingBundle');
-            console.log(JSON.stringify({resource:'existingBundle',count:ids.length,exactMatches:ids.filter(b=>b.attributes.identifier===config.bundleIdentifier).length}));
-            const exact = ids.filter(b=>b.attributes.identifier === config.bundleIdentifier);
-            if (exact.length !== 1) throw new Error();
-            const id = exact[0].id;
-            const caps = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities`, 'capabilities');
-            if (!caps.some(c => c.attributes.capabilityType === 'APPLE_ID_AUTH')) {
-              await read('bundleIdCapabilities', 'enableAppleSignIn', {data:{type:'bundleIdCapabilities',attributes:{capabilityType:'APPLE_ID_AUTH',settings:[{key:'APPLE_ID_AUTH_APP_CONSENT',options:[{key:'PRIMARY_APP_CONSENT',enabled:true}]}]},relationships:{bundleId:{data:{type:'bundleIds',id}}}}});
-              console.log('Enabled Sign in with Apple for the verified existing app.');
-            } else console.log('Sign in with Apple was already enabled.');
-            const verified = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities`, 'verifyCapability');
-            if (!verified.some(c => c.attributes.capabilityType === 'APPLE_ID_AUTH')) throw new Error();
-            console.log('Required capability verified.');
+            console.log(JSON.stringify({listingNameMatches:app.attributes.name==='Stirrup by SaddleTree'}));
+            const builds = await read(`apps/${encodeURIComponent(appId)}/builds`, 'appBuilds');
+            const selected = builds.filter(build=>build.attributes.version==='13');
+            if (selected.length !== 1) throw new Error();
+            const build = selected[0];
+            const release = await read(`builds/${encodeURIComponent(build.id)}/preReleaseVersion`, 'releaseVersion');
+            if (release.attributes.version !== '1.0.13') throw new Error();
+            const beta = await read(`builds/${encodeURIComponent(build.id)}/buildBetaDetail`, 'betaState');
+            const states = [build.attributes.processingState, beta.attributes.internalBuildState, beta.attributes.externalBuildState];
+            if (!states.every(value=>typeof value==='string' && /^[A-Z_]+$/.test(value))) throw new Error();
+            console.log(JSON.stringify({version:release.attributes.version,build:build.attributes.version,processingState:states[0],internalBuildState:states[1],externalBuildState:states[2],expired:build.attributes.expired}));
           } catch {
-            console.error(`Signing capability repair stopped at ${stage}.`);
+            console.error(`Beta build inspection stopped at ${stage}.`);
             process.exitCode = 1;
           }
           JS
