@@ -1,7 +1,35 @@
 import { describe, expect, it, vi } from "vitest";
-import { updateAppStoreName } from "../scripts/app-store-name.js";
+import { appStoreFailureMessage, updateAppStoreName } from "../scripts/app-store-name.js";
 
 describe("existing App Store name", () => {
+  it("reports a name conflict without exposing account details", async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json(
+        {
+          errors: [
+            {
+              code: "ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE.DIFFERENT_ACCOUNT",
+              detail: "private account details",
+            },
+          ],
+        },
+        { status: 409 },
+      ),
+    );
+    const error = await updateAppStoreName({
+      appId: "123",
+      name: "Stirrup",
+      token: "fake",
+      fetchImpl,
+    }).catch((error) => error);
+    expect(appStoreFailureMessage(error)).toBe(
+      "The requested App Store name belongs to another account. Choose a different listing name.",
+    );
+    expect(appStoreFailureMessage(new Error("private network details"))).toBe(
+      "App Store name update failed. Check the release credentials and retry.",
+    );
+  });
+
   it("updates editable localizations without touching the live version or app identity", async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
       const url = String(input);
