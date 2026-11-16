@@ -94,7 +94,7 @@ export function useRoutineEditor({
   }
   const webhookErrorText = (error: unknown, fallback: string) =>
     errorCode(error) === "FORBIDDEN"
-      ? t`Only the bot's creator can set its webhook key.`
+      ? t`Only the stirrup's creator can set its webhook key.`
       : errorText(error, fallback);
   const routineSaveRequest = useRef(0);
   const routineRunPending = useRef(false);
@@ -186,7 +186,7 @@ export function useRoutineEditor({
             if (stale()) return;
             setRoutineError(
               errorCode(error) === "FORBIDDEN"
-                ? t`Only the bot's creator can see its webhook key.`
+                ? t`Only the stirrup's creator can see its webhook key.`
                 : errorText(error, t`Could not show the webhook key`),
             );
           }

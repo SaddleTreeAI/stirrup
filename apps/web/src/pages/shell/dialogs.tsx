@@ -384,8 +384,8 @@ export function DeleteBotDialog({
       description={
         <>
           <Trans>
-            Its conversation, files, and routines will be permanently deleted. Bots it created stay
-            in your list.
+            Its conversation, files, and routines will be permanently deleted. Stirrups it created
+            stay in your list.
           </Trans>
           {groupWarning}
         </>
@@ -397,7 +397,7 @@ export function DeleteBotDialog({
         setDeleting(true);
         setError(null);
         void onConfirm(deleteMemories).catch((err: unknown) => {
-          setError(errorText(err, t`Could not delete bot`));
+          setError(errorText(err, t`Could not delete stirrup`));
           setDeleting(false);
         });
       }}
@@ -471,8 +471,8 @@ export function DeleteSpaceDialog({
         botCount > 0 ? (
           <Plural
             value={botCount}
-            one={`Delete ${name} and its # bot?`}
-            other={`Delete ${name} and its # bots?`}
+            one={`Delete ${name} and its # stirrup?`}
+            other={`Delete ${name} and its # stirrups?`}
           />
         ) : undefined
       }

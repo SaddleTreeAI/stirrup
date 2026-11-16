@@ -295,7 +295,7 @@ it("shows the profile and the Advanced tab's controls", async () => {
     memoryScope: "Memory scope",
     voice: "Voice",
     readAloud: "Read replies aloud",
-    fleetManagement: "Manage other bots",
+    fleetManagement: "Manage other stirrups",
     replyMode: "Replies",
   };
   const controls = [...advanced.querySelectorAll("h3, span, label, div")].flatMap((node) =>
@@ -319,7 +319,7 @@ it("shows the profile and the Advanced tab's controls", async () => {
 });
 
 describe("BotSettings model choices", () => {
-  it("offers an email address under the name until the bot has one", async () => {
+  it("offers an email address under the name until the stirrup has one", async () => {
     vi.mocked(rpc.bots.emailAddress).mockResolvedValueOnce({ domain: "bots.test", address: null });
     await render();
     const offer = [...document.querySelectorAll("button")].find(
@@ -399,7 +399,7 @@ describe("BotSettings thinking options", () => {
     expect(onSave.mock.lastCall?.[0]).not.toHaveProperty("thinkingLevel");
   });
 
-  it("shows the thinking levels the bot's own model offers on its connection", async () => {
+  it("shows the thinking levels the stirrup's own model offers on its connection", async () => {
     i18n.load("en", {});
     i18n.activate("en");
     vi.mocked(rpc.models.credentials).mockResolvedValueOnce([
@@ -447,7 +447,7 @@ describe("BotSettings thinking options", () => {
   });
 });
 
-describe("BotSettings bot management saves", () => {
+describe("BotSettings stirrup management saves", () => {
   it("cannot restore a stale enabled value when another session disables it", async () => {
     await render("Billing", { fleetManagement: true });
     await render("Billing", { fleetManagement: false });
@@ -479,7 +479,7 @@ describe("BotSettings bot management saves", () => {
     expect(container.textContent).toContain("Could not reach the server");
   });
 
-  it.each([false, true])("saves only the bot management toggle from %s", async (enabled) => {
+  it.each([false, true])("saves only the stirrup management toggle from %s", async (enabled) => {
     await render("Billing", { fleetManagement: enabled });
     const toggle = container.querySelector<HTMLButtonElement>('button[id$="-fleet-management"]');
     if (!toggle) throw new Error("Missing switch");
@@ -511,7 +511,7 @@ describe("BotSettings description saves", () => {
     expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty("instructions");
   });
 
-  it("does not resend instructions when the bot prop stays on the old description", async () => {
+  it("does not resend instructions when the stirrup prop stays on the old description", async () => {
     await render();
     await setDescription("Invoices");
     await clickSave();
@@ -585,7 +585,7 @@ describe("instruction settings refresh", () => {
       expectedInstructions: "External update",
     });
   });
-  it("keeps a dirty draft when run completion refreshes the bot", async () => {
+  it("keeps a dirty draft when run completion refreshes the stirrup", async () => {
     const initial = bot();
     await act(async () => {
       root.render(instructions(initial));
@@ -837,7 +837,7 @@ describe("BotSettings cached data", () => {
     expect(rpc.voice.voices).toHaveBeenCalledTimes(1);
   });
 
-  it("follows a newer bot in fields not edited and keeps the ones that were", async () => {
+  it("follows a newer stirrup in fields not edited and keeps the ones that were", async () => {
     await render("Billing", { computerMode: "team" });
     await setDescription("Invoices");
     await render("Remote edit", {

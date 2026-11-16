@@ -22,7 +22,7 @@ vi.mock("../../lib/query", async () => {
 
 const bots = Array.from({ length: 100 }, (_, index) => ({
   id: `bot-${index}`,
-  name: `Bot ${index}`,
+  name: `Stirrup ${index}`,
 })) as Bot[];
 const rows = (botId: string, name = botId) =>
   [{ id: `routine-${botId}`, botId, name, crons: [] }] as unknown as Routine[];
@@ -71,7 +71,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("keeps per-bot cache data and one-bot invalidation while batching the cold roster", async () => {
+it("keeps per-stirrup cache data and one-stirrup invalidation while batching the cold roster", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const f = fixture("space-a");
   const pending = deferred();

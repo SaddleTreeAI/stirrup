@@ -91,7 +91,7 @@ export function RoutineModelSettings({
               onChange({ ...draft, modelKey: event.target.value, thinkingLevel: "" })
             }
           >
-            <NativeSelectOption value="">{t`Bot's model`}</NativeSelectOption>
+            <NativeSelectOption value="">{t`Stirrup's model`}</NativeSelectOption>
             {draft.modelKey && !modelOptions.some((option) => option.key === draft.modelKey) ? (
               <NativeSelectOption value={draft.modelKey}>
                 {selectedModel?.modelId ?? draft.modelKey}

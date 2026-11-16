@@ -349,7 +349,7 @@ export function McpApprovalCard({
 
   async function authorize() {
     if (!botId || busy) {
-      if (!botId) setError(errorDetails(t`This server cannot be assigned without a bot.`));
+      if (!botId) setError(errorDetails(t`This server cannot be assigned without a stirrup.`));
       return;
     }
     setBusy(true);

@@ -140,7 +140,7 @@ const navigation = {
     bots: [
       {
         ...bot,
-        instructions: "Private bot instructions",
+        instructions: "Private stirrup instructions",
         teamChatRules: "Private rules",
         threadStatus: "running",
       },
@@ -295,7 +295,7 @@ it("guards legacy names restored while offline", () => {
   legacy.current.bots[0]!.name = "__TestTok1__";
   legacy.current.groups[0]!.name = "c123456789012345678901234";
   writeSavedInbox(scope, legacy, me);
-  expect(readSavedInbox(scope)?.bots[0]?.name).toBe("Bot");
+  expect(readSavedInbox(scope)?.bots[0]?.name).toBe("Stirrup");
   expect(readSavedInbox(scope)?.groups[0]?.name).toBe("Group");
 });
 
@@ -313,7 +313,7 @@ it("uses translated labels for legacy offline message metadata", () => {
     ];
     writeSavedThread(scope, "bot:bot-a", snapshot);
     expect(readSavedThread(scope, "bot:bot-a")?.messages[0]?.blocks[0]).toMatchObject({
-      fromBotName: "Бот",
+      fromBotName: "Stirrup",
       text: "Keep __TestTok1__ literal",
     });
   } finally {

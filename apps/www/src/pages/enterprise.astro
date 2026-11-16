@@ -4,7 +4,7 @@ import EnterpriseIllustration from "../components/EnterpriseIllustration.astro";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import {
-  ENTERPRISE_CONTACT_EMAIL,
+  ENTERPRISE_CONTACT_URL,
   ENTERPRISE_DESCRIPTION,
   ENTERPRISE_FEATURES,
   ENTERPRISE_H1,
@@ -30,7 +30,7 @@ const starsLabel = await githubStarsLabel();
       <h1 class="section-heading">{ENTERPRISE_H1}</h1>
       <p class="lead">{ENTERPRISE_LEAD}</p>
       <div class="hero__actions">
-        <Button href={`mailto:${ENTERPRISE_CONTACT_EMAIL}`} data-attr="enterprise-contact">Talk to us</Button>
+        <Button href={ENTERPRISE_CONTACT_URL} data-attr="enterprise-contact">Talk to us</Button>
         <Button href={SELF_HOST_GUIDE_PATH} variant="secondary" data-attr="enterprise-self-host">
           Self-hosting guide
         </Button>

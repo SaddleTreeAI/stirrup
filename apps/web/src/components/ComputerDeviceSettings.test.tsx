@@ -125,7 +125,7 @@ it("turns this computer on and off through the desktop app only", async () => {
   desktopWith(device);
   await renderSettings();
   const toggle = host.querySelector<HTMLInputElement>('[data-testid="this-computer-toggle"]')!;
-  expect(host.textContent).toContain("Let bots use this computer");
+  expect(host.textContent).toContain("Let stirrups use this computer");
   expect(toggle.checked).toBe(false);
 
   vi.mocked(listUserDevices).mockResolvedValue([laptop]);
@@ -202,7 +202,7 @@ it("turns this computer on and off for the app-managed local server", async () =
   expect(toggle.checked).toBe(false);
 });
 
-it("stays hidden on a server that does not run bots on this computer", async () => {
+it("stays hidden on a server that does not run stirrups on this computer", async () => {
   vi.mocked(listUserDevices).mockResolvedValue([]);
   vi.mocked(rpc.me).mockResolvedValue({
     canChooseHostComputer: false,

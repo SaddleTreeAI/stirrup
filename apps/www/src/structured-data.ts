@@ -2,9 +2,8 @@ import type { FaqItem } from "./alternatives";
 import { BLOG_AUTHOR_PERSON } from "./blog/format";
 import { pageDate } from "./page-dates";
 import { PRICE_OFFERS } from "./pricing";
-import { DISCORD_URL, GITHUB_URL, SITE_NAME, SITE_URL, X_URL } from "./site";
+import { COMPANY_URL, GITHUB_URL, SITE_NAME, SITE_URL } from "./site";
 
-const LEGAL_NAME = "Inbox Zero Inc.";
 
 export const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 /** Points at the home page's Organization, and names it for readers that see one page alone. */
@@ -162,34 +161,10 @@ function usd(cents: number): string {
 
 /** Offers built from the plans the pricing page shows. */
 export function priceOffers() {
-  return PRICE_OFFERS.map((offer) => {
-    const base = { "@type": "Offer", name: offer.name, url: `${SITE_URL}/pricing/` };
-    if ("fromMonthlyCents" in offer) {
-      return {
-        ...base,
-        description: offer.description,
-        priceSpecification: {
-          "@type": "UnitPriceSpecification",
-          minPrice: usd(offer.fromMonthlyCents),
-          priceCurrency: "USD",
-          billingDuration: "P1M",
-          unitCode: "MON",
-        },
-      };
-    }
-    const price = { price: usd(offer.monthlyCents), priceCurrency: "USD" };
-    if (offer.monthlyCents === 0) return { ...base, ...price };
-    return {
-      ...base,
-      ...price,
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        ...price,
-        billingDuration: "P1M",
-        unitCode: "MON",
-      },
-    };
-  });
+  return PRICE_OFFERS.map((offer) => ({
+    "@type": "Offer", name: offer.name, url: `${SITE_URL}/pricing/`,
+    price: usd(offer.monthlyCents), priceCurrency: "USD",
+  }));
 }
 
 function softwareApplicationNode(extra: object) {
@@ -242,26 +217,15 @@ export function homeStructuredData(input: HomeStructuredDataInput) {
       "@type": "Organization",
       "@id": ORGANIZATION_ID,
       name: SITE_NAME,
-      legalName: LEGAL_NAME,
       url: `${SITE_URL}/`,
-      logo: `${SITE_URL}/brand/rakazo-mark.png`,
-      email: "hello@rakazo.com",
+      logo: `${SITE_URL}/brand/stirrup-mark.png`,
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer support",
-        email: "hello@rakazo.com",
-        url: `${SITE_URL}/support/`,
+          url: `${SITE_URL}/support/`,
         availableLanguage: input.availableLanguages,
       },
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "131 Continental Dr, Suite 305",
-        addressLocality: "Newark",
-        addressRegion: "DE",
-        postalCode: "19713",
-        addressCountry: "US",
-      },
-      sameAs: [GITHUB_URL, X_URL, DISCORD_URL, "https://www.getinboxzero.com/"],
+      sameAs: [GITHUB_URL, COMPANY_URL],
     },
     {
       "@type": "WebSite",

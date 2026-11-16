@@ -76,7 +76,7 @@ export function ChatHeader({
           <span className="block truncate text-body-lg font-medium text-foreground" dir="auto">
             {inGroup
               ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
-              : (active?.name ?? t`Select a bot`)}
+              : (active?.name ?? t`Select a stirrup`)}
           </span>
         </span>
       </Button>

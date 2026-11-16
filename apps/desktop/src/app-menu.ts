@@ -1,5 +1,5 @@
 import type { DesktopMenuCommand } from "@rakazo/contracts";
-import { app, dialog, Menu } from "electron";
+import { dialog, Menu } from "electron";
 import { remoteServerOrigin } from "./app-window.js";
 import { updaterSupport } from "./auto-update.js";
 import { desktop } from "./desktop-state.js";
@@ -29,7 +29,7 @@ async function runMenuUpdateCheck() {
       : dialog.showMessageBox(options);
   if (state.phase === "ready") {
     const { response } = await alert({
-      message: t("Rakazo {version} is ready to install.", {
+      message: t("Stirrup {version} is ready to install.", {
         version: state.availableVersion ?? "",
       }),
       buttons: [t("Restart"), t("Later")],
@@ -55,7 +55,7 @@ async function runMenuUpdateCheck() {
     });
   } else if (state.phase === "idle") {
     await alert({
-      message: t("Rakazo is up to date."),
+      message: t("Stirrup is up to date."),
       detail: t("Version {version}", { version: state.currentVersion }),
     });
   }
@@ -104,7 +104,7 @@ export function applicationMenuInstaller({
     };
     const changeServer: Electron.MenuItemConstructorOptions = {
       id: "change-rakazo-server",
-      label: t("Change Rakazo Server…"),
+      label: t("Change Stirrup Server…"),
       accelerator: "CmdOrCtrl+Shift+K",
       click: () => showSetupWindow(),
     };
@@ -214,9 +214,9 @@ export function applicationMenuInstaller({
       process.platform === "darwin"
         ? [
             {
-              label: app.name,
+              label: "Stirrup",
               submenu: [
-                { role: "about", label: t("About {name}", { name: app.name }) },
+                { role: "about", label: t("About {name}", { name: "Stirrup" }) },
                 openSettings,
                 checkForUpdates,
                 { type: "separator" },
@@ -225,11 +225,11 @@ export function applicationMenuInstaller({
                 changeServer,
                 stopStack,
                 { type: "separator" },
-                { role: "hide", label: t("Hide {name}", { name: app.name }) },
+                { role: "hide", label: t("Hide {name}", { name: "Stirrup" }) },
                 { role: "hideOthers", label: t("Hide Others") },
                 { role: "unhide", label: t("Show All") },
                 { type: "separator" },
-                { role: "quit", label: t("Quit {name}", { name: app.name }) },
+                { role: "quit", label: t("Quit {name}", { name: "Stirrup" }) },
               ],
             },
             {

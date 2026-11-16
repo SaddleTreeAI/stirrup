@@ -73,7 +73,7 @@ export default function General() {
       queryClient.setQueryData(meRead.queryKey, await send("preferences/update", { botAvatarSet }));
     },
     stale: [meRead.queryKey],
-    onFailed: () => Alert.alert(t`Couldn't update bot style`),
+    onFailed: () => Alert.alert(t`Couldn't update stirrup style`),
   });
   const appearance = getCachedAppearancePreference();
   const streamReplies = useSyncExternalStore(
@@ -211,15 +211,15 @@ export default function General() {
         </View>
 
         {me ? (
-          <View accessibilityLabel={t`Bot style`} style={styles.section}>
-            <SettingsLabel>{t`Bot style`}</SettingsLabel>
+          <View accessibilityLabel={t`Stirrup style`} style={styles.section}>
+            <SettingsLabel>{t`Stirrup style`}</SettingsLabel>
             <NativeSegmentedControl
-              accessibilityLabel={t`Bot style`}
+              accessibilityLabel={t`Stirrup style`}
               disabled={botStyle.pending}
               onChange={updateBotStyle}
               options={[
                 { value: "organic", label: t`Original` },
-                { value: "rakazo", label: t`Rakazo` },
+                { value: "rakazo", label: t`Character` },
               ]}
               value={(botStyle.pending ? botStyle.input : me.botAvatarSet) ?? ""}
             />

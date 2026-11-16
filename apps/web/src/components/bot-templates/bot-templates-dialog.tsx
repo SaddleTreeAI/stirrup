@@ -155,10 +155,12 @@ export function BotTemplatesDialog({
       >
         <DialogHeader className="flex-row items-start justify-between px-8 pt-7">
           <DialogTitle className="text-heading2 text-foreground">
-            <Trans>Bot templates</Trans>
+            <Trans>Stirrup templates</Trans>
           </DialogTitle>
           <DialogClose
-            render={<Button variant="ghost" size="icon-sm" aria-label={t`Close bot templates`} />}
+            render={
+              <Button variant="ghost" size="icon-sm" aria-label={t`Close stirrup templates`} />
+            }
           >
             <X />
           </DialogClose>
@@ -209,7 +211,7 @@ function TemplateDetail({
         creating && isBotTemplateChanged(open.error)
           ? t`This template was just updated. Check it again.`
           : open.error,
-        creating ? t`Could not create the bot` : t`Could not open the bot`,
+        creating ? t`Could not create the stirrup` : t`Could not open the stirrup`,
       )
     : null;
   const catalog = useQuery({
@@ -279,7 +281,7 @@ function TemplateDetail({
               disabled={pending}
               onClick={() => open.run({ create: true })}
             >
-              {pending ? <Trans>Creating…</Trans> : <Trans>Create bot</Trans>}
+              {pending ? <Trans>Creating…</Trans> : <Trans>Create stirrup</Trans>}
             </Button>
           )}
         </div>

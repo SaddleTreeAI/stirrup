@@ -96,7 +96,7 @@ describe("call session", () => {
     vi.useRealTimers();
   });
 
-  it("starts listening for the bot on the call", async () => {
+  it("starts listening for the stirrup on the call", async () => {
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: true });
     await Promise.resolve();
 
@@ -370,7 +370,7 @@ describe("call session", () => {
     });
   });
 
-  it("sends what it heard to the bot on the call, not the bot on screen", async () => {
+  it("sends what it heard to the stirrup on the call, not the stirrup on screen", async () => {
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
     await heard("book the flight");
 
@@ -407,7 +407,7 @@ describe("call session", () => {
     expect(callIdFromClientNonce(String(answer.mock.calls[0]?.[0]?.clientNonce))).toBeDefined();
   });
 
-  it("answers the caller's turn, never a bot message from before it", async () => {
+  it("answers the caller's turn, never a stirrup message from before it", async () => {
     const earlier = { ...botMessage("earlier-1", "Booked for Friday"), runId: "run-0" };
     const turn = callerMessage("check the site");
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
@@ -668,7 +668,7 @@ describe("call session", () => {
     expect(listen.mock.calls.length).toBeGreaterThan(listens);
   });
 
-  it("drops a send that finishes after the same bot is called again", async () => {
+  it("drops a send that finishes after the same stirrup is called again", async () => {
     let sending: Deferred<{ runId: string; taskId: string }> | undefined;
     send.mockImplementation(() => {
       sending = deferred();
@@ -1053,7 +1053,7 @@ describe("call session", () => {
     expect(endCallRpc).toHaveBeenCalledWith(expect.objectContaining({ botId: "call-bot", callId }));
   });
 
-  it("does not close the call again when the bot ended it", async () => {
+  it("does not close the call again when the stirrup ended it", async () => {
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
     const feed = vi.mocked(runThreadSubscription).mock.calls[0]?.[0];
     getThread.mockResolvedValue(snapshot([], runningRun) as never);
@@ -1108,7 +1108,7 @@ describe("call session", () => {
     expect(getSnapshot()?.botId).toBe("call-bot");
   });
 
-  it("hangs up once the bot has answered a goodbye", async () => {
+  it("hangs up once the stirrup has answered a goodbye", async () => {
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
     getThread.mockResolvedValue(snapshot([botMessage("message-1", "Talk soon")]) as never);
     await heard("that's all, bye");
@@ -1129,7 +1129,7 @@ describe("call session", () => {
     expect(getSnapshot()).toBeNull();
   });
 
-  it("speaks the farewell and hangs up when the bot ends the call itself", async () => {
+  it("speaks the farewell and hangs up when the stirrup ends the call itself", async () => {
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
     const feed = vi.mocked(runThreadSubscription).mock.calls[0]?.[0];
     getThread.mockResolvedValue(snapshot([], runningRun) as never);
@@ -1150,7 +1150,7 @@ describe("call session", () => {
     expect(getSnapshot()).toBeNull();
   });
 
-  it("never speaks the work the bot files after it hung up", async () => {
+  it("never speaks the work the stirrup files after it hung up", async () => {
     await answeredCall({ botId: "call-bot", botName: "Ada", transcribe: false });
     const feed = vi.mocked(runThreadSubscription).mock.calls[0]?.[0];
     getThread.mockResolvedValue(snapshot([], runningRun) as never);
@@ -1660,7 +1660,7 @@ describe("answered incoming call", () => {
     vi.useRealTimers();
   });
 
-  it("skips the ringing, speaks the bot's opening, then listens", async () => {
+  it("skips the ringing, speaks the stirrup's opening, then listens", async () => {
     startCall({
       botId: "call-bot",
       botName: "Ada",
@@ -1689,7 +1689,7 @@ describe("answered incoming call", () => {
     expect(speak).toHaveBeenCalledOnce();
   });
 
-  it("hangs up on the bot's call id", async () => {
+  it("hangs up on the stirrup's call id", async () => {
     startCall({
       botId: "call-bot",
       botName: "Ada",

@@ -120,7 +120,7 @@ describe("renderStackEnv", () => {
     expect(lines.some((line) => line.startsWith("RAKAZO_IMAGE_TAG="))).toBe(false);
     expect(lines.some((line) => line.startsWith("RAKAZO_COMPUTER_IMAGE_TAG="))).toBe(false);
     // Everything else, including the image names and empty optional keys, stays verbatim.
-    expect(lines).toContain("RAKAZO_IMAGE=ghcr.io/elie222/rakazo/app");
+    expect(lines).toContain("RAKAZO_IMAGE=ghcr.io/saddletreeai/stirrup/app");
     expect(lines).toContain("SANDBOX_PROVIDER=docker");
     expect(lines).toContain("OPENROUTER_API_KEY=");
     expect(rendered.endsWith("\n")).toBe(template.endsWith("\n"));
@@ -352,11 +352,11 @@ describe("reduceStackState", () => {
   it("records why Docker is unavailable", () => {
     const state = reduceStackState(reduceStackState(start, { type: "check-start" }), {
       type: "docker-missing",
-      message: "Rakazo needs Docker to run on this computer.",
+      message: "Stirrup needs Docker to run on this computer.",
     });
     expect(state).toMatchObject({
       phase: "docker-missing",
-      message: "Rakazo needs Docker to run on this computer.",
+      message: "Stirrup needs Docker to run on this computer.",
     });
   });
 });
@@ -965,7 +965,7 @@ describe("LocalStackController", () => {
     const state = await stack.start();
     expect(state).toMatchObject({
       phase: "docker-missing",
-      message: "Rakazo needs Docker to run on this computer.",
+      message: "Stirrup needs Docker to run on this computer.",
     });
     expect(calls).toEqual([]);
     await expect(stat(path.join(root, "stack", STACK_ENV_FILE))).rejects.toThrow();
@@ -1043,7 +1043,7 @@ describe("LocalStackController", () => {
   it("names Docker Desktop when it is missing on macOS and Windows", async () => {
     const stack = controller({ platform: "darwin", exists: () => false });
     expect((await stack.start()).message).toBe(
-      "Rakazo needs Docker Desktop to run on this computer.",
+      "Stirrup needs Docker Desktop to run on this computer.",
     );
   });
 

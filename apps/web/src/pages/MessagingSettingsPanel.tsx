@@ -234,7 +234,7 @@ export function MessagingSettingsPanel() {
   const botPicker =
     bots.length > 1 ? (
       <NativeSelect
-        aria-label={t`Bot`}
+        aria-label={t`Stirrup`}
         value={linkBotId}
         onChange={(event) => {
           setSelectedBotId(event.target.value);
@@ -320,7 +320,7 @@ export function MessagingSettingsPanel() {
                 <>
                   <p>{providerLabel("slack")}</p>
                   <p className="mt-0.5 text-body-sm text-muted-foreground">
-                    <Trans>Chat with your bot from Slack.</Trans>
+                    <Trans>Chat with your stirrup from Slack.</Trans>
                   </p>
                 </>
               }
@@ -453,7 +453,9 @@ export function MessagingSettingsPanel() {
         ) : null}
         {linkCode && linkRequest?.shared ? (
           <p className="mt-1 text-body-sm text-muted-foreground">
-            <Trans>Everyone in this bot's space can read the chats it gets from {linkApp}.</Trans>
+            <Trans>
+              Everyone in this stirrup's space can read the chats it gets from {linkApp}.
+            </Trans>
           </p>
         ) : null}
       </section>

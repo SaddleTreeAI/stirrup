@@ -53,7 +53,7 @@ export function SpaceMemorySection() {
         <Trans>Shared memory</Trans>
       </SectionHeading>
       <p className="mt-1 text-body-sm text-muted-foreground">
-        <Trans>Every bot in this space reads these notes and keeps them up to date.</Trans>
+        <Trans>Every stirrup in this space reads these notes and keeps them up to date.</Trans>
       </p>
       <div className="mt-3">
         <MemoryDocumentList input={{ scope: "user" }} testId="space-memory-list" />
@@ -199,7 +199,7 @@ function MemoryDocumentList({
         {error ? <div className="pb-2 text-body-sm text-destructive">{error}</div> : null}
         {kb > 0 ? (
           <p className="pb-2 text-body-sm text-muted-foreground" data-testid="memory-budget-note">
-            {t`About ${kb} KB of memory no longer reaches the bot.`}
+            {t`About ${kb} KB of memory no longer reaches the stirrup.`}
           </p>
         ) : null}
         {conflicted ? (

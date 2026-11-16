@@ -7,13 +7,13 @@ import UniformTypeIdentifiers
 /// Sends a message to a bot from Shortcuts, Siri or the Action button without opening the app.
 /// Without a chosen bot it goes to the one whose chat was opened last, so it needs no setup.
 struct MessageBotIntent: AppIntent {
-  static let title: LocalizedStringResource = "Message Bot"
+  static let title: LocalizedStringResource = "Message Stirrup"
   static let description = IntentDescription(
-    "Send a message to a bot. It works on it in the background and doesn't wait for a reply.")
+    "Send a message to a stirrup. It works on it in the background and doesn't wait for a reply.")
   // The session is in the keychain, which is readable only while the device is unlocked.
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
-  @Parameter(title: "Bot", description: "Leave empty to use the chat you opened last.")
+  @Parameter(title: "Stirrup", description: "Leave empty to use the chat you opened last.")
   var bot: BotEntity?
 
   @Parameter(title: "Message", requestValueDialog: "What should it say?")
@@ -37,12 +37,12 @@ struct MessageBotIntent: AppIntent {
 
 /// Sends like Message Bot, then waits for the reply so Siri can read it out or a shortcut can use it.
 struct AskBotIntent: AppIntent {
-  static let title: LocalizedStringResource = "Ask Bot"
+  static let title: LocalizedStringResource = "Ask Stirrup"
   static let description = IntentDescription(
-    "Ask a bot and get its reply here, to show, read aloud or use in the next step.")
+    "Ask a stirrup and get its reply here, to show, read aloud or use in the next step.")
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
-  @Parameter(title: "Bot", description: "Leave empty to use the chat you opened last.")
+  @Parameter(title: "Stirrup", description: "Leave empty to use the chat you opened last.")
   var bot: BotEntity?
 
   @Parameter(title: "Message", requestValueDialog: "What should it say?")
@@ -61,7 +61,7 @@ struct AskBotIntent: AppIntent {
     }
     let sent = try await send(message, file: file, to: bot)
     guard let reply = try await reply(to: sent), !reply.isEmpty else {
-      return .result(value: "", dialog: "Sent. The reply will be in Rakazo.")
+      return .result(value: "", dialog: "Sent. The reply will be in Stirrup.")
     }
     return .result(value: reply, dialog: "\(reply)")
   }
@@ -86,13 +86,13 @@ struct RunRoutineIntent: AppIntent {
   }
 }
 
-/// Opens a bot's chat through the app's own link, the same route a notification opens.
+/// Opens a stirrup's chat through the app's own link, the same route a notification opens.
 struct OpenBotIntent: AppIntent {
-  static let title: LocalizedStringResource = "Open Bot"
-  static let description = IntentDescription("Open a bot's chat in Rakazo.")
+  static let title: LocalizedStringResource = "Open Stirrup"
+  static let description = IntentDescription("Open a stirrup's chat in Stirrup.")
   static let openAppWhenRun = true
 
-  @Parameter(title: "Bot")
+  @Parameter(title: "Stirrup")
   var bot: BotEntity
 
   @MainActor
@@ -102,14 +102,14 @@ struct OpenBotIntent: AppIntent {
   }
 }
 
-/// Opens a bot's chat and starts a voice call. The call request goes through
+/// Opens a stirrup's chat and starts a voice call. The call request goes through
 /// modules/rakazo-voice-chat, since the chat link alone must never open the microphone.
 struct StartVoiceChatIntent: AppIntent {
   static let title: LocalizedStringResource = "Start Voice Chat"
-  static let description = IntentDescription("Open Rakazo and start a voice call with a bot.")
+  static let description = IntentDescription("Open Stirrup and start a voice call with a stirrup.")
   static let openAppWhenRun = true
 
-  @Parameter(title: "Bot", description: "Leave empty to use the chat you opened last.")
+  @Parameter(title: "Stirrup", description: "Leave empty to use the chat you opened last.")
   var bot: BotEntity?
 
   @MainActor
@@ -253,12 +253,12 @@ struct RakazoShortcuts: AppShortcutsProvider {
     AppShortcut(
       intent: MessageBotIntent(),
       phrases: ["Send a message with \(.applicationName)"],
-      shortTitle: "Message Bot",
+      shortTitle: "Message Stirrup",
       systemImageName: "bubble.left")
     AppShortcut(
       intent: AskBotIntent(),
       phrases: ["Ask a question in \(.applicationName)"],
-      shortTitle: "Ask Bot",
+      shortTitle: "Ask Stirrup",
       systemImageName: "bubble.left.and.text.bubble.right")
     AppShortcut(
       intent: RunRoutineIntent(),
@@ -267,8 +267,8 @@ struct RakazoShortcuts: AppShortcutsProvider {
       systemImageName: "play")
     AppShortcut(
       intent: OpenBotIntent(),
-      phrases: ["Open a bot in \(.applicationName)"],
-      shortTitle: "Open Bot",
+      phrases: ["Open a stirrup in \(.applicationName)"],
+      shortTitle: "Open Stirrup",
       systemImageName: "arrow.up.forward.app")
     AppShortcut(
       intent: StartVoiceChatIntent(),
@@ -284,7 +284,7 @@ struct RakazoShortcuts: AppShortcutsProvider {
 }
 
 struct BotEntity: AppEntity {
-  static let typeDisplayRepresentation: TypeDisplayRepresentation = "Bot"
+  static let typeDisplayRepresentation: TypeDisplayRepresentation = "Stirrup"
   static let defaultQuery = BotQuery()
 
   /// The Space travels with the bot, so a saved shortcut keeps working after the app switches Space.
@@ -561,9 +561,9 @@ private enum MessageBotError: Error, CustomLocalizedStringResourceConvertible {
 
   var localizedStringResource: LocalizedStringResource {
     switch self {
-    case .signedOut: "Sign in to Rakazo first."
-    case .noBot: "Open a chat in Rakazo first."
-    case .needsYou: "It needs you in Rakazo."
+    case .signedOut: "Sign in to Stirrup first."
+    case .noBot: "Open a chat in Stirrup first."
+    case .needsYou: "It needs you in Stirrup."
     case .consentRequired: "Review AI data sharing in Account settings before continuing."
     case .server(let message?): "\(message)"
     case .server(nil): "Something went wrong. Try again."

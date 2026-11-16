@@ -80,7 +80,7 @@ describe("Android live notification resume", () => {
     ).resolves.toBe(true);
   });
 
-  it("passes the muted bot to the native restart even without a thread id", async () => {
+  it("passes the muted stirrup to the native restart even without a thread id", async () => {
     await afterChatNotifyChange("https://app.example.test", "token-1", "space-1", {
       botId: "bot-1",
       notify: false,

@@ -102,7 +102,7 @@ function contrastRatio(text: string, surface: string): number {
   return (luminance(text) + 0.05) / (luminance(surface) + 0.05);
 }
 
-it.each(["text", "image"] as const)("keeps per-bot sender colours on %s messages", (kind) => {
+it.each(["text", "image"] as const)("keeps per-stirrup sender colours on %s messages", (kind) => {
   for (const [index, color] of botColors.entries()) {
     const id = `bot-${index}`;
     const html = renderToStaticMarkup(
@@ -169,7 +169,7 @@ it.each(["text", "image"] as const)(
   },
 );
 
-it("keeps the bot name when opening a computer without a sender label", () => {
+it("keeps the stirrup name when opening a computer without a sender label", () => {
   const opened: string[][] = [];
   renderToStaticMarkup(
     <Bubble

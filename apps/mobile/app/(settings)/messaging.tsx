@@ -250,7 +250,7 @@ export default function MessagingSettings() {
           {slackInstallations.length === 0 ? (
             <SettingsRow
               title={messagingProviderName("slack")}
-              detail={t`Chat with your bot from Slack.`}
+              detail={t`Chat with your stirrup from Slack.`}
               trailing={
                 <View style={styles.actions}>
                   {memberLink ? memberLinkButton : null}
@@ -330,7 +330,7 @@ export default function MessagingSettings() {
       <SettingsGroup>
         {bots.length > 1 && (connectChoices.length || memberLink) ? (
           <MenuPicker
-            label={t`Bot`}
+            label={t`Stirrup`}
             choices={bots.map((bot) => ({ key: bot.id, label: bot.name }))}
             value={botId}
             onChange={(id) => {
@@ -372,7 +372,7 @@ export default function MessagingSettings() {
             ? t`Send ${ph({ code: link.code })} to ${ph({ address: linkAddress })} from ${ph({ app: messagingProviderName(link.provider) })} within 10 minutes.`
             : t`Send ${ph({ code: link.code })} from ${ph({ app: messagingProviderName(link.provider) })} within 10 minutes.`}
           {link.shared
-            ? `\n${t`Everyone in this bot's space can read the chats it gets from ${ph({ app: messagingProviderName(link.provider) })}.`}`
+            ? `\n${t`Everyone in this stirrup's space can read the chats it gets from ${ph({ app: messagingProviderName(link.provider) })}.`}`
             : ""}
         </Text>
       ) : null}

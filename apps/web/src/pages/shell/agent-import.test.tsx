@@ -210,7 +210,7 @@ describe("choosing backups while a file is being read", () => {
     expect(container!.querySelector('[data-testid="agent-import-choose"]')).not.toBeNull();
   });
 
-  it.each(["Back", "Cancel new bot"])("discards a pending backup on %s", async (label) => {
+  it.each(["Back", "Cancel new stirrup"])("discards a pending backup on %s", async (label) => {
     const first = deferred<ArrayBuffer>();
     const input = await render();
     await select(input, backup(first.promise));
@@ -379,7 +379,7 @@ describe("an item whose text looks like it contains a key", () => {
   });
 });
 
-describe("creating a bot", () => {
+describe("creating a stirrup", () => {
   function button(label: string) {
     return [...container!.querySelectorAll("button")].find(
       (item) => item.textContent === label || item.getAttribute("aria-label") === label,
@@ -530,7 +530,7 @@ describe("a plain-HTTP LAN server, where crypto.randomUUID is missing", () => {
 });
 
 describe("a Grok Bot reply with several Bots", () => {
-  it("asks which Bot, and forgets the choice when another source is read", async () => {
+  it("asks which Stirrup, and forgets the choice when another source is read", async () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -554,7 +554,7 @@ describe("a Grok Bot reply with several Bots", () => {
     await act(async () =>
       [...grok.querySelectorAll("button")].find((item) => item.textContent === "Continue")!.click(),
     );
-    expect(grok.textContent).toContain("Which Bot?");
+    expect(grok.textContent).toContain("Which Stirrup?");
     expect(importPreview).not.toHaveBeenCalled();
 
     const archive = container.querySelector<HTMLInputElement>(
@@ -568,7 +568,7 @@ describe("a Grok Bot reply with several Bots", () => {
       Object.defineProperty(archive, "files", { configurable: true, value: [file] });
       archive.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(grok.textContent).not.toContain("Which Bot?");
+    expect(grok.textContent).not.toContain("Which Stirrup?");
   });
 });
 

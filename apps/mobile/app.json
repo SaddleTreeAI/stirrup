@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Rakazo",
+    "name": "Stirrup",
     "slug": "rakazo",
     "owner": "inbox-zero",
-    "scheme": "rakazo",
+    "scheme": ["stirrup", "rakazo"],
     "version": "1.0.14",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
@@ -26,14 +26,14 @@
         "expo-audio",
         {
           "enableBackgroundPlayback": false,
-          "microphonePermission": "Rakazo uses the microphone for voice calls with your bots."
+          "microphonePermission": "Stirrup uses the microphone for voice calls with your stirrups."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "speechRecognitionPermission": "Rakazo turns your speech into messages during voice calls.",
-          "microphonePermission": "Rakazo uses the microphone for voice calls with your bots."
+          "speechRecognitionPermission": "Stirrup turns your speech into messages during voice calls.",
+          "microphonePermission": "Stirrup uses the microphone for voice calls with your stirrups."
         }
       ],
       "expo-localization",
@@ -48,9 +48,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Rakazo uses your photo library so you can attach images to a bot message.",
-          "cameraPermission": "Rakazo uses the camera so you can attach photos to a bot message.",
-          "microphonePermission": "Rakazo uses the microphone for voice calls with your bots."
+          "photosPermission": "Stirrup uses your photo library so you can attach images to a stirrup message.",
+          "cameraPermission": "Stirrup uses the camera so you can attach photos to a stirrup message.",
+          "microphonePermission": "Stirrup uses the microphone for voice calls with your stirrups."
         }
       ],
       "./plugins/with-share-extension",
@@ -104,14 +104,14 @@
       "bundleIdentifier": "com.rakazo.app",
       "buildNumber": "1",
       "supportsTablet": true,
-      "icon": "../../packages/ui-tokens/assets/Rakazo.icon",
+      "icon": "../../packages/ui-tokens/assets/Stirrup.icon",
       "config": {
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "Rakazo uses the camera so you can attach photos to a bot message.",
-        "NSPhotoLibraryUsageDescription": "Rakazo uses your photo library so you can attach images to a bot message.",
-        "NSLocalNetworkUsageDescription": "Rakazo connects to a self-hosted Rakazo server on your local network.",
+        "NSCameraUsageDescription": "Stirrup uses the camera so you can attach photos to a stirrup message.",
+        "NSPhotoLibraryUsageDescription": "Stirrup uses your photo library so you can attach images to a stirrup message.",
+        "NSLocalNetworkUsageDescription": "Stirrup connects to a self-hosted Stirrup server on your local network.",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },

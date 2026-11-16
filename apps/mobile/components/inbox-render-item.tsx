@@ -43,7 +43,7 @@ export function InboxListFooter({
   const router = useRouter();
   return (
     <>
-      {createHint ? <Text style={styles.empty}>{t`Tap + to create a bot`}</Text> : null}
+      {createHint ? <Text style={styles.empty}>{t`Tap + to create a stirrup`}</Text> : null}
       <ArchivedChatsRow count={archivedCount} onPress={() => router.push("/archived-bots")} />
     </>
   );
@@ -308,7 +308,7 @@ export function useInboxRenderItem({
                     actions: [
                       {
                         id: "new-bot",
-                        title: t`New bot`,
+                        title: t`New stirrup`,
                         image: "person.crop.circle.badge.plus",
                         disabled: spaceBusy || !!spaceRecoveryId,
                       },

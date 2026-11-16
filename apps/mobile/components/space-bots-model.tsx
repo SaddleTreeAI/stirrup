@@ -59,9 +59,9 @@ export function SpaceBotsModel({
   function confirm() {
     Alert.alert(
       count === 1
-        ? t`Switch 1 bot to the space default?`
-        : t`Switch ${count} bots to the space default?`,
-      t`Their own model is cleared. You can pick one again in each bot.`,
+        ? t`Switch 1 stirrup to the space default?`
+        : t`Switch ${count} stirrups to the space default?`,
+      t`Their own model is cleared. You can pick one again in each stirrup.`,
       [
         { text: t`Cancel`, style: "cancel" },
         { text: t`Switch`, onPress: () => void switchAll() },
@@ -71,11 +71,11 @@ export function SpaceBotsModel({
 
   if (count === 0 && !moved) return null;
   const summary =
-    count === 1 ? t`1 bot has its own model:` : t`${count} bots have their own model:`;
+    count === 1 ? t`1 stirrup has its own model:` : t`${count} stirrups have their own model:`;
   return (
     <View style={styles.section}>
       <SettingsGroup
-        label={t`Bot models`}
+        label={t`Stirrup models`}
         footer={count ? `${summary} ${pinned.map((bot) => bot.name).join(", ")}` : undefined}
       >
         {count ? (
@@ -92,8 +92,8 @@ export function SpaceBotsModel({
       {moved ? (
         <Text style={styles.status}>
           {moved === 1
-            ? t`1 bot now uses the space default.`
-            : t`${ph({ count: moved })} bots now use the space default.`}
+            ? t`1 stirrup now uses the space default.`
+            : t`${ph({ count: moved })} stirrups now use the space default.`}
         </Text>
       ) : null}
       {stillFailed.length ? (

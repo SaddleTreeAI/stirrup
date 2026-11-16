@@ -14,7 +14,7 @@ const group = (id: string, sectionId: string | null, memberIds: string[]) => ({
 });
 
 describe("resolveRosterDrop", () => {
-  it("reorders when the bot is dropped on a sibling in the same section", () => {
+  it("reorders when the stirrup is dropped on a sibling in the same section", () => {
     expect(
       resolveRosterDrop({
         dragged: bot("a", "s1"),
@@ -34,7 +34,7 @@ describe("resolveRosterDrop", () => {
     ).toBeNull();
   });
 
-  it("moves to the target bot's section when the sections differ", () => {
+  it("moves to the target stirrup's section when the sections differ", () => {
     expect(
       resolveRosterDrop({
         dragged: bot("a", "s1"),
@@ -78,7 +78,7 @@ describe("resolveRosterDrop", () => {
     ).toBeNull();
   });
 
-  it("never moves a pinned bot into a section; pinned rows only reorder", () => {
+  it("never moves a pinned stirrup into a section; pinned rows only reorder", () => {
     expect(
       resolveRosterDrop({
         dragged: bot("a", null, true),

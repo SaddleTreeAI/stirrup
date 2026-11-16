@@ -13,7 +13,7 @@ export function BotEmailAddresses() {
   return (
     <section data-testid="vault-bot-emails" className="pt-2">
       <SectionHeading variant="label" className="mb-2">
-        <Trans>Bot email addresses</Trans>
+        <Trans>Stirrup email addresses</Trans>
       </SectionHeading>
       <ul className="overflow-hidden rounded-xl bg-muted/50">
         {email.addresses.map((row) => (

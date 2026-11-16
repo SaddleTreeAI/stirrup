@@ -138,7 +138,7 @@ async function handlers(
   };
 }
 
-it("reports a saved bot mute even when its inbox row has no thread id", async () => {
+it("reports a saved stirrup mute even when its inbox row has no thread id", async () => {
   const actions = await handlers(async () => undefined);
   await actions.updateChat("bot", { id: "b1", spaceId: "space-a" }, { notifyOnFinish: false });
   expect(afterChatNotifyChange).toHaveBeenCalledExactlyOnceWith("", null, "space-a", {
@@ -148,7 +148,7 @@ it("reports a saved bot mute even when its inbox row has no thread id", async ()
   });
 });
 
-it("does not report a bot mute when the server save fails", async () => {
+it("does not report a stirrup mute when the server save fails", async () => {
   const actions = await handlers(async () => {
     throw new Error("offline");
   });
@@ -433,7 +433,7 @@ it("puts a chat back in its place when the archive fails", async () => {
     "b2",
   ]);
   expect(notifyArchivedChatsChanged).not.toHaveBeenCalled();
-  expect(session.alert).toHaveBeenCalledWith("Could not archive bot", "Try again.");
+  expect(session.alert).toHaveBeenCalledWith("Could not archive stirrup", "Try again.");
   expect(h.loadBots).toHaveBeenCalledTimes(1);
 });
 
@@ -473,14 +473,14 @@ it("updates a chat from another space in that space without switching", async ()
   expect(h.loadBots).toHaveBeenCalledTimes(1);
 });
 
-it("names the archive failure for bots", async () => {
+it("names the archive failure for stirrups", async () => {
   const h = await handlers(async () => {
     throw new Error("nope");
   });
   await h.runRowAction("bot", { id: "x" }, "archive");
   await h.runRowAction("group", { id: "x" }, "pin");
   expect(session.alert.mock.calls.map(([title]) => title)).toEqual([
-    "Could not archive bot",
+    "Could not archive stirrup",
     "Could not update chat",
   ]);
   expect(notifyArchivedChatsChanged).not.toHaveBeenCalled();
@@ -524,7 +524,7 @@ it("allows delete in a visible embedded inbox without route focus", async () => 
   expect(vi.mocked(confirmDeleteBot).mock.calls[0]![2]!()).toBe(true);
 });
 
-it("leaves a dissolved group open beside the inbox after bot deletion", async () => {
+it("leaves a dissolved group open beside the inbox after stirrup deletion", async () => {
   const h = await handlers(async () => []);
   session.route = { name: "group-thread", params: { groupId: "group-removed" } };
   await h.runRowAction("bot", { id: "x", name: "Ada" }, "delete");

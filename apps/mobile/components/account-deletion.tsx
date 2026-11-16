@@ -92,7 +92,7 @@ export function useAccountDeletion({
 
     const prompted = promptAccountDeletion({
       title: t`Delete your account?`,
-      message: t`This permanently deletes your account, bots, conversations, memories, files, and saved connections. This cannot be undone.`,
+      message: t`This permanently deletes your account, stirrups, conversations, memories, files, and saved connections. This cannot be undone.`,
       cancelLabel: t`Cancel`,
       deleteLabel: t`Delete`,
       onSubmit: (value) => void submit(value, true),
@@ -168,7 +168,7 @@ export function useAccountDeletion({
         >
           <Text style={styles.dialogTitle}>{t`Delete your account?`}</Text>
           <Text style={styles.dialogBody}>
-            {t`This permanently deletes your account, bots, conversations, memories, files, and saved connections. This cannot be undone.`}
+            {t`This permanently deletes your account, stirrups, conversations, memories, files, and saved connections. This cannot be undone.`}
           </Text>
           {!security?.hasPassword ? (
             <>

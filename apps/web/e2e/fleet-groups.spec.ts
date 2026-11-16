@@ -1,10 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
 
-test("a group a bot creates after approval appears in the sidebar without a reload", async ({
+test("a group a stirrup creates after approval appears in the sidebar without a reload", async ({
   page,
 }, testInfo) => {
-  await signup(page, `bot-management-groups-${Date.now()}@rakazo.test`, "password12", "Bot Groups");
+  await signup(
+    page,
+    `bot-management-groups-${Date.now()}@rakazo.test`,
+    "password12",
+    "Stirrup Groups",
+  );
   await completeOnboarding(page);
   await page.waitForURL(/\/app\/[^/]+$/);
   const chiefId = activeBotId(page);
@@ -56,7 +61,7 @@ test(
       page,
       `bot-management-model-${Date.now()}@rakazo.test`,
       "password12",
-      "Bot Models",
+      "Stirrup Models",
     );
     await completeOnboarding(page);
     await page.waitForURL(/\/app\/[^/]+$/);
@@ -72,7 +77,7 @@ test(
     );
     const bots = await rpc<Array<{ id: string; name: string }>>(page, "bots/list", {});
     const scout = bots.find((bot) => bot.name === "Scout");
-    if (!scout) throw new Error("Missing child bot");
+    if (!scout) throw new Error("Missing child stirrup");
     await rpc(page, "models/connect", {
       provider: "openai",
       apiKey: "test-key-not-a-real-secret",

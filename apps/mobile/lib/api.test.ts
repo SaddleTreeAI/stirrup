@@ -326,12 +326,12 @@ describe("mobile API requests", () => {
       vi
         .fn()
         .mockRejectedValueOnce(new TypeError("Network request failed"))
-        .mockResolvedValueOnce(rpcErrorResponse(404, "NOT_FOUND", "Bot does not exist")),
+        .mockResolvedValueOnce(rpcErrorResponse(404, "NOT_FOUND", "Stirrup does not exist")),
     );
     try {
       expect(isServerUnreachable(await rpc("bots/list").catch((error) => error))).toBe(true);
       expect(isServerReachable()).toBe(false);
-      await expect(rpc("bots/get", { botId: "bot-1" })).rejects.toThrow("Bot does not exist");
+      await expect(rpc("bots/get", { botId: "bot-1" })).rejects.toThrow("Stirrup does not exist");
       expect(isServerReachable()).toBe(true);
       expect(changed).toHaveBeenCalledTimes(2);
     } finally {
@@ -378,7 +378,7 @@ describe("mobile API requests", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ json: { ok: true } }))
-      .mockResolvedValueOnce(rpcErrorResponse(404, "NOT_FOUND", "Bot does not exist"));
+      .mockResolvedValueOnce(rpcErrorResponse(404, "NOT_FOUND", "Stirrup does not exist"));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(rpc("bots/get", { botId: "bot-1" })).resolves.toEqual({
@@ -392,7 +392,7 @@ describe("mobile API requests", () => {
         body: JSON.stringify({ json: { botId: "bot-1" } }),
       }),
     );
-    await expect(rpc("bots/get", { botId: "missing" })).rejects.toThrow("Bot does not exist");
+    await expect(rpc("bots/get", { botId: "missing" })).rejects.toThrow("Stirrup does not exist");
   });
 
   it("asks to update a server from before vault import", async () => {
@@ -1112,7 +1112,9 @@ describe("mobile API requests", () => {
       .mockResolvedValueOnce(jsonResponse({ json: { spaces: [] } }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(rpc("bots/create", { name: "Wrong space bot" })).rejects.toThrow("Unauthorized");
+    await expect(rpc("bots/create", { name: "Wrong space stirrup" })).rejects.toThrow(
+      "Unauthorized",
+    );
     expect(selectedSpaceId()).toBeNull();
     expect(storage.has("rakazo.space_id")).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(2);

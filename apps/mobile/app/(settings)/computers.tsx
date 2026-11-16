@@ -99,7 +99,7 @@ export default function ComputersSettings() {
     if (pendingRef.current) return;
     Alert.alert(
       t`Remove ${device.name}?`,
-      t`This computer will stop running bots for your account`,
+      t`This computer will stop running stirrups for your account`,
       [
         { text: t`Cancel`, style: "cancel" },
         {

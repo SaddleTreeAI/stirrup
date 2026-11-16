@@ -91,7 +91,7 @@ test("a failed space search says so instead of No results", async ({ page }, tes
   await expect(failure).toHaveCount(0);
 });
 
-test("a bot found by search can be pinned from its result", async ({ page }, testInfo) => {
+test("a stirrup found by search can be pinned from its result", async ({ page }, testInfo) => {
   await signup(page, `sidebar-search-pin-${Date.now()}@rakazo.test`, "password12", "Search Pin");
   await completeOnboarding(page);
   const sidebar = page.locator("aside").first();
@@ -99,7 +99,7 @@ test("a bot found by search can be pinned from its result", async ({ page }, tes
   const search = sidebar.getByRole("textbox", { name: "Search", exact: true });
   await search.fill("Chief");
 
-  const result = sidebar.getByRole("button", { name: /^Chief.*Bot/ }).first();
+  const result = sidebar.getByRole("button", { name: /^Chief.*Stirrup/ }).first();
   await result.click({ button: "right" });
   const pin = page.getByRole("menuitem", { name: "Pin", exact: true });
   await expect(pin).toBeVisible();

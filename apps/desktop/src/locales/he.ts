@@ -3,7 +3,7 @@ export const HE_MESSAGES: Record<string, string> = {
   "Check for Updates…": "בדיקת עדכונים…",
   "Computer Access…": "גישה למחשב…",
   "Revoke Local Computer Access": "ביטול הגישה למחשב המקומי",
-  "Change Rakazo Server…": "החלפת שרת Rakazo…",
+  "Change Stirrup Server…": "החלפת שרת Stirrup…",
   "Stop Local Stack": "עצירת ה-Stack המקומי",
   "Hide {name}": "הסתרת {name}",
   "Hide Others": "הסתרת אחרים",
@@ -35,27 +35,27 @@ export const HE_MESSAGES: Record<string, string> = {
   Close: "סגירה",
   "Close Window": "סגירת החלון",
   "Bring All to Front": "הבאת הכל לחזית",
-  "Rakazo {version} is ready to install.": "Rakazo {version} מוכן להתקנה.",
+  "Stirrup {version} is ready to install.": "Stirrup {version} מוכן להתקנה.",
   Restart: "הפעלה מחדש",
   Later: "אחר כך",
   "Could not install the update.": "לא ניתן היה להתקין את העדכון.",
   "Could not check for updates.": "לא ניתן היה לבדוק אם יש עדכונים.",
-  "Rakazo is up to date.": "Rakazo מעודכן.",
+  "Stirrup is up to date.": "Stirrup מעודכן.",
   "Version {version}": "גרסה {version}",
   "Automatic updates are turned off for this install.": "העדכונים האוטומטיים כבויים בהתקנה הזו.",
   "Automatic updates only run in an installed build.": "עדכונים אוטומטיים פועלים רק בגרסה מותקנת.",
   "No desktop releases are published for this build yet.":
     "עדיין לא פורסמו גרסאות שולחן עבודה עבור ה-build הזה.",
-  "Move Rakazo to Applications to install updates.":
-    "יש להעביר את Rakazo לתיקיית ״יישומים״ כדי להתקין עדכונים.",
+  "Move Stirrup to Applications to install updates.":
+    "יש להעביר את Stirrup לתיקיית ״יישומים״ כדי להתקין עדכונים.",
   "Free up disk space to install updates.": "יש לפנות מקום בדיסק כדי להתקין עדכונים.",
-  "This update could not be verified. Reinstall Rakazo from a trusted download.":
-    "לא ניתן היה לאמת את העדכון הזה. יש להתקין מחדש את Rakazo מהורדה מהימנה.",
+  "This update could not be verified. Reinstall Stirrup from a trusted download.":
+    "לא ניתן היה לאמת את העדכון הזה. יש להתקין מחדש את Stirrup מהורדה מהימנה.",
   "The update could not be completed. Try again later.":
     "לא ניתן היה להשלים את העדכון. כדאי לנסות שוב מאוחר יותר.",
   "Could not reach the update server.": "לא ניתן היה להתחבר לשרת העדכונים.",
   "Allow local computer access?": "לאפשר גישה למחשב המקומי?",
-  "Allow bots to use this computer?": "לאפשר לבוטים להשתמש במחשב הזה?",
+  "Allow stirrups to use this computer?": "לאפשר לבוטים להשתמש במחשב הזה?",
   Cancel: "ביטול",
   Allow: "אישור",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -69,13 +69,13 @@ export const HE_MESSAGES: Record<string, string> = {
     "כבר מתבצע ניסיון התחברות. יש לבטל אותו ולנסות שוב.",
   "Could not open browser sign-in. Close other sign-in attempts and retry.":
     "לא ניתן היה לפתוח התחברות בדפדפן. יש לסגור ניסיונות התחברות אחרים ולנסות שוב.",
-  "Sign-in callback rejected. Return to Rakazo to retry.":
-    "תגובת ההתחברות נדחתה. יש לחזור ל-Rakazo כדי לנסות שוב.",
-  "You can close this tab and return to Rakazo.": "אפשר לסגור את הכרטיסייה הזו ולחזור ל-Rakazo.",
-  "Set up Rakazo": "הגדרת Rakazo",
-  "Quit Rakazo": "יציאה מ-Rakazo",
-  "Welcome to Rakazo": "ברוכים הבאים ל-Rakazo",
-  "Choose where Rakazo runs.": "בחרו איפה Rakazo יפעל.",
+  "Sign-in callback rejected. Return to Stirrup to retry.":
+    "תגובת ההתחברות נדחתה. יש לחזור ל-Stirrup כדי לנסות שוב.",
+  "You can close this tab and return to Stirrup.": "אפשר לסגור את הכרטיסייה הזו ולחזור ל-Stirrup.",
+  "Set up Stirrup": "הגדרת Stirrup",
+  "Quit Stirrup": "יציאה מ-Stirrup",
+  "Welcome to Stirrup": "ברוכים הבאים ל-Stirrup",
+  "Choose where Stirrup runs.": "בחרו איפה Stirrup יפעל.",
   Instance: "מופע",
   "This computer": "המחשב הזה",
   "Existing instance": "מופע קיים",
@@ -88,14 +88,14 @@ export const HE_MESSAGES: Record<string, string> = {
   Continue: "המשך",
   Retry: "ניסיון חוזר",
   "Getting ready…": "מתכוננים…",
-  "Downloading Rakazo…": "מוריד את Rakazo…",
-  "Starting Rakazo…": "מפעיל את Rakazo…",
+  "Downloading Stirrup…": "מוריד את Stirrup…",
+  "Starting Stirrup…": "מפעיל את Stirrup…",
   "Almost ready…": "כמעט מוכן…",
-  "Rakazo is ready.": "Rakazo מוכן.",
+  "Stirrup is ready.": "Stirrup מוכן.",
   "{size} downloaded": "הורדו {size}",
   "Connecting…": "מתחבר…",
   "Checking…": "בודק…",
-  "Rakazo answered at {url}.": "Rakazo הגיב בכתובת {url}.",
+  "Stirrup answered at {url}.": "Stirrup הגיב בכתובת {url}.",
   "Enter a server address first.": "יש להזין קודם כתובת שרת.",
   "Could not save that address.": "לא ניתן היה לשמור את הכתובת הזו.",
   "Could not save that address. Try again.": "לא ניתן היה לשמור את הכתובת הזו. כדאי לנסות שוב.",
@@ -105,16 +105,16 @@ export const HE_MESSAGES: Record<string, string> = {
     "לא ניתן היה להפעיל את ה-Stack המקומי. כדאי לנסות שוב.",
   "Could not run the connection check. Try again.": "לא ניתן היה לבדוק את החיבור. כדאי לנסות שוב.",
   "Setup bridge unavailable.": "גשר ההגדרה לא זמין.",
-  "Setup could not start. Quit Rakazo and try again.":
-    "לא ניתן היה להתחיל את ההגדרה. יש לצאת מ-Rakazo ולנסות שוב.",
+  "Setup could not start. Quit Stirrup and try again.":
+    "לא ניתן היה להתחיל את ההגדרה. יש לצאת מ-Stirrup ולנסות שוב.",
   "Enter a server address.": "יש להזין כתובת שרת.",
   "Enter a valid http:// or https:// address.": "יש להזין כתובת http:// או https:// תקינה.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "יש להזין כתובת שרת תקינה. שרתים ציבוריים מחייבים HTTPS; מופע מקומי חדש חייב להשתמש ב-localhost.",
   "Invalid custom headers": "כותרות מותאמות אישית לא תקינות",
-  "That address redirects elsewhere. Enter the final Rakazo server address.":
-    "הכתובת הזו מפנה למקום אחר. יש להזין את הכתובת הסופית של שרת Rakazo.",
-  "That address did not respond like a Rakazo server.": "הכתובת הזו לא הגיבה כמו שרת Rakazo.",
+  "That address redirects elsewhere. Enter the final Stirrup server address.":
+    "הכתובת הזו מפנה למקום אחר. יש להזין את הכתובת הסופית של שרת Stirrup.",
+  "That address did not respond like a Stirrup server.": "הכתובת הזו לא הגיבה כמו שרת Stirrup.",
   "The server answered with HTTP {status}.": "השרת הגיב עם HTTP {status}.",
   "Timed out reaching that address.": "תם הזמן לחיבור לכתובת הזו.",
   "Nothing is listening at that address yet.": "עדיין אין שום דבר שמאזין בכתובת הזו.",
@@ -139,8 +139,8 @@ export const HE_MESSAGES: Record<string, string> = {
     "לא ניתן היה לשמור את ההגדרה. המופע הקודם שוחזר.",
   "Connected, but could not save setup for the next launch. Try Continue again.":
     "החיבור הצליח, אבל לא ניתן היה לשמור את ההגדרה להפעלה הבאה. יש ללחוץ שוב על ״המשך״.",
-  "The app-managed Rakazo services are not ready. Retry setup.":
-    "שירותי Rakazo שהאפליקציה מנהלת אינם מוכנים. יש לנסות את ההגדרה שוב.",
+  "The app-managed Stirrup services are not ready. Retry setup.":
+    "שירותי Stirrup שהאפליקציה מנהלת אינם מוכנים. יש לנסות את ההגדרה שוב.",
   "Docker is installed, but Docker Compose is missing. Install Docker Desktop or the docker-compose-plugin.":
     "Docker מותקן, אבל Docker Compose חסר. יש להתקין את Docker Desktop או את docker-compose-plugin.",
   "Could not check Docker Compose. Check the output below, then retry.":
@@ -160,10 +160,10 @@ export const HE_MESSAGES: Record<string, string> = {
     "Docker הפסיק להגיב. יש להפעיל את Docker ולנסות שוב.",
   "Docker Compose is missing. Install Docker Desktop or the docker-compose-plugin, then retry.":
     "Docker Compose חסר. יש להתקין את Docker Desktop או את docker-compose-plugin ולנסות שוב.",
-  "Downloading Rakazo images failed. Check the output below, then retry.":
-    "הורדת האימג׳ים של Rakazo נכשלה. יש לעיין בפלט שלמטה ולנסות שוב.",
-  "Rakazo services did not start. Check the output below, then retry.":
-    "שירותי Rakazo לא הופעלו. יש לעיין בפלט שלמטה ולנסות שוב.",
+  "Downloading Stirrup images failed. Check the output below, then retry.":
+    "הורדת האימג׳ים של Stirrup נכשלה. יש לעיין בפלט שלמטה ולנסות שוב.",
+  "Stirrup services did not start. Check the output below, then retry.":
+    "שירותי Stirrup לא הופעלו. יש לעיין בפלט שלמטה ולנסות שוב.",
   "The stack started but the web app did not answer. Retry, and check the output below.":
     "ה-Stack הופעל, אבל אפליקציית האינטרנט לא הגיבה. יש לנסות שוב ולעיין בפלט שלמטה.",
   "Could not prepare the local stack. Retry.":
@@ -187,16 +187,16 @@ export const HE_MESSAGES: Record<string, string> = {
   "Chat Details": "פרטי הצ׳אט",
   Help: "עזרה",
   "Keyboard Shortcuts": "קיצורי מקלדת",
-  "Downloading Rakazo failed. Check the internet connection, then retry.":
-    "ההורדה של Rakazo נכשלה. בדקו את החיבור לאינטרנט ונסו שוב.",
+  "Downloading Stirrup failed. Check the internet connection, then retry.":
+    "ההורדה של Stirrup נכשלה. בדקו את החיבור לאינטרנט ונסו שוב.",
   "Could not move your data from Docker. Check the output below, then retry.":
     "לא ניתן להעביר את הנתונים מ-Docker. בדקו את הפלט למטה ונסו שוב.",
   "The computer runtime already running is too old. Update or quit it, then retry.":
     "סביבת ההרצה של המחשבים שכבר פועלת ישנה מדי. עדכנו או סגרו אותה ונסו שוב.",
-  "Your Rakazo data is in a different computer runtime. Quit the one running, then retry.":
-    "הנתונים שלכם ב-Rakazo נמצאים בסביבת הרצה אחרת של המחשבים. סגרו את זו שפועלת ונסו שוב.",
-  "Run Rakazo without Docker?": "להפעיל את Rakazo בלי Docker?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
+    "הנתונים שלכם ב-Stirrup נמצאים בסביבת הרצה אחרת של המחשבים. סגרו את זו שפועלת ונסו שוב.",
+  "Run Stirrup without Docker?": "להפעיל את Stirrup בלי Docker?",
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "הבוטים והנתונים שלכם יועברו. Docker ייעצר, לא יוסר.",
   Move: "העברה",
   "Keep Docker": "להשאיר את Docker",
@@ -204,11 +204,11 @@ export const HE_MESSAGES: Record<string, string> = {
   "Your data stays on this computer.": "הנתונים שלכם נשארים במחשב הזה.",
   "Connect to a server you or your team already run.":
     "התחברות לשרת שאתם או הצוות שלכם כבר מפעילים.",
-  "Rakazo needs Docker Desktop to run on this computer.":
-    "Rakazo צריך את Docker Desktop כדי לפעול במחשב הזה.",
-  "Rakazo needs Docker to run on this computer.": "Rakazo צריך את Docker כדי לפעול במחשב הזה.",
-  "Docker Desktop is a free app that runs Rakazo in the background. Install it and open it once.":
-    "Docker Desktop היא אפליקציה חינמית שמפעילה את Rakazo ברקע. מתקינים ופותחים אותה פעם אחת.",
+  "Stirrup needs Docker Desktop to run on this computer.":
+    "Stirrup צריך את Docker Desktop כדי לפעול במחשב הזה.",
+  "Stirrup needs Docker to run on this computer.": "Stirrup צריך את Docker כדי לפעול במחשב הזה.",
+  "Docker Desktop is a free app that runs Stirrup in the background. Install it and open it once.":
+    "Docker Desktop היא אפליקציה חינמית שמפעילה את Stirrup ברקע. מתקינים ופותחים אותה פעם אחת.",
   "Install Docker Engine and start it.": "מתקינים את Docker Engine ומפעילים אותו.",
   "Download Docker Desktop": "הורדת Docker Desktop",
   "Install Docker": "התקנת Docker",

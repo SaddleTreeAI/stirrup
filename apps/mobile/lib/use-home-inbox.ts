@@ -135,7 +135,7 @@ export function useHomeInbox(
         return;
       setLoadFailure({
         kind: loadFailureKind(err),
-        message: errorText(err, t`Could not load bots`),
+        message: errorText(err, t`Could not load stirrups`),
       });
       // False when the server refused rather than failed: asking again only polls it.
       return isRetryableError(err);

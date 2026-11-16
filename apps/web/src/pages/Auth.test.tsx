@@ -170,7 +170,7 @@ it.each(["in", "up"] as const)("offers providers before the email form on %s", a
   expect(provider.className).toContain("w-full");
   expect(emailChoice.dataset.variant).toBe("outline");
   expect(emailChoice.className).toContain("w-full");
-  expect(host.querySelector("[data-rakazo-logo]")).not.toBeNull();
+  expect(host.querySelector('img[src="/icon-192.png"]')).not.toBeNull();
   expect(
     provider.compareDocumentPosition(emailChoice) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
@@ -207,7 +207,7 @@ it("shows a configured provider beside the password form and hides the rest", as
   expect(emailChoice.dataset.variant).toBe("outline");
   expect(emailChoice.className).toContain("w-full");
   expect(host.textContent).toContain("Welcome back");
-  expect(host.querySelector("[data-rakazo-logo]")).not.toBeNull();
+  expect(host.querySelector('img[src="/icon-192.png"]')).not.toBeNull();
   await act(async () => google.click());
   expect(authClient.signIn.social).toHaveBeenCalledWith(
     expect.objectContaining({ provider: "google" }),

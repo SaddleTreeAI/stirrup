@@ -20,8 +20,12 @@ afterEach(() => {
 
 it("says why a secret answer was refused, and nothing an error could echo", () => {
   i18n.activate("en");
-  expect(secretAnswerErrorText(new Error(BLOCKED), "Could not send answer")).toBe(BLOCKED);
-  expect(secretAnswerErrorText(new Error(UNCHOSEN), "Could not send answer")).toBe(UNCHOSEN);
+  expect(secretAnswerErrorText(new Error(BLOCKED), "Could not send answer")).toBe(
+    "This item is blocked for stirrups. Allow it in the Vault, or dismiss the request.",
+  );
+  expect(secretAnswerErrorText(new Error(UNCHOSEN), "Could not send answer")).toBe(
+    "This stirrup can't use this item. Change it in the Vault, or dismiss the request.",
+  );
   expect(
     secretAnswerErrorText(new Error("Rejected saved-password-1"), "Could not send answer"),
   ).toBe("Could not send answer");
@@ -30,7 +34,7 @@ it("says why a secret answer was refused, and nothing an error could echo", () =
 it("says what an older server dropped from a save, in one place for both apps", () => {
   i18n.activate("en");
   expect(vaultSaveNotice({ policy: "off", alsoOn: ["https://www.example.test"] }, {})).toBe(
-    "Saved, but this server can't block bots yet. Saved, but this server fills logins only on their own site.",
+    "Saved, but this server can't block stirrups yet. Saved, but this server fills logins only on their own site.",
   );
   expect(vaultSaveNotice({ allBots: false }, { allBots: false })).toBe("");
 });
@@ -41,20 +45,20 @@ it("names each policy the same in both apps", () => {
 });
 
 it.each([
-  [true, true, "This Space keeps its own vault, so its bots can't use account items."],
-  [true, false, "This Space keeps its own vault, so its bots can't use account items."],
-  [false, true, "This limits only this Space's bots. Your other Spaces choose for their own."],
+  [true, true, "This Space keeps its own vault, so its stirrups can't use account items."],
+  [true, false, "This Space keeps its own vault, so its stirrups can't use account items."],
+  [false, true, "This limits only this Space's stirrups. Your other Spaces choose for their own."],
   [false, false, undefined],
 ])(
-  "says under the bots, with its own vault %s and other Spaces %s: %s",
+  "says under the stirrups, with its own vault %s and other Spaces %s: %s",
   (ownVault, otherSpaces, note) => {
     i18n.activate("en");
     expect(vaultBotsNote({ ownVault, otherSpaces })).toBe(note);
   },
 );
 
-// What an item's details say of its bots, the same on web (which names chosen bots) and mobile.
-const OWN_VAULT = "This Space keeps its own vault, so its bots can't use account items.";
+// What an item's details say of its stirrups, the same on web (which names chosen stirrups) and mobile.
+const OWN_VAULT = "This Space keeps its own vault, so its stirrups can't use account items.";
 const item = { blockable: true, unusedHere: false };
 const some = { allBots: false, botIds: ["bot-1", "bot-2"] };
 it.each([
@@ -65,7 +69,7 @@ it.each([
     OWN_VAULT,
   ],
   ["an account item here, blocked", { ...item, policy: "off", unusedHere: true }, OWN_VAULT],
-  ["every bot", { ...item, policy: "allow", allBots: true, botIds: [] }, ""],
+  ["every stirrup", { ...item, policy: "allow", allBots: true, botIds: [] }, ""],
   ["an older server", { ...item }, ""],
   [
     "blocked, its choice moot",
@@ -74,7 +78,7 @@ it.each([
   ],
   ["asking first", { ...item, policy: "ask", allBots: true, botIds: [] }, "Ask first"],
   [
-    "chosen bots, named",
+    "chosen stirrups, named",
     { ...item, ...some, policy: "allow", chosen: ["Researcher", "Writer"] },
     "Researcher, Writer",
   ],
@@ -83,21 +87,25 @@ it.each([
     { ...item, ...some, policy: "ask", chosen: ["Researcher"] },
     "Ask first · Researcher",
   ],
-  ["a choice of none", { ...item, allBots: false, botIds: [], chosen: [] }, "No bots"],
+  ["a choice of none", { ...item, allBots: false, botIds: [], chosen: [] }, "No stirrups"],
   [
-    "chosen bots still loading",
+    "chosen stirrups still loading",
     { ...item, ...some, policy: "ask", chosen: "loading" },
     "Ask first",
   ],
   [
-    "chosen bots that can't be read",
+    "chosen stirrups that can't be read",
     { ...item, ...some, chosen: "failed" },
-    "Could not load bots. Reload to try again.",
+    "Could not load stirrups. Reload to try again.",
   ],
   // An app that doesn't name them says that there is a choice.
-  ["chosen bots, unnamed", { ...item, ...some }, "Chosen bots"],
-  ["a choice of none, unnamed", { ...item, allBots: false, botIds: [] }, "No bots"],
-  ["a contact limited to chosen bots", { ...item, ...some, blockable: false }, "Chosen bots"],
+  ["chosen stirrups, unnamed", { ...item, ...some }, "Chosen stirrups"],
+  ["a choice of none, unnamed", { ...item, allBots: false, botIds: [] }, "No stirrups"],
+  [
+    "a contact limited to chosen stirrups",
+    { ...item, ...some, blockable: false },
+    "Chosen stirrups",
+  ],
 ] as const)("says of %s: %j", (_, state, line) => {
   i18n.activate("en");
   expect(vaultBotsLine(state)).toBe(line);
@@ -129,7 +137,9 @@ it("names import results and unusable files", () => {
     unreadable: "This file can't be read as CSV.",
     no_logins: "No website and password columns found.",
   });
-  expect(text.botsNote).toBe("Bots can use each imported login until you change its Bots setting.");
+  expect(text.botsNote).toBe(
+    "Stirrups can use each imported login until you change its Stirrups setting.",
+  );
 });
 
 it("lists an import's left-out rows the same way in both apps", () => {
@@ -153,7 +163,8 @@ it("lists an import's left-out rows the same way in both apps", () => {
 
 it("uses the active catalog", () => {
   i18n.load("de", {
-    [BLOCKED]: "Dieser Eintrag ist für Bots gesperrt.",
+    ["This item is blocked for stirrups. Allow it in the Vault, or dismiss the request."]:
+      "Dieser Eintrag ist für Stirrups gesperrt.",
     "Vault full": "Tresor voll",
     "Saved, but this server can't ask you first.": "Gespeichert, aber ohne Nachfrage.",
     "Row {line}": "Zeile {line}",
@@ -161,7 +172,7 @@ it("uses the active catalog", () => {
   });
   i18n.activate("de");
   expect(secretAnswerErrorText(new Error(BLOCKED), "x")).toBe(
-    "Dieser Eintrag ist für Bots gesperrt.",
+    "Dieser Eintrag ist für Stirrups gesperrt.",
   );
   expect(vaultImportText().labels.full).toBe("Tresor voll");
   expect(vaultSaveNotice({ policy: "ask" }, { policy: "allow" })).toBe(

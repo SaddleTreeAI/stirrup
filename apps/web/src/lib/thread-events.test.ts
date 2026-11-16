@@ -18,7 +18,7 @@ import {
 } from "./thread-events.js";
 
 describe("thread event reduction with web state", () => {
-  it("keeps event-sourced waiting_takeover when a stale refresh still shows the bot busy", () => {
+  it("keeps event-sourced waiting_takeover when a stale refresh still shows the stirrup busy", () => {
     const run = threadRun("run-1");
     const waitingLocal: ThreadSnapshot = {
       ...snapshot([]),
@@ -217,7 +217,7 @@ describe("computer event reduction", () => {
     expect(unknown).toBe(running);
   });
 
-  it("grants user control without overwriting the lifecycle state or the bot's request", () => {
+  it("grants user control without overwriting the lifecycle state or the stirrup's request", () => {
     const granted = reduceComputerStatus(
       computer({ state: "suspended", controlHolder: "none", takeoverRequested: true }),
       event({ type: "computer.takeover.granted", payload: {} }),
@@ -291,7 +291,7 @@ describe("computer event reduction", () => {
     expect(released?.controlledByOther).toBeUndefined();
   });
 
-  it("treats a busy bot name as a live run holding the computer", () => {
+  it("treats a busy stirrup name as a live run holding the computer", () => {
     expect(computerBusyWithRun(computer({ busyBotName: "Writer" }), "running")).toBe(true);
     expect(computerBusyWithRun(computer({ busyBotName: "Writer" }))).toBe(false);
     expect(computerBusyWithRun(computer({ busyBotName: null }), "running")).toBe(false);
@@ -302,7 +302,7 @@ describe("computer event reduction", () => {
     expect(computerBusyWithRun(computer({ busyBotName: "Writer" }), "completed")).toBe(false);
   });
 
-  it("ignores computer events that belong to a different bot", () => {
+  it("ignores computer events that belong to a different stirrup", () => {
     const prev = computer({ takeoverRequested: false, controlHolder: "bot" });
     expect(
       reduceComputerStatus(

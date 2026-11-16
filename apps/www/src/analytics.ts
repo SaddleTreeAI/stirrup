@@ -1,8 +1,6 @@
-import { rememberPartnerClick, rememberSignupAttribution } from "@rakazo/core/signup-attribution";
+import { rememberSignupAttribution } from "@rakazo/core/signup-attribution";
 
 rememberSignupAttribution(window);
-// Partner links on the affiliate program add their click id under this parameter.
-rememberPartnerClick(window, "dub_id");
 
 const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY?.trim();
 

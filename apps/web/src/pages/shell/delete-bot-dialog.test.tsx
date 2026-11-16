@@ -40,7 +40,7 @@ vi.mock("@lingui/react/macro", () => {
 import { DeleteBotDialog } from "./dialogs";
 
 const baseDescription =
-  "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list.";
+  "Its conversation, files, and routines will be permanently deleted. Stirrups it created stay in your list.";
 
 const bot: Pick<Bot, "id" | "name"> = { id: "bot-1", name: "Ada" };
 
@@ -173,7 +173,7 @@ describe("DeleteBotDialog", () => {
   it("delete-bot-warns-dissolved-groups warns in general when the preview fails", async () => {
     rpc.bots.removePreview.mockRejectedValue(new Error("offline"));
     await renderDialog();
-    await vi.waitFor(() => expect(dialogText()).toContain("fewer than two bots"));
+    await vi.waitFor(() => expect(dialogText()).toContain("fewer than two stirrups"));
     expect(previewQuery()?.options.retry).toBe(false);
     expect(rpc.bots.removePreview).toHaveBeenCalledTimes(1);
     expect(dialogText()).toContain("messages, files, and pages");

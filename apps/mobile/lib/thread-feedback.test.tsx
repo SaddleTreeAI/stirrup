@@ -113,7 +113,7 @@ function payload(text = "Hello"): SendPayload {
 describe("composer settlement", () => {
   const submitted: ComposerSnapshot = {
     promptText: "Hello",
-    mentions: [{ kind: "bot", id: "bot-1", name: "Bot" }],
+    mentions: [{ kind: "bot", id: "bot-1", name: "Stirrup" }],
     skill: null,
     replyTargetId: "reply-1",
     replyQuote: "Quoted message",
@@ -125,7 +125,7 @@ describe("composer settlement", () => {
 
   it.each<Partial<ComposerSnapshot>>([
     { promptText: "Edited" },
-    { mentions: [{ kind: "bot", id: "bot-2", name: "Bot" }] },
+    { mentions: [{ kind: "bot", id: "bot-2", name: "Stirrup" }] },
     { skill: { id: "skill-1", name: "Skill", description: "", source: "user", readOnly: false } },
     { replyTargetId: "reply-2" },
     { replyQuote: "Edited quote" },
@@ -720,7 +720,7 @@ describe("scoped mobile outbox", () => {
       request.mock.calls.filter(([proc]) => proc === "threads/send").map(([, body]) => body.text),
     ).toEqual(["First", "Second"]);
   });
-  const fileNote = "The bot can use the file but won't see the picture.";
+  const fileNote = "The stirrup can use the file but won't see the picture.";
   it("uploads distinct files after removal and reuses their artifacts on retry", async () => {
     const a = { name: "first.txt", mimeType: "text/plain", size: 4, contentBase64: "YWFhYQ==" };
     const b = { name: "same.txt", mimeType: "text/plain", size: 4, contentBase64: "YmJiYg==" };

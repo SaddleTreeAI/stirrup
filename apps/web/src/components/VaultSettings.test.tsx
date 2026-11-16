@@ -228,7 +228,12 @@ afterEach(async () => {
 
 describe("an item's uses", () => {
   it.each(["detail", "history"])("offers retry after an activity failure in %s", async (view) => {
-    const use = { at: new Date().toISOString(), botName: "Research bot", chat: null, site: null };
+    const use = {
+      at: new Date().toISOString(),
+      botName: "Research stirrup",
+      chat: null,
+      site: null,
+    };
     vault.activity.mockResolvedValue([use]);
     await render();
     await click(rowNamed("github"));
@@ -243,12 +248,12 @@ describe("an item's uses", () => {
     vault.activity.mockResolvedValue([use]);
     await click(buttonIn(failure, "Retry")!);
     expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.textContent).toContain("Research bot");
+    expect(container.textContent).toContain("Research stirrup");
   });
 
   it("shows the latest use only once there is one, and opens the list on its own page", async () => {
     const at = new Date(Date.now() - 2 * 3600_000).toISOString();
-    const use = { at, botName: "Research bot", chat: null };
+    const use = { at, botName: "Research stirrup", chat: null };
     vault.activity.mockImplementation(async ({ name }: { name: string }) =>
       name === "github"
         ? [
@@ -266,7 +271,7 @@ describe("an item's uses", () => {
       { scope: "account", name: "github" },
       expect.anything(),
     );
-    expect(byTestId("vault-item-activity").textContent).toBe("Used 2h ago by Research bot");
+    expect(byTestId("vault-item-activity").textContent).toBe("Used 2h ago by Research stirrup");
     await click("vault-item-activity");
     // The list replaces the item, and Back returns to it.
     expect(detail()).toBeNull();
@@ -276,20 +281,25 @@ describe("an item's uses", () => {
       [...document.querySelectorAll('[data-testid="vault-item-use"]')].map(
         (row) => row.textContent,
       ),
-    ).toEqual(["Research botgithub.com2h ago", "Helper2h ago"]);
+    ).toEqual(["Research stirrupgithub.com2h ago", "Helper2h ago"]);
     await click("settings-back");
     expect(find("vault-item-uses")).toBeNull();
-    expect(byTestId("vault-item-activity").textContent).toBe("Used 2h ago by Research bot");
+    expect(byTestId("vault-item-activity").textContent).toBe("Used 2h ago by Research stirrup");
   });
 
   it("doesn't show a removed item's uses on a new item saved under its name", async () => {
-    const use = { at: new Date().toISOString(), botName: "Research bot", chat: null, site: null };
+    const use = {
+      at: new Date().toISOString(),
+      botName: "Research stirrup",
+      chat: null,
+      site: null,
+    };
     // As in the app, a read stays fresh for 30 seconds.
     queryClient.setDefaultOptions({ queries: { retry: false, staleTime: 30_000 } });
     vault.activity.mockResolvedValueOnce([use]).mockResolvedValue([]);
     await render();
     await click(rowNamed("deploy-token"));
-    expect(byTestId("vault-item-activity").textContent).toContain("Research bot");
+    expect(byTestId("vault-item-activity").textContent).toContain("Research stirrup");
     await click("vault-item-remove");
     await click("vault-item-remove-confirm");
     await startNew("variable");
@@ -302,7 +312,7 @@ describe("an item's uses", () => {
   });
 });
 
-describe("an item bots may not use", () => {
+describe("an item stirrups may not use", () => {
   it("shows Block on the item, and saves a change with the item only when it changed", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
@@ -314,7 +324,7 @@ describe("an item bots may not use", () => {
     vault.put.mockResolvedValue(custom);
     await render();
     await click(rowNamed("custom"));
-    expect(byTestId("vault-item-access-detail").textContent).toBe("BotsBlock");
+    expect(byTestId("vault-item-access-detail").textContent).toBe("StirrupsBlock");
     await click("vault-item-edit");
     const access = byTestId("vault-item-access");
     expect(
@@ -344,7 +354,7 @@ describe("an item bots may not use", () => {
   });
 });
 
-describe("an item for chosen bots", () => {
+describe("an item for chosen stirrups", () => {
   const menuItem = (name: string) =>
     [...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find(
       (item) => item.textContent === name,
@@ -356,7 +366,7 @@ describe("an item for chosen bots", () => {
     await click(trigger);
   }
 
-  it("names the chosen bots, and offers no choice while one of them isn't shown", async () => {
+  it("names the chosen stirrups, and offers no choice while one of them isn't shown", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -368,7 +378,7 @@ describe("an item for chosen bots", () => {
     await render();
     await click(rowNamed("custom"));
     await vi.waitFor(() =>
-      expect(byTestId("vault-item-access-detail").textContent).toBe("BotsAda"),
+      expect(byTestId("vault-item-access-detail").textContent).toBe("StirrupsAda"),
     );
     // A chosen bot no list names can't be unticked or kept knowingly, so none is offered, and a
     // save sends nothing about the bots: the choice is never widened or trimmed unseen.
@@ -381,14 +391,14 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0]).not.toHaveProperty("botIds");
   });
 
-  it("says an account item's other Spaces choose their own bots, and offers none from a Space with its own vault", async () => {
+  it("says an account item's other Spaces choose their own stirrups, and offers none from a Space with its own vault", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
       removeEventListener() {},
     }));
     const otherSpaces =
-      "This limits only this Space's bots. Your other Spaces choose for their own.";
+      "This limits only this Space's stirrups. Your other Spaces choose for their own.";
     const custom = { ...rows[3]!, allBots: false, botIds: ["bot-1"] };
     vault.list.mockResolvedValue([...rows.slice(0, 3), custom, rows[4]]);
     spaces.list.mockResolvedValue({
@@ -415,13 +425,13 @@ describe("an item for chosen bots", () => {
     // Its details don't present the choice saved for it as this Space's either.
     await vi.waitFor(() =>
       expect(byTestId("vault-item-access-detail").textContent).toBe(
-        "BotsThis Space keeps its own vault, so its bots can't use account items.",
+        "StirrupsThis Space keeps its own vault, so its stirrups can't use account items.",
       ),
     );
     await click("vault-item-edit");
     await vi.waitFor(() =>
       expect(byTestId("vault-item-access").textContent).toContain(
-        "This Space keeps its own vault, so its bots can't use account items.",
+        "This Space keeps its own vault, so its stirrups can't use account items.",
       ),
     );
     expect(find("agent-access")).toBeNull();
@@ -429,7 +439,7 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0]).not.toHaveProperty("botIds");
   });
 
-  it("offers no bots for an account item until it knows whether this Space keeps its own vault", async () => {
+  it("offers no stirrups for an account item until it knows whether this Space keeps its own vault", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -448,7 +458,7 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0]).not.toHaveProperty("botIds");
   });
 
-  it("offers the bots once it knows, in an editor opened before, keeping what was changed", async () => {
+  it("offers the stirrups once it knows, in an editor opened before, keeping what was changed", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -476,7 +486,7 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0].botIds.sort()).toEqual(["bot-1", "bot-2"]);
   });
 
-  it("names an archived chosen bot once it knows, in an editor opened before, so it can be let go of", async () => {
+  it("names an archived chosen stirrup once it knows, in an editor opened before, so it can be let go of", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -503,7 +513,7 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0]).toMatchObject({ allBots: false, botIds: ["bot-1"] });
   });
 
-  it("offers a new item's bots once it knows, in an editor opened before", async () => {
+  it("offers a new item's stirrups once it knows, in an editor opened before", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -520,7 +530,7 @@ describe("an item for chosen bots", () => {
     await vi.waitFor(() => expect(find("agent-access")).not.toBeNull());
   });
 
-  it("keeps the choice open with one bot: none, that bot, and every bot again", async () => {
+  it("keeps the choice open with one bot: none, that stirrup, and every stirrup again", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -534,7 +544,7 @@ describe("an item for chosen bots", () => {
     await click(rowNamed("home"));
     await click("vault-item-edit");
     await openPicker();
-    await act(async () => menuItem("All bots")!.click());
+    await act(async () => menuItem("All stirrups")!.click());
     // The list after saving holds the sole bot chosen, as a later edit would.
     vault.list.mockResolvedValue([{ ...home, allBots: false, botIds: ["bot-1"] }]);
     await click("vault-editor-save");
@@ -542,12 +552,12 @@ describe("an item for chosen bots", () => {
     // Chosen, the sole bot can be let go of for every bot again.
     await click("vault-item-edit");
     await openPicker();
-    await act(async () => menuItem("All bots")!.click());
+    await act(async () => menuItem("All stirrups")!.click());
     await click("vault-editor-save");
     expect(vault.put.mock.lastCall?.[0]).toMatchObject({ allBots: true });
   });
 
-  it("shows an archived bot that is still chosen, so it can be let go of", async () => {
+  it("shows an archived stirrup that is still chosen, so it can be let go of", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -566,7 +576,7 @@ describe("an item for chosen bots", () => {
     await render();
     await click(rowNamed("custom"));
     await vi.waitFor(() =>
-      expect(byTestId("vault-item-access-detail").textContent).toBe("BotsAda, Old · Archived"),
+      expect(byTestId("vault-item-access-detail").textContent).toBe("StirrupsAda, Old · Archived"),
     );
     await click("vault-item-edit");
     await openPicker();
@@ -578,7 +588,7 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0]).toMatchObject({ allBots: false, botIds: ["bot-1"] });
   });
 
-  it("never calls an item limited to an archived bot usable by no bots while archived bots load", async () => {
+  it("never calls an item limited to an archived stirrup usable by no stirrups while archived stirrups load", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -600,10 +610,10 @@ describe("an item for chosen bots", () => {
       ]),
     );
     await act(flush);
-    expect(byTestId("agent-access").textContent).not.toContain("No bots");
+    expect(byTestId("agent-access").textContent).not.toContain("No stirrups");
   });
 
-  it("never calls an item limited to an archived bot usable by no bots when archived bots can't be read", async () => {
+  it("never calls an item limited to an archived stirrup usable by no stirrups when archived stirrups can't be read", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -617,10 +627,10 @@ describe("an item for chosen bots", () => {
     await render();
     await click(rowNamed("custom"));
     expect(byTestId("vault-item-access-detail").textContent).toBe(
-      "BotsCould not load bots. Reload to try again.",
+      "StirrupsCould not load stirrups. Reload to try again.",
     );
     await click("vault-item-edit");
-    expect(editor()?.textContent).not.toContain("No bots");
+    expect(editor()?.textContent).not.toContain("No stirrups");
     await type(field("Value"), FAKE_VALUE);
     await click("vault-editor-save");
     expect(vault.put).toHaveBeenCalledOnce();
@@ -629,7 +639,7 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0]).not.toHaveProperty("allBots");
   });
 
-  it("shows what a save changed about the bots even when the list can't be read again", async () => {
+  it("shows what a save changed about the stirrups even when the list can't be read again", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -640,7 +650,7 @@ describe("an item for chosen bots", () => {
     vault.put.mockResolvedValue({ ...blocked, policy: "allow" });
     await render();
     await click(rowNamed("custom"));
-    expect(byTestId("vault-item-access-detail").textContent).toBe("BotsBlock");
+    expect(byTestId("vault-item-access-detail").textContent).toBe("StirrupsBlock");
     await click("vault-item-edit");
     await click(buttonIn(byTestId("vault-item-access"), "Allow")!);
     vault.list.mockRejectedValue(new Error("offline"));
@@ -651,7 +661,7 @@ describe("an item for chosen bots", () => {
     expect(find("vault-item-access-detail")?.textContent ?? "").not.toContain("Block");
   });
 
-  it("offers every bot of a shared Space, one another member made too", async () => {
+  it("offers every stirrup of a shared Space, one another member made too", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -670,7 +680,7 @@ describe("an item for chosen bots", () => {
     expect(vault.put.mock.lastCall?.[0]).toMatchObject({ allBots: false, botIds: ["bot-2"] });
   });
 
-  it("limits a contact to no bots, and says when the server saved it for every bot", async () => {
+  it("limits a contact to no stirrups, and says when the server saved it for every stirrup", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       addEventListener() {},
@@ -684,15 +694,15 @@ describe("an item for chosen bots", () => {
     await type(field("Label"), "Office");
     await type(field("Address"), "1 Main St");
     await openPicker();
-    await act(async () => menuItem("All bots")!.click());
+    await act(async () => menuItem("All stirrups")!.click());
     await click("vault-editor-save");
     expect(vault.put.mock.lastCall?.[0]).toMatchObject({ allBots: false, botIds: [] });
     expect(detail()?.textContent).toContain(
-      "Saved, but this server can't limit an item to chosen bots.",
+      "Saved, but this server can't limit an item to chosen stirrups.",
     );
   });
 
-  it("offers no choice of bots once the saved items show the server can't keep one", async () => {
+  it("offers no choice of stirrups once the saved items show the server can't keep one", async () => {
     await render();
     await startNew("contact");
     expect(find("vault-item-access")).toBeNull();
@@ -724,7 +734,7 @@ describe("a login that asks first", () => {
     });
     await render();
     await click(rowNamed("github"));
-    expect(byTestId("vault-item-access-detail").textContent).toBe("BotsAsk first");
+    expect(byTestId("vault-item-access-detail").textContent).toBe("StirrupsAsk first");
     await click("vault-item-edit");
     expect(pressed()).toEqual([
       ["Allow", "false"],
@@ -755,30 +765,30 @@ describe("a login that asks first", () => {
     expect(detail()?.textContent).toContain("Saved, but this server can't ask you first.");
   });
 
-  it("shows both Ask first and the bots it is limited to", async () => {
+  it("shows both Ask first and the stirrups it is limited to", async () => {
     vault.list.mockResolvedValue([
       { ...rows[0]!, policy: "ask", allBots: false, botIds: ["bot-1"] },
     ]);
     await render();
     await click(rowNamed("github"));
     await vi.waitFor(() =>
-      expect(byTestId("vault-item-access-detail").textContent).toBe("BotsAsk first · Ada"),
+      expect(byTestId("vault-item-access-detail").textContent).toBe("StirrupsAsk first · Ada"),
     );
   });
 
-  it("says the bots can't be read, never every bot, when the list fails", async () => {
+  it("says the stirrups can't be read, never every stirrup, when the list fails", async () => {
     bots.list.mockRejectedValue(new Error("offline"));
     vault.list.mockResolvedValue([{ ...rows[0]!, allBots: false, botIds: ["bot-1"] }]);
     await render();
     await click(rowNamed("github"));
     await vi.waitFor(() =>
       expect(byTestId("vault-item-access-detail").textContent).toBe(
-        "BotsCould not load bots. Reload to try again.",
+        "StirrupsCould not load stirrups. Reload to try again.",
       ),
     );
   });
 
-  it("never says No bots while the bots are still loading", async () => {
+  it("never says No stirrups while the bots are still loading", async () => {
     const loaded = deferred<unknown[]>();
     bots.list.mockReturnValue(loaded.promise);
     vault.list.mockResolvedValue([{ ...rows[0]!, allBots: false, botIds: ["bot-1"] }]);
@@ -787,7 +797,7 @@ describe("a login that asks first", () => {
     expect(find("vault-item-access-detail")).toBeNull();
     await act(async () => loaded.resolve([{ id: "bot-1", name: "Ada", color: "#F97316" }]));
     await vi.waitFor(() =>
-      expect(byTestId("vault-item-access-detail").textContent).toBe("BotsAda"),
+      expect(byTestId("vault-item-access-detail").textContent).toBe("StirrupsAda"),
     );
   });
 
@@ -818,7 +828,7 @@ describe("an older server", () => {
     expect(vault.put.mock.lastCall?.[0]).toMatchObject({ policy: "off" });
     // The new item is saved: the form gives way to it, saying the Block didn't apply.
     expect(editor()).toBeNull();
-    expect(detail()?.textContent).toContain("Saved, but this server can't block bots yet.");
+    expect(detail()?.textContent).toContain("Saved, but this server can't block stirrups yet.");
   });
 
   it("opens the saved item saying the Block didn't apply, even when the list can't be read again", async () => {
@@ -839,7 +849,7 @@ describe("an older server", () => {
     expect(vault.put).toHaveBeenCalledOnce();
     expect(editor()).toBeNull();
     expect(detail()?.textContent).toContain("new.example.com");
-    expect(detail()?.textContent).toContain("Saved, but this server can't block bots yet.");
+    expect(detail()?.textContent).toContain("Saved, but this server can't block stirrups yet.");
   });
 
   it("opens a new login saying its other sites and key weren't kept, even when the list can't be read again", async () => {
@@ -991,7 +1001,7 @@ describe("VaultSettings list", () => {
     expect(find("vault-filter-all")).toBeNull();
   });
 
-  it("lists the bots' email addresses in the account's vault only", async () => {
+  it("lists the stirrups' email addresses in the account's vault only", async () => {
     vault.list.mockResolvedValue([]);
     bots.emailAddresses.mockResolvedValue({
       domain: "bots.test",
@@ -1405,7 +1415,7 @@ describe("VaultSettings item details", () => {
       "Row 2 · GitHub · Already savedRow 4 · Old · Not on an HTTPS site",
     );
     // Said before the logins are added, the one moment no Bots setting is in sight.
-    const botsNote = "Bots can use each imported login until you change its Bots setting.";
+    const botsNote = "Stirrups can use each imported login until you change its Stirrups setting.";
     expect(find("vault-import-page")?.textContent).toContain(botsNote);
     vault.import.mockResolvedValue({
       added: 1,
@@ -1453,7 +1463,7 @@ describe("VaultSettings item details", () => {
       "Und 2 weitere",
     ]);
     // With nothing to add, nothing is said of what bots may use.
-    expect(find("vault-import-page")?.textContent).not.toContain("Bots can use");
+    expect(find("vault-import-page")?.textContent).not.toContain("Stirrups can use");
   });
 
   it("imports the file picked last, whichever read finishes first", async () => {

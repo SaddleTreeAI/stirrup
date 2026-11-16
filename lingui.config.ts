@@ -32,7 +32,8 @@ export default defineConfig({
         "<rootDir>/apps/mobile/components",
         "<rootDir>/apps/mobile/lib",
       ],
-      exclude: ["**/locales/**", "**/*.test.*", "**/node_modules/**"],
+      // Builds run from an app folder; exclusions must also match sibling apps.
+      exclude: ["<rootDir>/**/locales/**", "<rootDir>/**/*.test.*", "<rootDir>/**/node_modules/**"],
     },
   ],
   compileNamespace: "es",

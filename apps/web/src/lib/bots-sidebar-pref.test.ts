@@ -10,7 +10,7 @@ import {
   writeBotsSidebarWidth,
 } from "./bots-sidebar-pref";
 
-describe("bots sidebar collapse preference", () => {
+describe("stirrups sidebar collapse preference", () => {
   it("builds a per-user storage key", () => {
     expect(botsSidebarCollapsedStorageKey(null)).toBeNull();
     expect(botsSidebarCollapsedStorageKey("user-1")).toBe("rakazo:bots-sidebar-collapsed:user-1");
@@ -36,7 +36,7 @@ describe("bots sidebar collapse preference", () => {
   });
 });
 
-describe("bots sidebar width preference", () => {
+describe("stirrups sidebar width preference", () => {
   it("remembers expanded widths independently for each user and clamps invalid limits", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("localStorage", {

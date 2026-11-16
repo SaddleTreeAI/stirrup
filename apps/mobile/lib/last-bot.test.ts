@@ -56,7 +56,7 @@ registerSessionDiskCache((sameAccount?: boolean) => {
   if (!sameAccount) return clearLastBot();
 });
 
-describe("last bot shortcut target", () => {
+describe("last stirrup shortcut target", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     saved.clear();
@@ -110,7 +110,7 @@ describe("last bot shortcut target", () => {
     expect(JSON.parse(saved.get("rakazo.last_bot_id") ?? "null").spaceId).toBe("writing-space");
   });
 
-  it.each(["sign-in", "sign-out", "server"])("clears the last bot on %s", async (change) => {
+  it.each(["sign-in", "sign-out", "server"])("clears the last stirrup on %s", async (change) => {
     selectedSpace.id = "shared-space";
     await saveLastBotId("researcher", "shared-space");
     if (change === "sign-in") await saveSessionToken("other-account-session");
@@ -120,7 +120,7 @@ describe("last bot shortcut target", () => {
     expect(saved.has("rakazo.last_bot_space_id")).toBe(false);
   });
 
-  it("keeps the last bot and Space during same-account password token rotation", async () => {
+  it("keeps the last stirrup and Space during same-account password token rotation", async () => {
     selectedSpace.id = "shared-space";
     await saveLastBotId("researcher", "shared-space");
     await rotateSessionTokenIfCurrent(currentSessionGeneration(), "session-a", "rotated-session");
@@ -128,7 +128,7 @@ describe("last bot shortcut target", () => {
     expect(JSON.parse(saved.get("rakazo.last_bot_id") ?? "null").spaceId).toBe("shared-space");
   });
 
-  it("keeps the last bot and Space after verified SSO re-authentication", async () => {
+  it("keeps the last stirrup and Space after verified SSO re-authentication", async () => {
     selectedSpace.id = "shared-space";
     await saveLastBotId("researcher", "shared-space");
     vi.mocked(fetchMobileJson)

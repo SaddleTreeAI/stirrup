@@ -9,11 +9,11 @@ export const FOREGROUND_FALLBACK_MS = 400;
 export function aiDataDisclosure(use: AiDataUse): string {
   switch (use) {
     case "model":
-      return t`Messages, chat history, bot instructions, memories, attachments, screenshots and connected-app content are sent to run your bots, including routines.`;
+      return t`Messages, chat history, stirrup instructions, memories, attachments, screenshots and connected-app content are sent to run your stirrups, including routines.`;
     case "voice":
       return t`Your recordings are sent for transcription, and text you play is sent to generate speech.`;
     case "memory":
-      return t`Conversations, names, memories, searches and bot and Space IDs are sent to store and recall context.`;
+      return t`Conversations, names, memories, searches and stirrup and Space IDs are sent to store and recall context.`;
   }
 }
 

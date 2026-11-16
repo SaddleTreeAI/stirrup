@@ -138,11 +138,11 @@ application traffic queued indefinitely.
 `${{ github.repository }}` rather than hardcoded, so a fork's CI fills the fork's own namespace. For
 this repository that is:
 
-| Image                             | Contents                                                                |
-| --------------------------------- | ----------------------------------------------------------------------- |
-| `ghcr.io/elie222/rakazo/app`      | api, worker, web, and sandbox supervisor — one image, multiple commands |
-| `ghcr.io/elie222/rakazo/computer` | Linux desktop used as each bot computer                                 |
-| `ghcr.io/elie222/rakazo/updater`  | the updater sidecar, plus the Docker CLI                                |
+| Image                                   | Contents                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| `ghcr.io/saddletreeai/stirrup/app`      | api, worker, web, and sandbox supervisor — one image, multiple commands |
+| `ghcr.io/saddletreeai/stirrup/computer` | Linux desktop used as each bot computer                                 |
+| `ghcr.io/saddletreeai/stirrup/updater`  | the updater sidecar, plus the Docker CLI                                |
 
 `infra/compose/docker-compose.images.yml` is the no-checkout path for those app and computer tags
 plus Postgres. The supervisor runs from the app image on the internal network only (not a separate

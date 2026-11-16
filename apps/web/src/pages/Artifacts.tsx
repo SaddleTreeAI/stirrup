@@ -268,7 +268,7 @@ export function ArtifactsPage() {
               onValueChange={(value) => setMadeByBots(value === "bots")}
               options={[
                 { value: "all", label: t`All files` },
-                { value: "bots", label: t`Made by bots` },
+                { value: "bots", label: t`Made by stirrups` },
               ]}
             />
             {!artifactId ? (
@@ -504,7 +504,7 @@ function EmptyArtifacts({
           <Trans>No artifacts yet</Trans>
         </EmptyTitle>
         <EmptyDescription>
-          <Trans>Files your bots create, like reports, docs and images, collect here.</Trans>
+          <Trans>Files your stirrups create, like reports, docs and images, collect here.</Trans>
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -612,17 +612,17 @@ function BotFilter({
       value={value ?? ALL_BOTS}
       onValueChange={(next) => onValueChange(next === ALL_BOTS || !next ? null : next)}
     >
-      <SelectTrigger aria-label={t`Filter by bot`} className="max-w-44">
+      <SelectTrigger aria-label={t`Filter by stirrup`} className="max-w-44">
         <SelectValue>
           {(selected: string) => {
             const bot = botsById.get(selected);
-            return bot ? <BotOption bot={bot} /> : t`All bots`;
+            return bot ? <BotOption bot={bot} /> : t`All stirrups`;
           }}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          <SelectItem value={ALL_BOTS}>{t`All bots`}</SelectItem>
+          <SelectItem value={ALL_BOTS}>{t`All stirrups`}</SelectItem>
           {bots.map((bot) => (
             <SelectItem key={bot.id} value={bot.id}>
               <BotOption bot={bot} />

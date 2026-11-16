@@ -180,7 +180,7 @@ it.each([
   expect(messaging.status).toHaveBeenCalledTimes(calls + polls);
 });
 
-it("detects a same-address relink to the selected bot", async () => {
+it("detects a same-address relink to the selected stirrup", async () => {
   messaging.status.mockResolvedValue(
     statusWith([{ ...identity, botId: "bot-2", botName: "Other" }]),
   );
@@ -195,7 +195,7 @@ it("detects a same-address relink to the selected bot", async () => {
   expect(container.querySelector('[data-testid="messaging-link-code"]')).toBeNull();
 });
 
-it("ignores links to a different bot", async () => {
+it("ignores links to a different stirrup", async () => {
   messaging.status.mockResolvedValue(statusWith([]));
   await startLink();
   messaging.status.mockResolvedValue(statusWith([{ ...identity, botId: "bot-2" }]));
@@ -272,7 +272,7 @@ it("connects Slack to the default bot through workspace authorization", async ()
   try {
     await renderOverlay();
     const buttons = [...container.querySelectorAll("button")];
-    expect(container.textContent).toContain("Chat with your bot from Slack.");
+    expect(container.textContent).toContain("Chat with your stirrup from Slack.");
     expect(buttons.filter((button) => button.textContent === "Connect")).toHaveLength(1);
     expect(
       buttons.some((button) =>
@@ -312,7 +312,7 @@ it("keeps code linking for legacy Slack deployments", async () => {
   expect(messaging.installations.start).not.toHaveBeenCalled();
 });
 
-it("links DMs to the bot that answers in the workspace", async () => {
+it("links DMs to the stirrup that answers in the workspace", async () => {
   messaging.status.mockResolvedValue({
     ...statusWith([identity]),
     providers: ["slack", "telegram"],
@@ -493,7 +493,7 @@ it("keeps other apps usable and withholds Slack when its setup method cannot loa
   expect(messaging.link.start).toHaveBeenCalledWith({ botId: "bot-1" });
 });
 
-it("lets a member choose which bot their DMs link to in a teammate's workspace", async () => {
+it("lets a member choose which stirrup their DMs link to in a teammate's workspace", async () => {
   messaging.status.mockResolvedValue({ ...statusWith([]), providers: ["slack"] });
   messaging.installations.list.mockResolvedValue({
     available: true,

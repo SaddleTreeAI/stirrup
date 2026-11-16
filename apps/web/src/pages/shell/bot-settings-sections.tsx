@@ -336,7 +336,7 @@ export function PermissionsGroup({
       </div>
       <div className="flex min-h-11 items-center justify-between gap-3 text-body">
         <label htmlFor={`${ids}-cross-space`} className={rowLabelClass}>
-          <Trans>Allow cross-space bot communication</Trans>
+          <Trans>Allow cross-space stirrup communication</Trans>
         </label>
         <Switch
           id={`${ids}-cross-space`}
@@ -347,7 +347,7 @@ export function PermissionsGroup({
       </div>
       <div className="flex min-h-11 items-center justify-between gap-3 text-body">
         <label htmlFor={`${ids}-fleet-management`} className={rowLabelClass}>
-          <Trans>Manage other bots</Trans>
+          <Trans>Manage other stirrups</Trans>
         </label>
         <Switch
           id={`${ids}-fleet-management`}
@@ -403,15 +403,15 @@ export function DescriptionGroup({
 }) {
   const { t } = useLingui();
   return (
-    <BotPanelGroup label={t`How other bots see it`} plain>
+    <BotPanelGroup label={t`How other stirrups see it`} plain>
       <Textarea
         id={`${ids}-description`}
-        aria-label={t`How other bots see it`}
+        aria-label={t`How other stirrups see it`}
         value={description}
         maxLength={BOT_DESCRIPTION_MAX_LENGTH}
         onChange={(e) => onDescriptionChange(e.target.value)}
         onBlur={onCommit}
-        placeholder={t`What this bot is for`}
+        placeholder={t`What this stirrup is for`}
         rows={2}
         className="min-h-16 max-h-96 resize-none field-sizing-content"
       />

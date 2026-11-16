@@ -65,7 +65,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("approves the bot after OAuth completes while a COOP popup keeps focus", async () => {
+it("approves the stirrup after OAuth completes while a COOP popup keeps focus", async () => {
   vi.useFakeTimers();
   const { channels } = popupFlow({ focused: false });
   const host = document.createElement("div");
@@ -189,7 +189,7 @@ it("links OAuth failures in chat to the shared recovery guide without approving 
     );
     await act(async () => host.querySelector("button")?.click());
     expect(host.querySelector('[role="alert"] a')?.getAttribute("href")).toBe(
-      "https://rakazo.com/docs/troubleshooting/#mcp-oauth-redirect-mismatch",
+      "https://stirrup.saddletree.ai/docs/troubleshooting/#mcp-oauth-redirect-mismatch",
     );
     expect(calls.approve.mock.calls).toHaveLength(approvalsBefore);
     expect(host.querySelector("button")?.disabled).toBe(false);

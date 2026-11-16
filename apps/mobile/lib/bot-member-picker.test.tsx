@@ -160,7 +160,7 @@ async function click(label: string) {
 }
 async function filter(query: string) {
   await act(async () => {
-    const input = container.querySelector<HTMLInputElement>('[aria-label="Filter bots"]')!;
+    const input = container.querySelector<HTMLInputElement>('[aria-label="Filter stirrups"]')!;
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, query);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
@@ -179,7 +179,7 @@ it("loads members before mounting the collapsed picker and saves reversible edit
   await filter("  RESEARCH ");
   expect(switches()).toHaveLength(1);
   await filter("zzz");
-  expect(container.textContent).toContain("No matching bots");
+  expect(container.textContent).toContain("No matching stirrups");
   await click("Show selected");
   expect(switches()).toHaveLength(2);
   await click("Show all");
@@ -200,7 +200,7 @@ it("limits additions while still allowing members to be removed", async () => {
   const roster = Array.from({ length: GROUP_MEMBER_MAX + 1 }, (_, index) => ({
     ...bots[0],
     id: `bot-${index}`,
-    name: `Bot ${index}`,
+    name: `Stirrup ${index}`,
   })) as MobileBot[];
   function Picker() {
     const [selected, setSelected] = useState(
@@ -268,7 +268,7 @@ it("keeps members closed while a save is running", async () => {
   await act(async () => finish.resolve());
 });
 
-it("removes deleted bots from an open group picker after deletion completes", async () => {
+it("removes deleted stirrups from an open group picker after deletion completes", async () => {
   await act(async () => root.render(<GroupSettings />));
   rpc.mockImplementation(async (procedure: string) =>
     procedure === "groups/list"
@@ -285,7 +285,7 @@ it("removes deleted bots from an open group picker after deletion completes", as
   expect(switches().map((input) => input.getAttribute("aria-label"))).toEqual(["Writer", "Runner"]);
 });
 
-it("preserves archived membership when the bot is restored", async () => {
+it("preserves archived membership when the stirrup is restored", async () => {
   await act(async () => root.render(<GroupSettings />));
   rpc.mockImplementation(async (procedure: string) =>
     procedure === "groups/list"

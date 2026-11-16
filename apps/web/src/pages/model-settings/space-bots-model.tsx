@@ -96,14 +96,14 @@ export function SpaceBotsModelButton({ mainModelKey }: { mainModelKey: string })
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-testid="space-bots-model"
-        aria-label={t`Bots with their own model`}
+        aria-label={t`Stirrups with their own model`}
         render={<Button variant="ghost" size="xs" className="text-muted-foreground" />}
       >
         <BotIcon aria-hidden />
         {pinned.length}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64">
-        <p className="px-1 text-label text-muted-foreground">{t`Bots with their own model`}</p>
+        <p className="px-1 text-label text-muted-foreground">{t`Stirrups with their own model`}</p>
         <ul className="text-body-sm">
           {pinned.map((bot) => (
             <li key={bot.id} className="truncate px-1 py-1">

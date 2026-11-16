@@ -162,14 +162,14 @@ describe("spaceInboxItems", () => {
     expect(inboxNeedsCreateHint(items)).toBe(true);
   });
 
-  it("does not ask for a create hint once a space has a bot", () => {
+  it("does not ask for a create hint once a space has a stirrup", () => {
     expect(inboxNeedsCreateHint(spaceInboxItems([space({ isDefault: true, bots: [bot] })]))).toBe(
       false,
     );
     expect(inboxNeedsCreateHint([])).toBe(false);
   });
 
-  it("renders space actions once, separate from pinned and named bot sections", () => {
+  it("renders space actions once, separate from pinned and named stirrup sections", () => {
     const work = space({
       bots: [
         { ...bot, pinned: true },
@@ -249,7 +249,7 @@ describe("spaceInboxItems", () => {
     expect(items[0]).toMatchObject({ type: "bot", bot });
   });
 
-  it("lists created bots as peers in roster order, ignoring saved parent collapse state", () => {
+  it("lists created stirrups as peers in roster order, ignoring saved parent collapse state", () => {
     const chief = { ...bot, id: "chief", parentBotId: null };
     const created = { ...bot, id: "created", parentBotId: "chief" };
     const peer = { ...bot, id: "peer", parentBotId: null };
@@ -352,18 +352,18 @@ describe("spaceInboxItems", () => {
     expect(canDeleteInboxSpace(space())).toBe(true);
   });
 
-  it("offers deletion for a space that still has bots, which go with it", () => {
+  it("offers deletion for a space that still has stirrups, which go with it", () => {
     expect(canDeleteInboxSpace(space({ hasContent: true, bots: [bot] }))).toBe(true);
   });
 
-  it("names every bot deletion removes, not only the visible ones", () => {
+  it("names every stirrup deletion removes, not only the visible ones", () => {
     expect(deleteSpaceTitle(space({ bots: [bot], botCount: 3 }))).toBe(
-      "Delete Work and its 3 bots?",
+      "Delete Work and its 3 stirrups?",
     );
-    expect(deleteSpaceTitle(space({ bots: [], botCount: 1 }))).toBe("Delete Work and its bot?");
+    expect(deleteSpaceTitle(space({ bots: [], botCount: 1 }))).toBe("Delete Work and its stirrup?");
     expect(deleteSpaceTitle(space({ bots: [bot], botCount: 0 }))).toBe("Delete Work?");
     // Older servers send no count; fall back to the listed bots.
-    expect(deleteSpaceTitle(space({ bots: [bot] }))).toBe("Delete Work and its bot?");
+    expect(deleteSpaceTitle(space({ bots: [bot] }))).toBe("Delete Work and its stirrup?");
   });
 
   it("never offers deletion for the default space", () => {
@@ -437,7 +437,7 @@ describe("removeInboxSpace", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("selects an empty inbox without creating a bot or starting onboarding", async () => {
+  it("selects an empty inbox without creating a stirrup or starting onboarding", async () => {
     const refresh = vi.fn(async () => undefined);
     await expect(selectInboxSpace("space-work", refresh)).resolves.toBe(true);
     expect(selectSpace).toHaveBeenCalledWith("space-work");
@@ -590,7 +590,7 @@ it("keeps a snoozed chat out of the off-screen unread pills", () => {
 });
 
 describe("pinnedInboxItems", () => {
-  it("puts bots and groups from all spaces in one grid without duplicate rows", () => {
+  it("puts stirrups and groups from all spaces in one grid without duplicate rows", () => {
     const now = Date.parse("2026-11-07T12:00:00.000Z");
     const first = space({
       bots: [

@@ -401,7 +401,7 @@ describe("thread foreground subscription", () => {
     },
   );
 
-  it("marks snapshot-covered bot messages read without projecting replay over the snapshot", async () => {
+  it("marks snapshot-covered stirrup messages read without projecting replay over the snapshot", async () => {
     type Event = Parameters<Parameters<typeof subscribeThread>[2]>[0];
     let deliver!: (event: Event) => void;
     vi.mocked(subscribeThread).mockImplementation(async (_target, _cursor, onEvent, signal) => {

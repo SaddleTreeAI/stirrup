@@ -68,7 +68,7 @@ function button(label: string) {
   return found;
 }
 
-it("shows the bot's reply mode and rules when inheriting, and saves a room override", async () => {
+it("shows the stirrup's reply mode and rules when inheriting, and saves a room override", async () => {
   const onSave = vi.fn(async () => {});
   await act(async () =>
     root.render(

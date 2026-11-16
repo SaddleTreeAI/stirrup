@@ -60,7 +60,7 @@ const NATIVE_OWNER = "rakazo";
 const NATIVE_DATABASE = "rakazo";
 /** Written once a Docker move has copied everything, so a cut-short move reruns. */
 const DOCKER_IMPORTED = ".docker-imported";
-const COMPUTER_IMAGE = "ghcr.io/elie222/rakazo/computer";
+const COMPUTER_IMAGE = "ghcr.io/saddletreeai/stirrup/computer";
 const POSTGRES_LISTENING = "listening on IPv4 address";
 const POSTGRES_READY = "database system is ready to accept connections";
 const HEALTH_POLL_INTERVAL_MS = 1_000;
@@ -347,9 +347,9 @@ class StartFailure extends Error {
 }
 
 const downloadFailed = () =>
-  t("Downloading Rakazo failed. Check the internet connection, then retry.");
+  t("Downloading Stirrup failed. Check the internet connection, then retry.");
 const servicesFailed = () =>
-  t("Rakazo services did not start. Check the output below, then retry.");
+  t("Stirrup services did not start. Check the output below, then retry.");
 
 export class NativeStackController extends StackLifecycle {
   private background: AbortController | null = null;
@@ -688,7 +688,9 @@ export class NativeStackController extends StackLifecycle {
     let existing = await this.inspectDatabase(cli, signal);
     if (existing === null && ports.database !== undefined && ports.database !== holder) {
       throw new StartFailure(
-        t("Your Rakazo data is in a different computer runtime. Quit the one running, then retry."),
+        t(
+          "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.",
+        ),
       );
     }
     if (ports.database === undefined) {

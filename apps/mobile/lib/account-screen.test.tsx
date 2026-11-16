@@ -440,7 +440,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("keeps bot style visible when the account has no saved style", async () => {
+it("keeps stirrup style visible when the account has no saved style", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
@@ -449,7 +449,7 @@ it("keeps bot style visible when the account has no saved style", async () => {
 
   expect(container.querySelector('[aria-label="Appearance"]')).not.toBeNull();
   expect(container.textContent).toContain("Language");
-  expect(container.querySelector('[aria-label="Bot style"]')).not.toBeNull();
+  expect(container.querySelector('[aria-label="Stirrup style"]')).not.toBeNull();
   expect(container.textContent).not.toContain("Avatars");
   expect(container.textContent).not.toContain("Robot");
   expect(container.textContent).not.toContain("Organic");
@@ -464,7 +464,7 @@ function holdPreferenceSave() {
 }
 
 function botStyleButton(screen: HTMLElement, label: string) {
-  const picker = screen.querySelector('[aria-label="Bot style"]')!;
+  const picker = screen.querySelector('[aria-label="Stirrup style"]')!;
   return Array.from(picker.querySelectorAll("button")).find((node) => node.textContent === label)!;
 }
 
@@ -482,7 +482,9 @@ it("saves an Original choice even when the saved style is absent", async () => {
   );
   expect(original().getAttribute("aria-pressed")).toBe("true");
   expect(
-    screen.querySelector('[aria-label="Bot style"][data-disabled]')?.getAttribute("data-disabled"),
+    screen
+      .querySelector('[aria-label="Stirrup style"][data-disabled]')
+      ?.getAttribute("data-disabled"),
   ).toBe("true");
   account.me = { ...account.me, botAvatarSet: "organic" };
   await act(async () => saving.resolve({}));
@@ -490,26 +492,30 @@ it("saves an Original choice even when the saved style is absent", async () => {
   expect(reads()).toBe(before + 1);
   expect(original().getAttribute("aria-pressed")).toBe("true");
   expect(
-    screen.querySelector('[aria-label="Bot style"][data-disabled]')?.getAttribute("data-disabled"),
+    screen
+      .querySelector('[aria-label="Stirrup style"][data-disabled]')
+      ?.getAttribute("data-disabled"),
   ).toBe("false");
 });
 
-it("puts the bot style back and releases it when the save fails", async () => {
+it("puts the stirrup style back and releases it when the save fails", async () => {
   account.me = { ...account.me, botAvatarSet: "rakazo" };
   const { screen } = await renderAccount(General);
   const { saving } = holdPreferenceSave();
   await act(async () => botStyleButton(screen, "Original").click());
   // A second choice while the first is saving is not sent.
-  await act(async () => botStyleButton(screen, "Rakazo").click());
+  await act(async () => botStyleButton(screen, "Character").click());
   expect(
     vi.mocked(rpc).mock.calls.filter(([method]) => method === "preferences/update"),
   ).toHaveLength(1);
   await act(async () => saving.reject(new Error("offline")));
   await act(flush);
-  expect(Alert.alert).toHaveBeenCalledWith("Couldn't update bot style");
-  expect(botStyleButton(screen, "Rakazo").getAttribute("aria-pressed")).toBe("true");
+  expect(Alert.alert).toHaveBeenCalledWith("Couldn't update stirrup style");
+  expect(botStyleButton(screen, "Character").getAttribute("aria-pressed")).toBe("true");
   expect(
-    screen.querySelector('[aria-label="Bot style"][data-disabled]')?.getAttribute("data-disabled"),
+    screen
+      .querySelector('[aria-label="Stirrup style"][data-disabled]')
+      ?.getAttribute("data-disabled"),
   ).toBe("false");
 });
 

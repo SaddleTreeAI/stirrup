@@ -108,7 +108,7 @@ struct WorkLiveActivity: Widget {
   private func heading(_ state: State) -> String {
     state.count == 1
       ? state.rows.first?.title ?? ""
-      : String(localized: "\(state.count) bots")
+      : String(localized: "\(state.count) stirrups")
   }
 
   @ViewBuilder

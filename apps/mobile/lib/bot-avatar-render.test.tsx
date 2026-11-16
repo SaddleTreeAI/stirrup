@@ -177,7 +177,7 @@ describe("BotAvatar", () => {
     expect(latestEye()).toMatchObject({ cx: 40.5, cy: 49 });
   });
 
-  it("uses the same shared seed colour as SSR for a bot without a saved colour", () => {
+  it("uses the same shared seed colour as SSR for a stirrup without a saved colour", () => {
     const node = render("", "rakazo");
     expect(
       node.querySelector(`stop[data-stop-color="${seededLogoAvatarColor("bot-1").toLowerCase()}"]`),
@@ -230,7 +230,7 @@ describe("BotAvatar", () => {
   const bodies = (view: HTMLElement) =>
     Array.from(view.querySelectorAll("path"), (path) => path.dataset.d);
 
-  it("preserves the shared native tap reactions on the Rakazo set", () => {
+  it("preserves the shared native tap reactions on the Stirrup set", () => {
     nativeMotion.reduced = false;
     const view = render("#3EC5A8", "rakazo", { pokeable: true, motion: "running" });
     const button = view.querySelector("button");
@@ -287,7 +287,7 @@ describe("BotAvatar", () => {
     expect(nativeMotion.timings.filter((ms) => ms > 0 && ms < 1000)).toEqual([]);
   });
 
-  it("draws a plain-colour bot with the organic body for its identity", () => {
+  it("draws a plain-colour stirrup with the organic body for its identity", () => {
     const view = render("#3EC5A8");
     expect(bodies(view)).toEqual([organicAvatarPath(avatarIdentitySeed("bot-1"))]);
     // A pale body keeps dark eyes on a light page, the same as a group title's still faces.
@@ -312,7 +312,7 @@ describe("BotAvatar", () => {
     expect(view.querySelectorAll("rect")).toHaveLength(2);
     expect(view.querySelector("ellipse")).toBeNull();
   });
-  it("draws the explicitly selected Rakazo set as paths and gradients without a raster image", () => {
+  it("draws the explicitly selected Stirrup set as paths and gradients without a raster image", () => {
     const view = render("#3EC5A8", "rakazo");
     expect(bodies(view)).toContain(LOGO_BODY_PATH);
     expect(bodies(view)).not.toContain(organicAvatarPath(avatarIdentitySeed("bot-1")));
@@ -321,13 +321,13 @@ describe("BotAvatar", () => {
     expect(view.querySelector("radialGradient")).not.toBeNull();
   });
 
-  it("keeps a custom picture when the stored set is Rakazo", () => {
+  it("keeps a custom picture when the stored set is Stirrup", () => {
     const view = render("data:image/png;base64,abc", "rakazo");
     expect(view.querySelector("img")?.getAttribute("src")).toBe("data:image/png;base64,abc");
     expect(bodies(view)).toEqual([]);
   });
 
-  it("keeps an explicitly selected original shape when the stored set is Rakazo", () => {
+  it("keeps an explicitly selected original shape when the stored set is Stirrup", () => {
     const view = render("#8B5CF6::shape_3", "rakazo");
     expect(bodies(view)).toEqual([shippedBotAvatarShapePath(3)]);
   });

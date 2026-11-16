@@ -3,7 +3,7 @@ export const RU_MESSAGES: Record<string, string> = {
   "Check for Updates…": "Проверить обновления…",
   "Computer Access…": "Доступ к компьютеру…",
   "Revoke Local Computer Access": "Отозвать доступ к локальному компьютеру",
-  "Change Rakazo Server…": "Сменить сервер Rakazo…",
+  "Change Stirrup Server…": "Сменить сервер Stirrup…",
   "Stop Local Stack": "Остановить локальный стек",
   "Hide {name}": "Скрыть {name}",
   "Hide Others": "Скрыть остальные",
@@ -35,12 +35,12 @@ export const RU_MESSAGES: Record<string, string> = {
   Close: "Закрыть",
   "Close Window": "Закрыть окно",
   "Bring All to Front": "Все окна — на передний план",
-  "Rakazo {version} is ready to install.": "Rakazo {version} готов к установке.",
+  "Stirrup {version} is ready to install.": "Stirrup {version} готов к установке.",
   Restart: "Перезапустить",
   Later: "Позже",
   "Could not install the update.": "Не удалось установить обновление.",
   "Could not check for updates.": "Не удалось проверить обновления.",
-  "Rakazo is up to date.": "У вас последняя версия Rakazo.",
+  "Stirrup is up to date.": "У вас последняя версия Stirrup.",
   "Version {version}": "Версия {version}",
   "Automatic updates are turned off for this install.":
     "Автоматические обновления отключены для этой установки.",
@@ -48,17 +48,17 @@ export const RU_MESSAGES: Record<string, string> = {
     "Автоматические обновления работают только в установленной версии.",
   "No desktop releases are published for this build yet.":
     "Для этой сборки пока не опубликовано ни одной версии для компьютера.",
-  "Move Rakazo to Applications to install updates.":
-    "Переместите Rakazo в папку «Программы», чтобы устанавливать обновления.",
+  "Move Stirrup to Applications to install updates.":
+    "Переместите Stirrup в папку «Программы», чтобы устанавливать обновления.",
   "Free up disk space to install updates.":
     "Освободите место на диске, чтобы установить обновления.",
-  "This update could not be verified. Reinstall Rakazo from a trusted download.":
-    "Не удалось проверить это обновление. Переустановите Rakazo из надёжного источника.",
+  "This update could not be verified. Reinstall Stirrup from a trusted download.":
+    "Не удалось проверить это обновление. Переустановите Stirrup из надёжного источника.",
   "The update could not be completed. Try again later.":
     "Не удалось завершить обновление. Повторите попытку позже.",
   "Could not reach the update server.": "Не удалось связаться с сервером обновлений.",
   "Allow local computer access?": "Разрешить доступ к локальному компьютеру?",
-  "Allow bots to use this computer?": "Разрешить ботам использовать этот компьютер?",
+  "Allow stirrups to use this computer?": "Разрешить ботам использовать этот компьютер?",
   Cancel: "Отменить",
   Allow: "Разрешить",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -72,13 +72,14 @@ export const RU_MESSAGES: Record<string, string> = {
     "Вход уже выполняется. Отмените его и повторите попытку.",
   "Could not open browser sign-in. Close other sign-in attempts and retry.":
     "Не удалось открыть вход в браузере. Закройте другие попытки входа и повторите.",
-  "Sign-in callback rejected. Return to Rakazo to retry.":
-    "Ответ на вход отклонён. Вернитесь в Rakazo, чтобы повторить попытку.",
-  "You can close this tab and return to Rakazo.": "Можно закрыть эту вкладку и вернуться в Rakazo.",
-  "Set up Rakazo": "Настройка Rakazo",
-  "Quit Rakazo": "Завершить Rakazo",
-  "Welcome to Rakazo": "Добро пожаловать в Rakazo",
-  "Choose where Rakazo runs.": "Выберите, где будет работать Rakazo.",
+  "Sign-in callback rejected. Return to Stirrup to retry.":
+    "Ответ на вход отклонён. Вернитесь в Stirrup, чтобы повторить попытку.",
+  "You can close this tab and return to Stirrup.":
+    "Можно закрыть эту вкладку и вернуться в Stirrup.",
+  "Set up Stirrup": "Настройка Stirrup",
+  "Quit Stirrup": "Завершить Stirrup",
+  "Welcome to Stirrup": "Добро пожаловать в Stirrup",
+  "Choose where Stirrup runs.": "Выберите, где будет работать Stirrup.",
   Instance: "Экземпляр",
   "This computer": "Этот компьютер",
   "Existing instance": "Существующий экземпляр",
@@ -91,14 +92,14 @@ export const RU_MESSAGES: Record<string, string> = {
   Continue: "Продолжить",
   Retry: "Повторить",
   "Getting ready…": "Подготовка…",
-  "Downloading Rakazo…": "Загрузка Rakazo…",
-  "Starting Rakazo…": "Запуск Rakazo…",
+  "Downloading Stirrup…": "Загрузка Stirrup…",
+  "Starting Stirrup…": "Запуск Stirrup…",
   "Almost ready…": "Почти готово…",
-  "Rakazo is ready.": "Rakazo готов.",
+  "Stirrup is ready.": "Stirrup готов.",
   "{size} downloaded": "Загружено {size}",
   "Connecting…": "Подключение…",
   "Checking…": "Проверка…",
-  "Rakazo answered at {url}.": "Rakazo ответил по адресу {url}.",
+  "Stirrup answered at {url}.": "Stirrup ответил по адресу {url}.",
   "Enter a server address first.": "Сначала введите адрес сервера.",
   "Could not save that address.": "Не удалось сохранить этот адрес.",
   "Could not save that address. Try again.": "Не удалось сохранить этот адрес. Повторите попытку.",
@@ -109,18 +110,18 @@ export const RU_MESSAGES: Record<string, string> = {
   "Could not run the connection check. Try again.":
     "Не удалось проверить подключение. Повторите попытку.",
   "Setup bridge unavailable.": "Мост настройки недоступен.",
-  "Setup could not start. Quit Rakazo and try again.":
-    "Не удалось начать настройку. Завершите Rakazo и повторите попытку.",
+  "Setup could not start. Quit Stirrup and try again.":
+    "Не удалось начать настройку. Завершите Stirrup и повторите попытку.",
   "Enter a server address.": "Введите адрес сервера.",
   "Enter a valid http:// or https:// address.":
     "Введите действительный адрес http:// или https://.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "Введите действительный адрес сервера. Публичным серверам нужен HTTPS; новый локальный экземпляр должен использовать localhost.",
   "Invalid custom headers": "Недопустимые пользовательские заголовки",
-  "That address redirects elsewhere. Enter the final Rakazo server address.":
-    "Этот адрес перенаправляет в другое место. Введите конечный адрес сервера Rakazo.",
-  "That address did not respond like a Rakazo server.":
-    "Этот адрес ответил не так, как сервер Rakazo.",
+  "That address redirects elsewhere. Enter the final Stirrup server address.":
+    "Этот адрес перенаправляет в другое место. Введите конечный адрес сервера Stirrup.",
+  "That address did not respond like a Stirrup server.":
+    "Этот адрес ответил не так, как сервер Stirrup.",
   "The server answered with HTTP {status}.": "Сервер ответил с кодом HTTP {status}.",
   "Timed out reaching that address.": "Истекло время ожидания ответа по этому адресу.",
   "Nothing is listening at that address yet.": "По этому адресу пока ничего не отвечает.",
@@ -145,8 +146,8 @@ export const RU_MESSAGES: Record<string, string> = {
     "Не удалось сохранить настройку. Предыдущий экземпляр восстановлен.",
   "Connected, but could not save setup for the next launch. Try Continue again.":
     "Подключение установлено, но настройку не удалось сохранить для следующего запуска. Нажмите «Продолжить» ещё раз.",
-  "The app-managed Rakazo services are not ready. Retry setup.":
-    "Службы Rakazo, которыми управляет приложение, не готовы. Повторите настройку.",
+  "The app-managed Stirrup services are not ready. Retry setup.":
+    "Службы Stirrup, которыми управляет приложение, не готовы. Повторите настройку.",
   "Docker is installed, but Docker Compose is missing. Install Docker Desktop or the docker-compose-plugin.":
     "Docker установлен, но Docker Compose отсутствует. Установите Docker Desktop или docker-compose-plugin.",
   "Could not check Docker Compose. Check the output below, then retry.":
@@ -167,10 +168,10 @@ export const RU_MESSAGES: Record<string, string> = {
     "Docker перестал отвечать. Запустите Docker и повторите попытку.",
   "Docker Compose is missing. Install Docker Desktop or the docker-compose-plugin, then retry.":
     "Docker Compose отсутствует. Установите Docker Desktop или docker-compose-plugin и повторите попытку.",
-  "Downloading Rakazo images failed. Check the output below, then retry.":
-    "Не удалось загрузить образы Rakazo. Посмотрите вывод ниже и повторите попытку.",
-  "Rakazo services did not start. Check the output below, then retry.":
-    "Службы Rakazo не запустились. Посмотрите вывод ниже и повторите попытку.",
+  "Downloading Stirrup images failed. Check the output below, then retry.":
+    "Не удалось загрузить образы Stirrup. Посмотрите вывод ниже и повторите попытку.",
+  "Stirrup services did not start. Check the output below, then retry.":
+    "Службы Stirrup не запустились. Посмотрите вывод ниже и повторите попытку.",
   "The stack started but the web app did not answer. Retry, and check the output below.":
     "Стек запущен, но веб-приложение не ответило. Повторите попытку и посмотрите вывод ниже.",
   "Could not prepare the local stack. Retry.":
@@ -194,16 +195,16 @@ export const RU_MESSAGES: Record<string, string> = {
   "Chat Details": "Сведения о чате",
   Help: "Справка",
   "Keyboard Shortcuts": "Сочетания клавиш",
-  "Downloading Rakazo failed. Check the internet connection, then retry.":
-    "Не удалось загрузить Rakazo. Проверьте подключение к интернету и повторите попытку.",
+  "Downloading Stirrup failed. Check the internet connection, then retry.":
+    "Не удалось загрузить Stirrup. Проверьте подключение к интернету и повторите попытку.",
   "Could not move your data from Docker. Check the output below, then retry.":
     "Не удалось перенести данные из Docker. Посмотрите вывод ниже и повторите попытку.",
   "The computer runtime already running is too old. Update or quit it, then retry.":
     "Уже запущенная среда выполнения компьютеров слишком старая. Обновите или закройте её, затем повторите попытку.",
-  "Your Rakazo data is in a different computer runtime. Quit the one running, then retry.":
-    "Ваши данные Rakazo находятся в другой среде выполнения компьютеров. Закройте запущенную среду, затем повторите попытку.",
-  "Run Rakazo without Docker?": "Запускать Rakazo без Docker?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
+    "Ваши данные Stirrup находятся в другой среде выполнения компьютеров. Закройте запущенную среду, затем повторите попытку.",
+  "Run Stirrup without Docker?": "Запускать Stirrup без Docker?",
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "Ваши боты и данные будут перенесены. Docker будет остановлен, но не удалён.",
   Move: "Перенести",
   "Keep Docker": "Оставить Docker",
@@ -211,12 +212,12 @@ export const RU_MESSAGES: Record<string, string> = {
   "Your data stays on this computer.": "Ваши данные остаются на этом компьютере.",
   "Connect to a server you or your team already run.":
     "Подключитесь к серверу, который уже работает у вас или вашей команды.",
-  "Rakazo needs Docker Desktop to run on this computer.":
-    "Чтобы Rakazo работал на этом компьютере, нужен Docker Desktop.",
-  "Rakazo needs Docker to run on this computer.":
-    "Чтобы Rakazo работал на этом компьютере, нужен Docker.",
-  "Docker Desktop is a free app that runs Rakazo in the background. Install it and open it once.":
-    "Docker Desktop — бесплатное приложение, которое запускает Rakazo в фоне. Установите и один раз откройте его.",
+  "Stirrup needs Docker Desktop to run on this computer.":
+    "Чтобы Stirrup работал на этом компьютере, нужен Docker Desktop.",
+  "Stirrup needs Docker to run on this computer.":
+    "Чтобы Stirrup работал на этом компьютере, нужен Docker.",
+  "Docker Desktop is a free app that runs Stirrup in the background. Install it and open it once.":
+    "Docker Desktop — бесплатное приложение, которое запускает Stirrup в фоне. Установите и один раз откройте его.",
   "Install Docker Engine and start it.": "Установите Docker Engine и запустите его.",
   "Download Docker Desktop": "Скачать Docker Desktop",
   "Install Docker": "Установить Docker",

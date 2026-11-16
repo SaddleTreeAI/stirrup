@@ -6,7 +6,7 @@ export function botRemovalWarning(groups: readonly { name: string }[] | null): s
     return i18n._({
       id: "oHABLZ",
       message:
-        "Groups left with fewer than two bots are deleted too, including their messages, files, and pages.",
+        "Groups left with fewer than two stirrups are deleted too, including their messages, files, and pages.",
     });
   if (groups.length === 0) return "";
   const names = groups.map((group) => group.name).join(", ");

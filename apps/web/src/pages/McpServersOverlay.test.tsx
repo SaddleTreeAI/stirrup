@@ -605,7 +605,9 @@ it.each([
   try {
     await act(async () => root.render(overlay()));
     const trigger = () =>
-      Array.from(host.querySelectorAll("button")).find((item) => item.textContent === "No bots");
+      Array.from(host.querySelectorAll("button")).find(
+        (item) => item.textContent === "No stirrups",
+      );
     await vi.waitFor(() => expect(trigger()?.disabled).toBe(true));
     for (const item of host.querySelectorAll("button[aria-checked]"))
       await act(async () => (item as HTMLButtonElement).click());
@@ -639,15 +641,17 @@ it("narrows a server shared with every agent to the ones left selected", async (
       );
     const trigger = () =>
       Array.from(host.querySelectorAll("button")).find(
-        (item) => !item.hasAttribute("aria-checked") && item.textContent === "All bots",
+        (item) => !item.hasAttribute("aria-checked") && item.textContent === "All stirrups",
       );
     await vi.waitFor(() => expect(trigger()?.disabled).toBe(false));
     expect(option("Grace")?.getAttribute("aria-checked")).toBe("true");
     mocks.list.mockResolvedValue([{ ...shared, allBots: false }]);
     await act(async () => option("Ada")!.click());
     expect(mocks.agents).toHaveBeenCalledWith({ id: "docs", allBots: false, botIds: ["bot_2"] });
-    await vi.waitFor(() => expect(option("All bots")?.getAttribute("aria-checked")).toBe("false"));
-    await act(async () => option("All bots")!.click());
+    await vi.waitFor(() =>
+      expect(option("All stirrups")?.getAttribute("aria-checked")).toBe("false"),
+    );
+    await act(async () => option("All stirrups")!.click());
     expect(mocks.agents).toHaveBeenLastCalledWith({ id: "docs", allBots: true, botIds: [] });
   } finally {
     await act(async () => root.unmount());
@@ -753,7 +757,7 @@ it("links callback mismatches in MCP settings to the shared recovery guide", asy
     await vi.waitFor(() => expect(connectButton()).toBeDefined());
     await act(async () => connectButton()?.click());
     expect(host.querySelector('[role="alert"] a')?.getAttribute("href")).toBe(
-      "https://rakazo.com/docs/troubleshooting/#mcp-oauth-redirect-mismatch",
+      "https://stirrup.saddletree.ai/docs/troubleshooting/#mcp-oauth-redirect-mismatch",
     );
     expect(connectButton()?.disabled).toBe(false);
   } finally {

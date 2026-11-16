@@ -185,16 +185,16 @@ it("group-removed-member-keeps-author-label", () => {
     g1: "G1",
     handoff: "↪ G2 ← G1",
     g2: "G2",
-    gone: "Deleted bot",
-    reply: expect.stringContaining("Deleted bot: Gone"),
+    gone: "Deleted stirrup",
+    reply: expect.stringContaining("Deleted stirrup: Gone"),
     plain: null,
   });
   expect(container.querySelector(`[data-message-id="plain"]`)?.textContent).not.toContain(
-    "Deleted bot",
+    "Deleted stirrup",
   );
 });
 
-it("group-removed-member-keeps-author-label for an archived bot", () => {
+it("group-removed-member-keeps-author-label for an archived stirrup", () => {
   renderTranscript(
     [
       message("old", ARCHIVED, [{ kind: "text", text: "Note" }]),
@@ -227,7 +227,7 @@ it("group-removed-member-keeps-author-label stays off a direct chat", () => {
   expect(container.querySelector(`[data-message-id="direct"]`)?.textContent).toContain("Hello");
   expect(container.querySelector(`[data-message-id="direct"]`)?.textContent).not.toContain("Atlas");
   expect(container.querySelector(`[data-message-id="direct"]`)?.textContent).not.toContain(
-    "Deleted bot",
+    "Deleted stirrup",
   );
 });
 

@@ -9,7 +9,9 @@ import {
   signup,
 } from "./helpers";
 
-test("needs-you computer card opens a group member bot computer", async ({ page }, testInfo) => {
+test("needs-you computer card opens a group member stirrup computer", async ({
+  page,
+}, testInfo) => {
   const stamp = Date.now();
   await signup(page, `needs-you-group-${stamp}@rakazo.test`, "password12", "Needs You Group");
   await completeOnboarding(page);

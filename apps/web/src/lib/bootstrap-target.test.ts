@@ -8,7 +8,7 @@ describe("initial bootstrap target", () => {
     expect(initialBootstrapTarget("/", false)).toBeNull();
   });
 
-  it("primes browser app routes and decodes their selected bot", () => {
+  it("primes browser app routes and decodes their selected stirrup", () => {
     expect(initialBootstrapTarget("/app/board", false)).toEqual({ botId: undefined });
     expect(initialBootstrapTarget("/app/x/clients", false)).toEqual({ botId: undefined });
     expect(initialBootstrapTarget("/app", false)).toEqual({ botId: undefined });
@@ -31,14 +31,14 @@ describe("initial bootstrap target", () => {
   });
 });
 
-describe("linked bot in another Space", () => {
+describe("linked stirrup in another Space", () => {
   const loaded = (botSpaceId?: string) => ({
     me: { spaceId: "home" } as AppBootstrap["me"],
     bots: [{ id: "chief" }] as AppBootstrap["bots"],
     botSpaceId,
   });
 
-  it("opens the Space the server says holds the linked bot, keeping the link's query", () => {
+  it("opens the Space the server says holds the linked stirrup, keeping the link's query", () => {
     expect(linkedBotRoute(loaded("work"), "scout", "?m=message-1&routine=r1")).toEqual({
       spaceId: "work",
       path: "/app/scout?m=message-1&routine=r1",
@@ -46,7 +46,7 @@ describe("linked bot in another Space", () => {
     expect(initialBootstrapTarget("/app/scout?m=message-1", false)).toEqual({ botId: "scout" });
   });
 
-  it("stays put for a bot already here, no link, or no other Space", () => {
+  it("stays put for a stirrup already here, no link, or no other Space", () => {
     expect(linkedBotRoute(loaded("work"), "chief", "")).toBeUndefined();
     expect(linkedBotRoute(loaded("work"), undefined, "")).toBeUndefined();
     expect(linkedBotRoute(loaded(), "scout", "")).toBeUndefined();

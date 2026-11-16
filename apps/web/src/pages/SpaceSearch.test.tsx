@@ -65,7 +65,7 @@ it("renders every file sent in one message without duplicate-key errors", async 
   expect(container.querySelector("button")?.textContent).toContain("File");
 });
 
-it("opens the chat menu on bot and group results only, for chats in the roster", async () => {
+it("opens the chat menu on stirrup and group results only, for chats in the roster", async () => {
   const hit = (fields: Partial<SearchHit>): SearchHit => ({
     kind: "conversation",
     title: "Chief",

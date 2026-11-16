@@ -16,7 +16,7 @@ test("renders the real logo in every requested pose in both themes", async ({ pa
   page.on("pageerror", (error) => errors.push(error.message));
   for (const theme of ["dark", "light"]) {
     await page.goto(`/e2e/fixtures/logo-avatars.html?theme=${theme}`);
-    await expect(page.getByRole("img", { name: "Official Rakazo logo" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Official Stirrup logo" })).toBeVisible();
     const cards = page.getByRole("region", { name: "Requested expressions" });
     for (const label of ["Idle", "Reading", "Writing", "Thinking", "Computer use"]) {
       await expect(cards.getByRole("img", { name: label, exact: true })).toBeVisible();
@@ -127,7 +127,9 @@ test("logo bodies are vector-only and do not request a body raster", async ({ pa
   expect(requests).toEqual([]);
 });
 
-test("same-state bots keep independent clocks and survive parent rerenders", async ({ page }) => {
+test("same-state stirrups keep independent clocks and survive parent rerenders", async ({
+  page,
+}) => {
   await page.goto("/e2e/fixtures/logo-avatars.html");
   const fleet = page.getByTestId("same-state-bots").getByRole("img");
   await expect(fleet).toHaveCount(6);
@@ -733,10 +735,7 @@ test("directional vector rim follows the source edge falloff without whitening t
   page,
 }) => {
   const original = await readFile(
-    new URL(
-      "../../../packages/ui-tokens/assets/Rakazo.icon/Assets/orange-bot.png",
-      import.meta.url,
-    ),
+    new URL("../../../packages/ui-tokens/assets/character/orange-bot.png", import.meta.url),
   );
   await page.goto("/e2e/fixtures/logo-avatars.html?compare=1&theme=light");
   const art = await page

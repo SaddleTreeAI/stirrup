@@ -289,7 +289,7 @@ describe("thread composer isolation", () => {
       />
     );
   }
-  const catalogBots = [{ id: "bot-1", name: "Bot" }];
+  const catalogBots = [{ id: "bot-1", name: "Stirrup" }];
   function MentionThreadHarness({ owner = "thread-a" }: { owner?: string }) {
     const catalog = useThreadMentionCatalog(owner, catalogBots);
     return (
@@ -453,7 +453,7 @@ describe("thread composer isolation", () => {
     return [...container.querySelectorAll<HTMLButtonElement>('button[aria-label^="@"]')];
   }
 
-  it("lists one row per bot with its avatar and name, at most five", () => {
+  it("lists one row per stirrup with its avatar and name, at most five", () => {
     const bots = ["Ada", "Ben", "Cleo", "Dan", "Eve", "Fay", "Gus"].map((name) => ({
       kind: "bot" as const,
       id: `bot-${name}`,
@@ -475,18 +475,18 @@ describe("thread composer isolation", () => {
       aliases: ["everyone", "all", "所有人"],
     } as const;
     const members = [
-      { kind: "bot", id: "bot-a", name: "Research Bot" },
+      { kind: "bot", id: "bot-a", name: "Research Stirrup" },
       { kind: "bot", id: "bot-b", name: "Chef" },
     ] as const;
     render({ composerMentionTargets: [everyone, ...members] });
     type("@");
     expect(pickerRows().map((row) => row.textContent)).toEqual([
       "everyone",
-      "Research Bot",
+      "Research Stirrup",
       "Chef",
     ]);
-    type("@bo");
-    expect(pickerRows().map((row) => row.textContent)).toEqual(["Research Bot"]);
+    type("@st");
+    expect(pickerRows().map((row) => row.textContent)).toEqual(["Research Stirrup"]);
     type("@al");
     expect(pickerRows().map((row) => row.textContent)).toEqual(["everyone"]);
     type("@zzz");
@@ -554,7 +554,7 @@ describe("thread composer isolation", () => {
     expect(composer.current!.snapshot().mentions).toEqual([]);
   });
 
-  it("keeps a selected bot at its inline position and continues typing after it", () => {
+  it("keeps a selected stirrup at its inline position and continues typing after it", () => {
     type("i need u to message @He");
     press("@{name}");
     expect(container.querySelector("input")!.value).toBe("i need u to message @Helper ");
@@ -616,7 +616,7 @@ describe("thread composer isolation", () => {
     act(() => options[index]!.click());
   }
 
-  it("replaces a selected group binding with a bot sharing its name at the same occurrence", () => {
+  it("replaces a selected group binding with a stirrup sharing its name at the same occurrence", () => {
     const group = { kind: "group", id: "group-1", name: "Helper" } as const;
     render({ composerMentionTargets: [group, bot] });
     type("before @He");
@@ -640,7 +640,7 @@ describe("thread composer isolation", () => {
     expect(composer.current!.snapshot().mentions).toMatchObject([bobBot, bobGroup]);
   }
 
-  it("removes only the deleted group binding when a bot has the same name", () => {
+  it("removes only the deleted group binding when a stirrup has the same name", () => {
     selectBothBobs();
     select(9, 13);
     type("@Bob and  ");
@@ -708,7 +708,7 @@ describe("thread composer isolation", () => {
   });
 
   it.each(["bot", "group"] as const)(
-    "retires a shorter %s mention when replacing it with a multiword bot name",
+    "retires a shorter %s mention when replacing it with a multiword stirrup name",
     (kind) => {
       const shorter = { ...bot, kind };
       const longer = { kind: "bot", id: "bot-3", name: "Helper Smith" } as const;

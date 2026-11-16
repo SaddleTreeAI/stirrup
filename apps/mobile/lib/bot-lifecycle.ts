@@ -20,7 +20,7 @@ export async function confirmDeleteBot(
   try {
     requestContext ??= await captureApiRequestContext();
   } catch (error) {
-    if (current()) Alert.alert(t`Could not delete bot`, errorText(error, t`Try again.`));
+    if (current()) Alert.alert(t`Could not delete stirrup`, errorText(error, t`Try again.`));
     finished();
     return;
   }
@@ -59,7 +59,7 @@ export async function confirmDeleteBot(
       else onDeleted(result.removedGroupIds ?? []);
     } catch (error) {
       if (current() && contextCurrent())
-        Alert.alert(t`Could not delete bot`, errorText(error, t`Try again.`));
+        Alert.alert(t`Could not delete stirrup`, errorText(error, t`Try again.`));
     } finally {
       finished();
     }
@@ -91,7 +91,7 @@ export function confirmDeleteGroup(
   onDeleted: () => void,
   requestContext?: ApiRequestContext,
 ) {
-  Alert.alert(t`Delete ${ph({ name: group.name })}?`, t`Bots and their own chats stay.`, [
+  Alert.alert(t`Delete ${ph({ name: group.name })}?`, t`Stirrups and their own chats stay.`, [
     { text: t`Cancel`, style: "cancel" },
     {
       text: t`Delete`,
@@ -128,7 +128,7 @@ export async function archiveBot(botId: string): Promise<void> {
 export function confirmClearConversation(botId: string) {
   Alert.alert(
     t`Clear conversation?`,
-    t`This removes every message and stops current work. The bot, computer, memory, and routines are kept.`,
+    t`This removes every message and stops current work. The stirrup, computer, memory, and routines are kept.`,
     [
       { text: t`Cancel`, style: "cancel" },
       {

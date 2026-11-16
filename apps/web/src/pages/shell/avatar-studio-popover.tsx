@@ -71,7 +71,7 @@ export function BotLookPicker({
               <Trans>Original</Trans>
             </TabsTrigger>
             <TabsTrigger value="rakazo" className="flex-1">
-              <Trans>Rakazo</Trans>
+              <Trans>Character</Trans>
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -249,7 +249,7 @@ export function AvatarStudioPopover({
         disabled={disabled}
         onClick={() => setOpen(true)}
         className="group relative cursor-pointer rounded-2xl outline-none transition-transform hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={t`Customize bot avatar`}
+        aria-label={t`Customize stirrup avatar`}
         data-testid="avatar-studio-trigger"
       >
         <BotAvatar
@@ -275,7 +275,7 @@ export function AvatarStudioPopover({
               <Trans>Avatar Studio</Trans>
             </DialogTitle>
             <DialogDescription className="sr-only">
-              <Trans>Choose a bot shape, color, or upload an image</Trans>
+              <Trans>Choose a stirrup shape, color, or upload an image</Trans>
             </DialogDescription>
             <Button
               variant="ghost"
@@ -307,7 +307,7 @@ export function AvatarStudioPopover({
             <div className="flex items-center justify-between border-b border-border pb-1">
               <TabsList className="rounded-full">
                 <TabsTrigger value="bot" className="rounded-full px-3 text-label">
-                  <Trans>Bot</Trans>
+                  <Trans>Stirrup</Trans>
                 </TabsTrigger>
                 <TabsTrigger value="upload" className="rounded-full px-3 text-label">
                   <Trans>Upload</Trans>

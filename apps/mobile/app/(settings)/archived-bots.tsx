@@ -129,7 +129,7 @@ export default function ArchivedBots() {
         await rpc("bots/restore", { botId: bot.id }, await requestOptions(bot.spaceId));
       },
       withoutBot(bot.id),
-      t`Could not restore bot`,
+      t`Could not restore stirrup`,
     );
   }
 
@@ -148,7 +148,7 @@ export default function ArchivedBots() {
       options = await requestOptions(bot.spaceId);
     } catch (cause) {
       if (confirmation.current())
-        Alert.alert(t`Could not delete bot`, errorText(cause, t`Try again.`));
+        Alert.alert(t`Could not delete stirrup`, errorText(cause, t`Try again.`));
       finished();
       return;
     }
@@ -183,7 +183,7 @@ export default function ArchivedBots() {
       });
     } catch (cause) {
       if (generation !== focusGeneration.current) return;
-      Alert.alert(t`Could not load bot`, errorText(cause, t`Try again.`), [
+      Alert.alert(t`Could not load stirrup`, errorText(cause, t`Try again.`), [
         { text: t`Cancel`, style: "cancel" },
         {
           text: t`Try again`,

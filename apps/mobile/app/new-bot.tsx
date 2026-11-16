@@ -93,7 +93,7 @@ export default function NewBot() {
       // A model is needed first, or the account or space changed: nothing is left to do here.
       if (outcome !== "created" && !gone.current) router.back();
     } catch (err) {
-      setError(errorText(err, t`Could not create bot`));
+      setError(errorText(err, t`Could not create stirrup`));
     } finally {
       creating.current = false;
       setPending(false);
@@ -128,7 +128,7 @@ export default function NewBot() {
           autoCapitalize="words"
           autoCorrect={false}
           editable={!pending}
-          placeholder={t`Name your Bot`}
+          placeholder={t`Name your Stirrup`}
           placeholderTextColor={tokens.mutedForeground}
           returnKeyType="done"
           onSubmitEditing={() => void create()}

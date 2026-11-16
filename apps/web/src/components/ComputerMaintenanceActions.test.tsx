@@ -39,12 +39,12 @@ const render = (computer: ComputerStatus) =>
   );
 const labels = () => [...host.querySelectorAll("button")].map((button) => button.textContent);
 
-it("offers Update and Reset for the bot whose settings are open", async () => {
+it("offers Update and Reset for the stirrup whose settings are open", async () => {
   await render(status("bot-settings"));
   expect(labels()).toEqual(["Update computer", "Reset computer"]);
 });
 
-it("hides the rows when the shared status belongs to another bot's computer", async () => {
+it("hides the rows when the shared status belongs to another stirrup's computer", async () => {
   await render(status("bot-peer"));
   expect(labels()).toEqual([]);
 });

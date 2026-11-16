@@ -13,7 +13,8 @@ function submission(overrides: Partial<PluginSubmission>): PluginSubmission {
     logo: "https://plugins.example.test/notes.svg",
     source: "https://github.com/example/planning-notes",
     description: "Plans your day from your calendar and notes.",
-    testing: "Connect the plugin, then ask a bot to plan tomorrow.\nIt should list three blocks.",
+    testing:
+      "Connect the plugin, then ask a stirrup to plan tomorrow.\nIt should list three blocks.",
     claim: null,
     status: "pending",
     reason: null,
@@ -89,7 +90,7 @@ test("an admin reviews plugin submissions from the emailed admin link", async ({
   await expect(rows).toHaveCount(3);
   await expect(rows.first()).toContainText("github.com/example/planning-notes");
   const claim = panel.getByRole("listitem", { name: "Acme Tickets" });
-  await expect(claim).toContainText("rakazo.com/integrations/acme-tickets");
+  await expect(claim).toContainText("stirrup.saddletree.ai/integrations/acme-tickets");
   await expect(claim.getByRole("button", { name: "Testing" })).toHaveCount(0);
   await expect(rows.first()).toContainText("maker@example.test");
   await rows.first().getByRole("button", { name: "Testing" }).click();

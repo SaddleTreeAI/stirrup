@@ -153,7 +153,7 @@ it("lists computers with their status and revokes one after confirmation", async
   );
   expect(Alert.alert).toHaveBeenCalledWith(
     "Remove Desk PC?",
-    "This computer will stop running bots for your account",
+    "This computer will stop running stirrups for your account",
     expect.arrayContaining([
       expect.objectContaining({ text: "Cancel", style: "cancel" }),
       expect.objectContaining({ text: "Remove", style: "destructive" }),

@@ -57,7 +57,7 @@ export function CreateBotDialog({
     try {
       await onCreate({ name: trimmed, ...newBotLookInput(avatarSet, look) });
     } catch (err) {
-      setError(errorText(err, t`Could not create bot`));
+      setError(errorText(err, t`Could not create stirrup`));
       setSubmitting(false);
     }
   }
@@ -85,7 +85,7 @@ export function CreateBotDialog({
         >
           <DialogHeader>
             <DialogTitle className="text-center">
-              <Trans>New bot</Trans>
+              <Trans>New stirrup</Trans>
             </DialogTitle>
           </DialogHeader>
           <div className="flex justify-center py-2">
@@ -94,7 +94,7 @@ export function CreateBotDialog({
           <Input
             ref={nameRef}
             aria-label={t`Name`}
-            placeholder={t`Name your Bot`}
+            placeholder={t`Name your Stirrup`}
             value={name}
             maxLength={BOT_NAME_MAX_LENGTH}
             onChange={(event) => setName(event.target.value)}

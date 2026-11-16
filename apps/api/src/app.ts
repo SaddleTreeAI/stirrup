@@ -191,6 +191,7 @@ import { mountWebhookHttpRoutes } from "./webhook.js";
  */
 export const MOBILE_AUTH_ORIGINS = [
   "rakazo://",
+  "stirrup://",
   "http://localhost:8081",
   "http://127.0.0.1:8081",
   "http://localhost:19006",
@@ -1212,7 +1213,7 @@ export function isTrustedOrigin(
   env: Pick<AppEnv, "webOrigin" | "apiUrl" | "authUrl"> & { extraAuthOrigins?: string[] },
 ) {
   if (!origin) return true;
-  if (origin.startsWith("rakazo://")) return true;
+  if (origin.startsWith("rakazo://") || origin.startsWith("stirrup://")) return true;
   return new Set(trustedRequestOrigins(env)).has(origin);
 }
 

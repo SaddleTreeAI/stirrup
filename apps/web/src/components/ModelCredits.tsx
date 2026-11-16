@@ -281,12 +281,12 @@ function TierPlans({
   const power = (offer: TierOffer, base: TierOffer) => {
     const times =
       COMPUTER_SIZE_SPECS[offer.computerSize].vcpus / COMPUTER_SIZE_SPECS[base.computerSize].vcpus;
-    return t`A ${times}× more powerful computer for your bot`;
+    return t`A ${times}× more powerful computer for your stirrup`;
   };
   const powerDetail = (offer: TierOffer, base: TierOffer) => {
     const { memoryGb } = COMPUTER_SIZE_SPECS[offer.computerSize];
     const usage = Math.round(offer.computerHours / base.computerHours);
-    return t`${memoryGb} GB of RAM and ${usage}× the computer time of ${base.name}. Time counts only while your bot uses its computer.`;
+    return t`${memoryGb} GB of RAM and ${usage}× the computer time of ${base.name}. Time counts only while your stirrup uses its computer.`;
   };
   const credit = formatBillingAmount(amount, "usd", i18n.locale);
   const trialDays = status.trialDays;
@@ -414,7 +414,7 @@ export function CreditChoice({
 }) {
   const { t, i18n } = useLingui();
   const features = [
-    t`Bots and browser automation`,
+    t`Stirrups and browser automation`,
     t`Scheduled routines`,
     t`Web, desktop and mobile`,
   ];
@@ -484,7 +484,7 @@ export function CreditChoice({
         <AccountMenu disabled={pending} signingOut={signingOut} onLogOut={() => void logOut()} />
       )}
       <h1 className={cn("text-heading1 font-medium", tiers.length > 1 && "text-center")}>
-        <Trans>Choose how to use Rakazo</Trans>
+        <Trans>Choose how to use Stirrup</Trans>
       </h1>
       {tiers.length > 1 ? (
         <TierPlans
@@ -1060,7 +1060,7 @@ export function ModelCreditsSettings({
             })
           }
         >
-          <Trans>Use Rakazo credits</Trans>
+          <Trans>Use Stirrup credits</Trans>
         </Button>
       ) : null}
       {status.canManage && status.funding !== "byok" && (!recurring || status.cancelAtPeriodEnd) ? (

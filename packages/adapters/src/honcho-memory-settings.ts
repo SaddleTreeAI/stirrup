@@ -49,14 +49,14 @@ export const honchoMemorySettings: SettingsMemoryProvider = {
       label: "User peer",
       kind: "text",
       required: false,
-      description: "Recall from this peer; save to Rakazo’s own peers.",
+      description: "Recall from this peer; save to Stirrup’s own peers.",
       maxLength: 512,
       checks: [
         RESOURCE_ID,
         {
-          // Rakazo writes to these peers, so they cannot be read as the user's own peer.
+          // Stirrup writes to these peers, so they cannot be read as the user's own peer.
           pattern: UNRESERVED_HONCHO_PEER_PATTERN,
-          message: "rakazo-shared and IDs starting with bot- are reserved for Rakazo.",
+          message: "rakazo-shared and IDs starting with bot- are reserved for Stirrup.",
         },
       ],
       advanced: true,

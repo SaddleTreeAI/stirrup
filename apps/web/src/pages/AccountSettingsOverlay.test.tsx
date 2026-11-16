@@ -632,7 +632,7 @@ it("closes the name editor before refresh finishes and ignores a refresh failure
   }
 });
 
-it("keeps bot style available without a saved value and saves an explicit Original choice", async () => {
+it("keeps stirrup style available without a saved value and saves an explicit Original choice", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const onChange = vi.fn(async () => {});
   const container = document.createElement("div");

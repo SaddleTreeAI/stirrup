@@ -75,19 +75,19 @@ async function render(mainModelKey = "s:a:one") {
   };
 }
 
-it("stays out of sight when every bot follows the main model", async () => {
+it("stays out of sight when every stirrup follows the main model", async () => {
   bots.list.mockResolvedValue([list[1]]);
   const { host, unmount } = await render();
   expect(host.textContent).toBe("");
   unmount();
 });
 
-it("lists the bots behind a count and moves them all onto the main model", async () => {
+it("lists the stirrups behind a count and moves them all onto the main model", async () => {
   bots.list.mockResolvedValueOnce(list).mockResolvedValue(following);
   bots.update.mockResolvedValue({});
   const { host, unmount } = await render();
   const trigger = host.querySelector('[data-testid="space-bots-model"]');
-  expect(trigger?.getAttribute("aria-label")).toBe("Bots with their own model");
+  expect(trigger?.getAttribute("aria-label")).toBe("Stirrups with their own model");
   expect(trigger?.textContent).toBe("2");
   expect(host.textContent).toContain("Archie");
   expect(host.textContent).toContain("Inbox");
@@ -107,7 +107,7 @@ it("lists the bots behind a count and moves them all onto the main model", async
   unmount();
 });
 
-it("asks only when the main model changes and some bots would not follow", async () => {
+it("asks only when the main model changes and some stirrups would not follow", async () => {
   bots.list.mockResolvedValue(list);
   const { rerender, unmount } = await render();
   expect(toast).not.toHaveBeenCalled();
@@ -125,7 +125,7 @@ it("asks only when the main model changes and some bots would not follow", async
   expect(toast.dismiss).toHaveBeenCalledWith("space-bots-model");
 });
 
-it("still names the bots when the list fails right after the main model changes", async () => {
+it("still names the stirrups when the list fails right after the main model changes", async () => {
   bots.list.mockResolvedValueOnce(list).mockRejectedValue(new Error("offline"));
   const { rerender, unmount } = await render();
   await rerender("s:a:two");
@@ -133,7 +133,7 @@ it("still names the bots when the list fails right after the main model changes"
   unmount();
 });
 
-it("drops switched bots even when the refresh after the switch fails", async () => {
+it("drops switched stirrups even when the refresh after the switch fails", async () => {
   bots.list.mockResolvedValueOnce(list).mockRejectedValue(new Error("offline"));
   bots.update.mockResolvedValue({});
   const { host, unmount } = await render();
@@ -144,7 +144,7 @@ it("drops switched bots even when the refresh after the switch fails", async () 
   unmount();
 });
 
-it("ignores a bot list that a newer one replaced", async () => {
+it("ignores a stirrup list that a newer one replaced", async () => {
   const finishFirst = deferred<typeof list>();
   bots.list.mockImplementationOnce(() => finishFirst.promise).mockResolvedValue(following);
   const { host, rerender, unmount } = await render();
@@ -155,7 +155,7 @@ it("ignores a bot list that a newer one replaced", async () => {
   unmount();
 });
 
-it("names the bots that did not switch", async () => {
+it("names the stirrups that did not switch", async () => {
   bots.list.mockResolvedValue(list);
   bots.update.mockImplementation(async ({ botId }: { botId: string }) => {
     if (botId === "b3") throw new Error("forbidden");

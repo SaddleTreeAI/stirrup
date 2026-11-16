@@ -32,7 +32,7 @@ test("onboarding cannot continue with an empty or failed model catalog", async (
     }
     await expect(page.getByRole("heading", { name: "Connect a model" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
-    await expect(page.getByRole("heading", { name: "Create your first bot" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Create your first stirrup" })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "Message Chief" })).toHaveCount(0);
   }
 });
@@ -60,7 +60,7 @@ test("Ollama Cloud onboarding requires a key before continuing", async ({ page }
   await expect(continueButton).toBeDisabled();
 });
 
-test("Rakazo credits are chosen like a provider, with nothing else to fill in", async ({
+test("Stirrup credits are chosen like a provider, with nothing else to fill in", async ({
   page,
 }, testInfo) => {
   await page.route("**/rpc/me", async (route) => {
@@ -81,7 +81,7 @@ test("Rakazo credits are chosen like a provider, with nothing else to fill in", 
     timeout: 20_000,
   });
   await page.getByRole("combobox", { name: "Provider" }).click();
-  await page.getByRole("option", { name: "Rakazo credits", exact: true }).click();
+  await page.getByRole("option", { name: "Stirrup credits", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Model", exact: true })).toHaveCount(0);
   await expect(page.getByLabel(/API key/)).toHaveCount(0);
   await captureScreenshot(page, testInfo, "onboarding-rakazo-credits");

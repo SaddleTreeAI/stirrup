@@ -42,7 +42,9 @@ export function useBotProfileActions(botId: string, name: string): BotProfileAct
       onPress: () =>
         void archiveBot(botId)
           .then(leave)
-          .catch((error) => Alert.alert(t`Could not archive bot`, errorText(error, t`Try again.`))),
+          .catch((error) =>
+            Alert.alert(t`Could not archive stirrup`, errorText(error, t`Try again.`)),
+          ),
     },
     {
       id: "delete",

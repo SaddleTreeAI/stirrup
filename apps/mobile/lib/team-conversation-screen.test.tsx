@@ -252,7 +252,7 @@ function rows() {
   return [...container.querySelectorAll("[data-row]")].map((row) => row.textContent);
 }
 
-it("shows the bot's reply mode and rules until the room overrides them, then saves", async () => {
+it("shows the stirrup's reply mode and rules until the room overrides them, then saves", async () => {
   await render();
   expect(rows()).toContain("Replies to: Mentions only");
   const rules = container.querySelector<HTMLInputElement>(
@@ -303,7 +303,7 @@ it("shows the bot's reply mode and rules until the room overrides them, then sav
   expect(back).toHaveBeenCalled();
 });
 
-it("offers the inherited choice by the bot's name", async () => {
+it("offers the inherited choice by the stirrup's name", async () => {
   await render();
   expect(container.textContent).toContain("Replies to: Same as Chief");
 });
@@ -373,7 +373,7 @@ it("reads the room again on a later visit instead of showing the earlier copy", 
   expect(rows()).toContain("Replies to: Every message");
 });
 
-it("reads the bot again instead of showing the copy another screen just cached", async () => {
+it("reads the stirrup again instead of showing the copy another screen just cached", async () => {
   queryClient.setQueryData(rpcQuery("bots/list").queryKey, [
     { id: "bot-1", name: "Chief", teamChatAmbientEnabled: true, teamChatRules: null },
   ] as never);

@@ -23,7 +23,7 @@ describe("formatThreadTime", () => {
 
 describe("filterBots", () => {
   const bots = [
-    bot("seo", "SEO Bot", "tracking-pixel page"),
+    bot("seo", "SEO Stirrup", "tracking-pixel page"),
     bot("inbox", "Inbox Triage", "draft replies"),
   ];
 

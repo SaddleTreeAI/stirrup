@@ -224,7 +224,7 @@ describe("archived chats row", () => {
   it("sits at the very end of the inbox list and opens the existing Archived screen", () => {
     act(() => root.render(<InboxListFooter createHint archivedCount={3} />));
     expect(Array.from(container.children, (child) => child.textContent)).toEqual([
-      "Tap + to create a bot",
+      "Tap + to create a stirrup",
       "Archived3",
     ]);
     act(() => container.querySelector("button")!.click());
@@ -249,7 +249,7 @@ describe("archived count", () => {
 
   beforeEach(() => load.mockReset());
 
-  it("counts archived bots and groups when the inbox is shown, and waits for a session", async () => {
+  it("counts archived stirrups and groups when the inbox is shown, and waits for a session", async () => {
     load.mockResolvedValue(lists(2, 1));
     await show(null);
     expect(load).not.toHaveBeenCalled();
@@ -310,11 +310,11 @@ describe("archived count", () => {
   });
 });
 
-describe("bot profile menu archive notifications", () => {
+describe("stirrup profile menu archive notifications", () => {
   function renderActions() {
     let actions: { text: string; onPress: () => void }[] = [];
     function Header() {
-      actions = useBotProfileActions("bot-b", "Bot");
+      actions = useBotProfileActions("bot-b", "Stirrup");
       return null;
     }
     act(() => root.render(<Header />));
@@ -343,7 +343,7 @@ describe("bot profile menu archive notifications", () => {
     await flush();
     expect(listener).toHaveBeenCalledOnce();
     expect(mocks.removeFromSearchInbox).toHaveBeenCalledOnce();
-    expect(mocks.alert).toHaveBeenCalledExactlyOnceWith("Could not archive bot", "failure");
+    expect(mocks.alert).toHaveBeenCalledExactlyOnceWith("Could not archive stirrup", "failure");
     stop();
   });
 
@@ -405,7 +405,7 @@ describe("bot profile menu archive notifications", () => {
     [{ name: "index" }, false],
     [undefined, false],
   ])(
-    "only leaves a deleted bot's current route after the profile unmounts (%j)",
+    "only leaves a deleted stirrup's current route after the profile unmounts (%j)",
     async (route, shouldLeave) => {
       const { listener, stop } = listenForArchiveChanges();
       const action = renderActions();

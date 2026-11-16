@@ -63,7 +63,7 @@ import { errorText } from "../lib/user-error";
 type Amount = (typeof MODEL_CREDIT_AMOUNTS)[number];
 type SymbolName = ComponentProps<typeof NativeSymbol>["android"];
 
-const TERMS_URL = "https://rakazo.com/terms/";
+const TERMS_URL = "https://saddletree.ai/terms";
 
 // Bots carry the app's only colour, so the paywall's colour is a small crew of them.
 const CREW = [
@@ -304,7 +304,7 @@ export default function Paywall() {
         </View>
         <View style={styles.footer}>
           <NativeActionButton
-            label={started === "byok" ? t`Connect your AI` : t`Start using Rakazo`}
+            label={started === "byok" ? t`Connect your AI` : t`Start using Stirrup`}
             onPress={() => {
               router.back();
               if (started === "byok") router.push("/models");
@@ -327,7 +327,7 @@ export default function Paywall() {
   const creditPrice = `$${amount / 100}`;
   const features: { label: string; ios: string; android: SymbolName; color: string }[] = [
     {
-      label: t`Bots with their own computer`,
+      label: t`Stirrups with their own computer`,
       ios: "desktopcomputer",
       android: "desktop-outline",
       color: botColors[2],
@@ -389,7 +389,7 @@ export default function Paywall() {
             ))}
           </View>
           <Text accessibilityRole="header" style={[styles.title, { color: tokens.foreground }]}>
-            {t`Put your bots to work`}
+            {t`Put your stirrups to work`}
           </Text>
         </View>
         <View style={styles.features}>

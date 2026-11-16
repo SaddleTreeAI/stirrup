@@ -13,7 +13,7 @@ export function SharedSpaceRules({ className }: { className?: string }) {
     >
       <li className="flex items-center gap-3">
         <Users aria-hidden="true" className="size-4 shrink-0 text-foreground" />
-        <Trans>Everyone here sees its chats, bots and memory</Trans>
+        <Trans>Everyone here sees its chats, stirrups and memory</Trans>
       </li>
       <li className="flex items-center gap-3">
         <Lock aria-hidden="true" className="size-4 shrink-0 text-foreground" />
@@ -21,7 +21,7 @@ export function SharedSpaceRules({ className }: { className?: string }) {
       </li>
       <li className="flex items-center gap-3">
         <KeyRound aria-hidden="true" className="size-4 shrink-0 text-foreground" />
-        <Trans>Bots use the accounts of whoever messages them</Trans>
+        <Trans>Stirrups use the accounts of whoever messages them</Trans>
       </li>
     </ul>
   );

@@ -81,7 +81,7 @@ async function stall(operation: "write" | "delete") {
   }
 }
 
-describe("stalled last-bot storage", () => {
+describe("stalled last-stirrup storage", () => {
   it.each(["write", "delete"] as const)(
     "does not block credentials on a never-settling %s",
     async (operation) => {

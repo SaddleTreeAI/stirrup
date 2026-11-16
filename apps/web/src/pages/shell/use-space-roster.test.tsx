@@ -542,9 +542,9 @@ describe("a re-read that answers as the user opens another chat", () => {
 describe("a first load that answers after the user moved on", () => {
   it.each([
     ["a group", "/app/g/standup"],
-    ["a bot", "/app/sales"],
+    ["a stirrup", "/app/sales"],
     ["a group that is gone", "/app/g/retired"],
-    ["a bot that is gone", "/app/retired"],
+    ["a stirrup that is gone", "/app/retired"],
   ])("stays on the chat opened while a link to %s was loading", async (_, link) => {
     const answerFirstLoad = await openHoldingFirstLoad(link);
     act(() => void shell.navigate("/app/errands"));
@@ -558,7 +558,7 @@ describe("a first load that answers after the user moved on", () => {
 
   it.each([
     ["a group", "/app/g/standup"],
-    ["a bot", "/app/sales"],
+    ["a stirrup", "/app/sales"],
   ])("opens a link to %s that the user came back to", async (_, link) => {
     const answerFirstLoad = await openHoldingFirstLoad(link);
     act(() => void shell.navigate("/app/errands"));
@@ -571,9 +571,9 @@ describe("a first load that answers after the user moved on", () => {
 
   it.each([
     ["a group in another space", "/app/g/standup"],
-    ["a bot in another space", "/app/sales"],
+    ["a stirrup in another space", "/app/sales"],
     ["a group that is gone", "/app/g/retired"],
-    ["a bot that is gone", "/app/retired"],
+    ["a stirrup that is gone", "/app/retired"],
   ])("keeps a switch the user started while a link to %s was loading", async (_, link) => {
     server.club = { bots: ["chess"], groups: [] };
     const answerFirstLoad = await openHoldingFirstLoad(link);

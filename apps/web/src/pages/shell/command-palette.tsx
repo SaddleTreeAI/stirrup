@@ -146,7 +146,7 @@ export function CommandPalette({
       open={open}
       onOpenChange={onOpenChange}
       title={t`Command menu`}
-      description={t`Search bots, actions, and settings`}
+      description={t`Search stirrups, actions, and settings`}
       className="sm:max-w-xl"
     >
       <Command

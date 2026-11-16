@@ -57,7 +57,7 @@ export function TeachRecordingChrome({
             <Trans>{remaining} left</Trans>
           </span>
           <span>
-            <Trans>Bot is watching, not acting</Trans>
+            <Trans>Stirrup is watching, not acting</Trans>
           </span>
         </div>
         <div className="text-label text-muted-foreground">
@@ -81,7 +81,7 @@ export function TeachRecordingChrome({
           <Trans>{remaining} left</Trans>
         </span>
         <span>
-          <Trans>Bot is watching, not acting</Trans>
+          <Trans>Stirrup is watching, not acting</Trans>
         </span>
       </div>
       <div className="mt-2 text-body-sm text-muted-foreground">

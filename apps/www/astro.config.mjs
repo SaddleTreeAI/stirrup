@@ -13,7 +13,7 @@ import { resolveWwwPort } from "./www-port.mjs";
 const wwwPort = resolveWwwPort();
 
 export default defineConfig({
-  site: "https://rakazo.com",
+  site: "https://stirrup.saddletree.ai",
   output: "static",
   i18n: {
     defaultLocale: "en",

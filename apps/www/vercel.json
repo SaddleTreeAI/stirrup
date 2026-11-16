@@ -3,14 +3,14 @@
   "redirects": [
     {
       "source": "/",
-      "has": [{ "type": "host", "value": { "eq": "www.rakazo.com" } }],
-      "destination": "https://rakazo.com/",
+      "has": [{ "type": "host", "value": { "eq": "www.stirrup.saddletree.ai" } }],
+      "destination": "https://stirrup.saddletree.ai/",
       "statusCode": 301
     },
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": { "eq": "www.rakazo.com" } }],
-      "destination": "https://rakazo.com/:path*",
+      "has": [{ "type": "host", "value": { "eq": "www.stirrup.saddletree.ai" } }],
+      "destination": "https://stirrup.saddletree.ai/:path*",
       "statusCode": 301
     },
     {
@@ -20,22 +20,22 @@
     },
     {
       "source": "/x",
-      "destination": "https://x.com/rakazobot",
+      "destination": "https://saddletree.ai/contact",
       "permanent": false
     },
     {
       "source": "/twitter",
-      "destination": "https://x.com/rakazobot",
+      "destination": "https://saddletree.ai/contact",
       "permanent": false
     },
     {
       "source": "/github",
-      "destination": "https://github.com/elie222/rakazo",
+      "destination": "https://github.com/SaddleTreeAI/stirrup",
       "permanent": false
     },
     {
       "source": "/discord",
-      "destination": "https://discord.gg/RWwKa2Sn7h",
+      "destination": "https://saddletree.ai/contact",
       "permanent": false
     }
   ],
@@ -72,7 +72,7 @@
       "headers": [
         {
           "key": "Link",
-          "value": "<https://rakazo.com/>; rel=\"canonical\", </llms.txt>; rel=\"describedby\"; type=\"text/plain\", </.well-known/ai-catalog.json>; rel=\"ai-catalog\"; type=\"application/ai-catalog+json\""
+          "value": "<https://stirrup.saddletree.ai/>; rel=\"canonical\", </llms.txt>; rel=\"describedby\"; type=\"text/plain\", </.well-known/ai-catalog.json>; rel=\"ai-catalog\"; type=\"application/ai-catalog+json\""
         }
       ]
     },
@@ -81,7 +81,7 @@
       "headers": [
         {
           "key": "Link",
-          "value": "<https://rakazo.com/:path/>; rel=\"canonical\", </llms.txt>; rel=\"describedby\"; type=\"text/plain\", </.well-known/ai-catalog.json>; rel=\"ai-catalog\"; type=\"application/ai-catalog+json\""
+          "value": "<https://stirrup.saddletree.ai/:path/>; rel=\"canonical\", </llms.txt>; rel=\"describedby\"; type=\"text/plain\", </.well-known/ai-catalog.json>; rel=\"ai-catalog\"; type=\"application/ai-catalog+json\""
         }
       ]
     }

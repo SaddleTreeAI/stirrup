@@ -220,7 +220,7 @@ describe("optional Parallel web provider", () => {
       for (const request of peer.requests) {
         expect(request.url).toBe("https://search.parallel.ai/mcp");
         expect(request.headers.get("user-agent")).toBe(
-          "Rakazo/0.1 (+https://github.com/elie222/rakazo; web tools)",
+          "Stirrup/0.1 (+https://github.com/SaddleTreeAI/stirrup; web tools)",
         );
         expect(request.headers.has("authorization")).toBe(false);
       }

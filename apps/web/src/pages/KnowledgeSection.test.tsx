@@ -194,7 +194,7 @@ it("badges built-in skills and leaves plugin skills to their plugin", async () =
   }
 });
 
-it("deletes a bot memory document after confirmation but never MEMORY.md", async () => {
+it("deletes a stirrup memory document after confirmation but never MEMORY.md", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const doc = (id: string, path: string) => ({
     id,
@@ -296,7 +296,7 @@ it("downloads only each row’s saved markdown with its own filename", async () 
   }
 });
 
-it("hides empty bot memory and limits long lists to five documents", async () => {
+it("hides empty stirrup memory and limits long lists to five documents", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const host = document.createElement("div");
   const root = createRoot(host);
@@ -444,7 +444,7 @@ it("opens skills from the composer's cached list and saves back into it", async 
   }
 });
 
-it("says how much memory no longer reaches the bot", async () => {
+it("says how much memory no longer reaches the stirrup", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const host = document.createElement("div");
   const root = createRoot(host);
@@ -487,7 +487,7 @@ it("says how much memory no longer reaches the bot", async () => {
 
     await show(root, <KnowledgeSection botId="fixture" />);
 
-    expect(host.textContent).toContain("About 20 KB of memory no longer reaches the bot.");
+    expect(host.textContent).toContain("About 20 KB of memory no longer reaches the stirrup.");
   } finally {
     memoryApi.budget.mockReset().mockResolvedValue({
       limitBytes: 32768,

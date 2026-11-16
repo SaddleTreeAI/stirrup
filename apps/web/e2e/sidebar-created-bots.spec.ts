@@ -8,7 +8,7 @@ function rosterRow(page: Page, name: RegExp) {
   });
 }
 
-test("created bots appear as regular bots and reorder across their creator", async ({
+test("created stirrups appear as regular stirrups and reorder across their creator", async ({
   page,
 }, testInfo) => {
   const stamp = Date.now();

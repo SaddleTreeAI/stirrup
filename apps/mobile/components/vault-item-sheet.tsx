@@ -112,7 +112,7 @@ export function VaultItemSheet({
     }
     add(t`When to use`, entry.note);
     add(
-      t`Bots`,
+      t`Stirrups`,
       vaultBotsLine({
         blockable: hasVaultAccess(vaultKind(entry.auth.type)),
         policy: entry.policy,

@@ -299,7 +299,7 @@ export function GeneralSettingsPanels({
           <SettingsRow
             label={
               <span id={botStyleLabelId}>
-                <Trans>Bot style</Trans>
+                <Trans>Stirrup style</Trans>
               </span>
             }
             control={
@@ -312,7 +312,7 @@ export function GeneralSettingsPanels({
                     if (!next || next === botAvatarSet) return;
                     setBotStyleError(null);
                     onBotAvatarSetChange(next as BotAvatarSet).catch(() =>
-                      setBotStyleError(t`Couldn't update bot style`),
+                      setBotStyleError(t`Couldn't update stirrup style`),
                     );
                   }}
                   spacing={1}
@@ -328,7 +328,7 @@ export function GeneralSettingsPanels({
                     value="rakazo"
                     className="text-body-sm aria-pressed:bg-background aria-pressed:shadow-sm"
                   >
-                    <Trans>Rakazo</Trans>
+                    <Trans>Stirrup</Trans>
                   </ToggleGroupItem>
                 </ToggleGroup>
                 {botStyleError ? (

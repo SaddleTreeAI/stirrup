@@ -127,7 +127,7 @@ export function hiddenCatalogModel(entry: { provider: string; id: string }): boo
 const hiddenCatalogKeys = new Set<string>();
 const pricedCatalogKeys = new Set<string>();
 
-/** Rakazo credits reserve a call's price before sending it, so they only run a model with one. */
+/** Stirrup credits reserve a call's price before sending it, so they only run a model with one. */
 export function creditsCanPriceModel(entry: { provider: string; id: string }): boolean {
   listPiCatalog();
   return pricedCatalogKeys.has(`${canonicalPiProviderId(entry.provider)}:${entry.id}`);
@@ -428,18 +428,18 @@ function catalogBilling(
   const signInMeta = SUBSCRIPTION_SIGN_IN_PROVIDERS[providerId];
   if (signInMeta) return signInMeta.billing;
   if (providerId === LOCAL_PROVIDER_ID) {
-    return "Runs on infrastructure configured by the server operator. No model charges from Rakazo.";
+    return "Runs on infrastructure configured by the server operator. No model charges from Stirrup.";
   }
   if (providerId === OPENAI_COMPATIBLE_PROVIDER_ID) {
-    return "Runs on a URL you control. Rakazo does not pay for model usage.";
+    return "Runs on a URL you control. Stirrup does not pay for model usage.";
   }
   if (opts.oauth && !opts.apiKey) {
-    return `${name} subscription login is not in the Rakazo UI yet. Skip if this deployment already has credentials.`;
+    return `${name} subscription login is not in the Stirrup UI yet. Skip if this deployment already has credentials.`;
   }
   if (opts.apiKey) {
-    return `Uses your ${name} API key. Rakazo does not pay for model usage.`;
+    return `Uses your ${name} API key. Stirrup does not pay for model usage.`;
   }
-  return `Uses your ${name} key. Rakazo does not pay for model usage.`;
+  return `Uses your ${name} key. Stirrup does not pay for model usage.`;
 }
 
 export const scriptedCatalogEntry: PiCatalogEntry = {

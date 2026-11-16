@@ -178,7 +178,7 @@ export function AgentImportForm({
       });
       onCreated(bot);
     } catch (err) {
-      failure(err, t`Could not create bot`);
+      failure(err, t`Could not create stirrup`);
       setCreating(false);
       setBusy(false);
     }
@@ -208,7 +208,7 @@ export function AgentImportForm({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={t`Cancel new bot`}
+          aria-label={t`Cancel new stirrup`}
           onClick={() => {
             stopReading();
             onClose();
@@ -316,7 +316,7 @@ export function AgentImportForm({
             {grokBots.length > 1 ? (
               <>
                 <p className="mt-3 text-body-sm text-muted-foreground">
-                  <Trans>Which Bot?</Trans>
+                  <Trans>Which Stirrup?</Trans>
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {grokBots.map((bot, index) => (

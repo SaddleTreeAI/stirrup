@@ -18,7 +18,7 @@ export default function Labs() {
   const styles = useThemedStyles(createSettingsPageStyles);
   const stacked = useStackedSettings();
   const copy: Record<LabFeature, { title: string; detail: string }> = {
-    board: { title: t`Board`, detail: t`A kanban board of tickets your bots can work on` },
+    board: { title: t`Board`, detail: t`A kanban board of tickets your stirrups can work on` },
   };
   const meRead = accountRpcQuery("me");
   const me = useScreenQuery(meRead).data;

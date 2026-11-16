@@ -219,14 +219,14 @@ it("reports an install that failed", async () => {
   expect(headerLabel()).toBe("Connect");
 });
 
-it("keeps a connector enabled for the bot when the reload after it fails", async () => {
+it("keeps a connector enabled for the stirrup when the reload after it fails", async () => {
   state.botId = "bot-1";
   answers["capabilities/list"] = async () => [install];
   answers["mcp/servers/list"] = async () => [server];
   await render();
   answers["mcp/assignments/approve"] = async () => ({});
   answers["mcp/servers/list"] = () => Promise.reject(new Error());
-  await press("Use in this bot");
+  await press("Use in this stirrup");
   expect(state.rpc).toHaveBeenCalledWith(
     "mcp/assignments/approve",
     { botId: "bot-1", serverId: "server-1" },
@@ -238,7 +238,7 @@ it("keeps a connector enabled for the bot when the reload after it fails", async
   answers["mcp/servers/list"] = async () => [server];
   answers["mcp/assignments/list"] = async () => [{ serverId: "server-1" }];
   await refocus();
-  expect(container.textContent).toContain("In this bot");
+  expect(container.textContent).toContain("In this stirrup");
   expect(container.textContent).not.toContain("Could not load plugin");
 });
 

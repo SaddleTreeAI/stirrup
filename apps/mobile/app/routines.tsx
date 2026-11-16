@@ -110,7 +110,7 @@ export default function Routines() {
       {header}
       {routines ? (
         <>
-          <Text style={styles.message}>{t`Ask this Bot in chat to set up a routine.`}</Text>
+          <Text style={styles.message}>{t`Ask this Stirrup in chat to set up a routine.`}</Text>
           <NativeActionButton
             label={t`New routine`}
             variant="text"

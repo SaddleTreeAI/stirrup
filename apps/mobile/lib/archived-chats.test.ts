@@ -13,7 +13,7 @@ vi.mock("./api", () => ({
   }),
 }));
 
-it("keeps the archived bots when the groups list fails", async () => {
+it("keeps the archived stirrups when the groups list fails", async () => {
   const failure = new Error("Not found");
   rpc.mockImplementation(async (procedure: string) => {
     if (procedure === "bots/listArchived") return [{ id: "b" }];
@@ -28,7 +28,7 @@ it("keeps the archived bots when the groups list fails", async () => {
   expect(rpc).toHaveBeenCalledWith("groups/listArchived", {}, { signal });
 });
 
-it("keeps the archived groups when the bots list fails", async () => {
+it("keeps the archived groups when the stirrups list fails", async () => {
   rpc.mockImplementation(async (procedure: string) => {
     if (procedure === "groups/listArchived") return [{ id: "g" }];
     throw new Error("offline");

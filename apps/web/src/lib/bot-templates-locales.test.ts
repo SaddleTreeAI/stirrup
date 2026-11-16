@@ -7,7 +7,7 @@ import { UI_LOCALES } from "./ui-locale";
 /** A string used only by these files belongs to bot templates. */
 const TEMPLATE_DIR = "apps/web/src/components/bot-templates/";
 /** Bot template strings that live in shared files. */
-const SHARED_TEMPLATE_STRINGS = ["Bot templates", "Templates"];
+const SHARED_TEMPLATE_STRINGS = ["Stirrup templates", "Templates"];
 
 const localesDir = new URL("../../../../packages/i18n/locales/", import.meta.url);
 const catalog = (locale: string) =>
@@ -34,8 +34,8 @@ const catalog = (locale: string) =>
     })
     .filter((entry) => entry.id);
 
-describe("bot template translations", () => {
-  it("has every bot template string translated in every language", () => {
+describe("stirrup template translations", () => {
+  it("has every stirrup template string translated in every language", () => {
     const ids = catalog("en")
       .filter(
         (entry) =>

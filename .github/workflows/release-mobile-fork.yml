@@ -3,6 +3,11 @@ name: release-mobile-fork
 # An optional fork-owned build, uploaded to TestFlight without submitting public App Review.
 on:
   workflow_dispatch:
+    inputs:
+      metadata_only:
+        description: Update the existing App Store name without building
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,11 +34,20 @@ jobs:
       - name: Require fork release credentials
         env:
           EXPO_TOKEN: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
+          MOBILE_RELEASE_API_URL: https://stirrup.saddletree.ai
           MOBILE_DISTRIBUTION_CONFIG: ${{ secrets.MOBILE_DISTRIBUTION_CONFIG }}
         run: |
           test -n "$EXPO_TOKEN" || { echo 'Set MOBILE_DISTRIBUTION_TOKEN before releasing.' >&2; exit 1; }
           node apps/mobile/scripts/distribution.ts
+      - name: Update the existing App Store name
+        env:
+          MOBILE_DISTRIBUTION_CONFIG: ${{ secrets.MOBILE_DISTRIBUTION_CONFIG }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: node apps/mobile/scripts/app-store-name.ts
       - name: Set up mobile build tools
+        if: ${{ !inputs.metadata_only }}
         uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
         env:
           npm_config_ignore_scripts: "true"
@@ -41,10 +55,13 @@ jobs:
           eas-version: 27.7.2
           packager: npm
           token: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
-      - run: pnpm install --frozen-lockfile
+      - if: ${{ !inputs.metadata_only }}
+        run: pnpm install --frozen-lockfile
       - name: Verify mobile project
+        if: ${{ !inputs.metadata_only }}
         run: pnpm --filter @rakazo/mobile check
       - name: Build the configured fork
+        if: ${{ !inputs.metadata_only }}
         working-directory: apps/mobile
         run: |
           if ! eas build --platform ios --profile fork-testflight --non-interactive --wait --json > "$RUNNER_TEMP/fork-build.json" 2> "$RUNNER_TEMP/fork-build.log"; then
@@ -56,6 +73,7 @@ jobs:
             'length == 1 and (.[0] | .status == "FINISHED" and .platform == "IOS" and .buildProfile == "fork-testflight" and .app.id == $project and .appIdentifier == $identifier)' \
             "$RUNNER_TEMP/fork-build.json" > /dev/null
       - name: Upload the verified build to TestFlight
+        if: ${{ !inputs.metadata_only }}
         working-directory: apps/mobile
         run: |
           build_id="$(jq -er '.[0].id' "$RUNNER_TEMP/fork-build.json")"

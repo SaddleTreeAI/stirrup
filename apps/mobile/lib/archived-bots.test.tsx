@@ -136,7 +136,7 @@ describe("archived chat read failures", () => {
     vi.unstubAllGlobals();
   });
 
-  it("adds the archived bot to the inbox roster before opening its chat, so its title is complete", async () => {
+  it("adds the archived stirrup to the inbox roster before opening its chat, so its title is complete", async () => {
     rpc.mockResolvedValueOnce({});
     await act(async () => container.querySelector("button")!.click());
     expect(addToSearchInbox).toHaveBeenCalledWith(
@@ -154,7 +154,7 @@ describe("archived chat read failures", () => {
       rpc.mockRejectedValueOnce(cause);
       await act(async () => container.querySelector("button")!.click());
       expect(push).not.toHaveBeenCalled();
-      expect(alert).toHaveBeenCalledWith("Could not load bot", expect.any(String), [
+      expect(alert).toHaveBeenCalledWith("Could not load stirrup", expect.any(String), [
         { text: "Cancel", style: "cancel" },
         { text: "Try again", onPress: expect.any(Function) },
       ]);
@@ -398,7 +398,7 @@ describe("archived chat read failures", () => {
     expect(container.textContent).toContain("Restore Crew");
   });
 
-  it("shows archived groups when no bots are archived", async () => {
+  it("shows archived groups when no stirrups are archived", async () => {
     rpc.mockResolvedValueOnce([]);
     groupRpc.mockResolvedValueOnce([group]);
     await act(async () => {
@@ -415,7 +415,7 @@ describe("archived chat read failures", () => {
     expect(container.textContent).toContain("Could not load chats");
   });
 
-  it("shows archived bots when the groups list fails", async () => {
+  it("shows archived stirrups when the groups list fails", async () => {
     await act(async () => root.render(null));
     groupRpc.mockRejectedValueOnce(new Error(""));
     await act(async () => root.render(<ArchivedBots />));
@@ -457,7 +457,7 @@ describe("archived chat read failures", () => {
     expect(container.textContent).toBe("No archived chats");
   });
 
-  it("reloads both lists after a restore, since a group comes back with its bots", async () => {
+  it("reloads both lists after a restore, since a group comes back with its stirrups", async () => {
     groupRpc.mockResolvedValueOnce([group]);
     await act(async () => {
       focus.current!();
@@ -472,7 +472,7 @@ describe("archived chat read failures", () => {
     expect(container.textContent).toBe("No archived chats");
   });
 
-  it("keeps the bots load error after restoring the last group", async () => {
+  it("keeps the stirrups load error after restoring the last group", async () => {
     await act(async () => root.render(null));
     rpc.mockRejectedValueOnce(new Error(""));
     groupRpc.mockResolvedValueOnce([group]);
@@ -487,7 +487,7 @@ describe("archived chat read failures", () => {
     expect(container.textContent).toBe("Could not load chatsTry again");
   });
 
-  it("keeps the groups load error after restoring the last bot", async () => {
+  it("keeps the groups load error after restoring the last stirrup", async () => {
     await act(async () => root.render(null));
     groupRpc.mockRejectedValueOnce(new Error(""));
     await act(async () => root.render(<ArchivedBots />));
@@ -501,7 +501,7 @@ describe("archived chat read failures", () => {
     expect(container.textContent).toBe("Could not load chatsTry again");
   });
 
-  it("keeps a bots retry that is running when a group is restored", async () => {
+  it("keeps a stirrups retry that is running when a group is restored", async () => {
     await act(async () => root.render(null));
     rpc.mockRejectedValueOnce(new Error(""));
     groupRpc.mockResolvedValueOnce([group]);
@@ -570,7 +570,7 @@ describe("archived chat read failures", () => {
   });
 
   it.each(["Restore", "Delete"])(
-    "keeps a groups retry that is running when a bot %s succeeds",
+    "keeps a groups retry that is running when a stirrup %s succeeds",
     async (action) => {
       await act(async () => root.render(null));
       groupRpc.mockRejectedValueOnce(new Error(""));
@@ -599,7 +599,7 @@ describe("archived chat read failures", () => {
   );
 
   it.each(["Restore", "Delete"])(
-    "refreshes a later visit when a bot %s from an earlier visit finishes",
+    "refreshes a later visit when a stirrup %s from an earlier visit finishes",
     async (action) => {
       let finish!: Deferred<unknown>;
       const button = [...container.querySelectorAll("button")].find(
@@ -624,7 +624,7 @@ describe("archived chat read failures", () => {
   );
 
   it.each(["Restore", "Delete"])(
-    "doesn't alert for a bot %s that fails after leaving",
+    "doesn't alert for a stirrup %s that fails after leaving",
     async (action) => {
       let fail!: Deferred<never>;
       const button = [...container.querySelectorAll("button")].find(

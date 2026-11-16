@@ -332,7 +332,7 @@ test(
   },
 );
 
-test("answers a message sent while the bot works on another bot's request", async ({
+test("answers a message sent while the stirrup works on another stirrup's request", async ({
   page,
 }, testInfo) => {
   await signup(page, `peer-busy-${Date.now()}@rakazo.test`, "password12", "Peer Busy");

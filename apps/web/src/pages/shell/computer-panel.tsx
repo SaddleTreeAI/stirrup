@@ -157,7 +157,7 @@ function ComputerPreview({
           screenFrames(screenFrameKey, embeddedScreenUrl, heldScreen).map((frame) => (
             <iframe
               key={frame.key}
-              title={frame.held ? undefined : t`Bot screen preview`}
+              title={frame.held ? undefined : t`Stirrup screen preview`}
               aria-hidden={frame.held || undefined}
               tabIndex={frame.held ? -1 : undefined}
               ref={frame.held ? undefined : screenFrameRef}

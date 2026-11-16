@@ -85,7 +85,12 @@ test("renders masked secret card and saves without putting the value in chat", a
   );
   await secretField.fill(secretValue);
   await card.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(card.getByText(BLOCKED_ITEM_ANSWER, { exact: true })).toBeVisible();
+  await expect(
+    card.getByText(
+      "This item is blocked for stirrups. Allow it in the Vault, or dismiss the request.",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await captureScreenshot(page, testInfo, "secret-card-blocked");
   await page.unroute("**/rpc/threads/answer");
 

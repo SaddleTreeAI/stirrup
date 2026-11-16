@@ -98,10 +98,10 @@ describe("run error recovery", () => {
       createElement(RunErrorSheet, { details, onClose, action: { label: "Add model", onPress } }),
     );
     expect(node.textContent).toContain(
-      "This bot's reply stopped at its key's weekly limit. Your own key has its own limits.",
+      "This stirrup's reply stopped at its key's weekly limit. Your own key has its own limits.",
     );
     expect(node.textContent).not.toContain("opens connection settings");
-    expect(node.textContent).not.toContain("opens this bot's settings");
+    expect(node.textContent).not.toContain("opens this stirrup's settings");
     expect(node.textContent).not.toContain("403:");
     const click = (label: string) =>
       act(() => {

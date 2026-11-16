@@ -119,13 +119,13 @@ function button(name: string) {
 const back = () => container.querySelector<HTMLButtonElement>('button[aria-label="Back"]');
 const alert = () => container.querySelector('[role="alert"]')?.textContent;
 
-it("creates one bot, holds the page meanwhile, reads the bots again, then opens it and stays held", async () => {
+it("creates one stirrup, holds the page meanwhile, reads the stirrups again, then opens it and stays held", async () => {
   const creating = deferred<{ bot: Bot; created: boolean }>();
   bots.createFromTemplate.mockReturnValue(creating.promise);
   await render();
   await act(async () => {
-    button("Create bot")?.click();
-    button("Create bot")?.click();
+    button("Create stirrup")?.click();
+    button("Create stirrup")?.click();
   });
   expect(bots.createFromTemplate.mock.calls).toEqual([
     [{ templateId: "weekly-digest", version: 3, name: "Weekly digest" }],
@@ -140,12 +140,12 @@ it("creates one bot, holds the page meanwhile, reads the bots again, then opens 
   expect(button("Creating…")?.disabled).toBe(true);
 });
 
-it("says why the bot was not created and offers the page again", async () => {
+it("says why the stirrup was not created and offers the page again", async () => {
   bots.createFromTemplate.mockRejectedValue({ code: "INTERNAL_SERVER_ERROR" });
   await render();
-  await act(async () => button("Create bot")?.click());
-  expect(alert()).toBe("Could not create the bot");
-  expect(button("Create bot")?.disabled).toBe(false);
+  await act(async () => button("Create stirrup")?.click());
+  expect(alert()).toBe("Could not create the stirrup");
+  expect(button("Create stirrup")?.disabled).toBe(false);
   expect(back()?.disabled).toBe(false);
   expect(onOpenBot).not.toHaveBeenCalled();
   expect(bots.list).toHaveBeenCalledTimes(1);
@@ -154,16 +154,16 @@ it("says why the bot was not created and offers the page again", async () => {
 it("reads the templates again when the one shown has changed", async () => {
   bots.createFromTemplate.mockRejectedValue({ data: { reason: BOT_TEMPLATE_CHANGED } });
   await render();
-  await act(async () => button("Create bot")?.click());
+  await act(async () => button("Create stirrup")?.click());
   expect(alert()).toBe("This template was just updated. Check it again.");
   expect(bots.templates).toHaveBeenCalledTimes(2);
 });
 
-it("opens the bot a template already made, and says when it cannot", async () => {
+it("opens the stirrup a template already made, and says when it cannot", async () => {
   bots.get.mockRejectedValueOnce({ code: "INTERNAL_SERVER_ERROR" }).mockResolvedValue(made);
   await render({ ...template, botId: "bot-new" });
   await act(async () => button("Open")?.click());
-  expect(alert()).toBe("Could not open the bot");
+  expect(alert()).toBe("Could not open the stirrup");
   expect(button("Open")?.disabled).toBe(false);
 
   await act(async () => button("Open")?.click());
@@ -171,11 +171,11 @@ it("opens the bot a template already made, and says when it cannot", async () =>
   expect(onOpenBot).toHaveBeenCalledWith(made);
 });
 
-it("does not open a bot that arrives after the templates were closed", async () => {
+it("does not open a stirrup that arrives after the templates were closed", async () => {
   const creating = deferred<{ bot: Bot; created: boolean }>();
   bots.createFromTemplate.mockReturnValue(creating.promise);
   const dialog = await render();
-  await act(async () => button("Create bot")?.click());
+  await act(async () => button("Create stirrup")?.click());
   await dialog.close();
   await act(async () => creating.resolve({ bot: made, created: true }));
   expect(onOpenBot).not.toHaveBeenCalled();
