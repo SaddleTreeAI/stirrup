@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Sidebar controls stay visible in Search, Create, Activity, Collapse order. Long open-work titles and notes wrap inside narrow settings panels.
 - Workers recover more reliably after database outages, interrupted claimed runs, computer startup failures, and delivery retries. Failed setup attempts retain a bounded, redacted reason through `run.setup_failed`.
 - Production workers can finish active turns during rolling deployment. Permanently failed background jobs emit `job.gave_up` and remain available for investigation for seven days after their final attempt.
 - Model streaming, tool response retries, and repeated-call handling avoid lost responses and retry loops.
