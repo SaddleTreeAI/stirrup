@@ -1,10 +1,65 @@
 # Changelog
 
-Notable product changes in Rakazo. See GitHub Releases for tagged builds.
+Notable product changes in Stirrup. See GitHub Releases for tagged builds.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.12.0] - 2026-11-16
+
+### Security
+
+- Model connection credentials are redacted from API failures, logs, and user-visible errors, including nested and unusually formatted provider responses. Unexpected model and voice failures return safe client errors. Payment-card redaction also covers printed American Express and Diners Club numbers.
+- Team-chat labels and delegated memory are treated as outside content rather than instructions. Imported email owner instructions require verified sender information; routine messages retain their outside-content boundaries.
+- Cloud-agent assignments enforce tool permissions, while short approval replies apply only to the preceding request and voice refusals remain refusals.
+- Remote schema and OpenAPI imports have bounded responses; imported Page hook matching avoids pathological processing time.
+- Vault items enforce individual access rules, allowed origins, and authenticator permissions, including database protections for older workers. Optional wrapped-key migration supports key rotation and deletion.
+- Bot email uses separate SMTP credentials and sends only to the verified owner by default, with ten recipient deliveries per account in a rolling 24-hour period.
+- Billing database functions use a fixed search path and restricted execution permissions. Signup domain checks reject malformed addresses with multiple at-signs.
+- Desktop MCP sign-in uses isolated browser sessions and clears them on disconnect. Desktop clipboard handling and HTTPS-only error-reporting endpoints protect sensitive content.
+- Credential retirement remains effective across retries and restarts. Deleted bot files are removed from managed computer homes when the applicable cleanup runs.
+- Custom update endpoints retain their own identity when credentials change. Signing and XML dependencies are updated, and container builds check for accidentally bundled private keys.
+
+### Added
+
+- Stirrup is the SaddleTree fork, with a shared stirrup logo across web, desktop, and mobile. Bots are called stirrups, and the default hosted address is `stirrup.saddletree.ai`.
+- Import Grok Bot exports and Agent Skill catalogs with supporting files and a preview. Imported schedules start paused.
+- Vault supports CSV imports, authenticator codes, alternate origins, per-item access, and history.
+- Optional Hindsight memory, per-stirrup knowledge, and Space sharing expand what teammates can retain and share.
+- Model connections expose context, output, vision, and reasoning settings; cloud connections can select a project and region. An optional Claude Code CLI provider supports a locally configured account.
+- Optional Google and Apple sign-in, a Labs ticket board, cloud-agent MCP sign-in, and mobile controls for revoking or using paired computers.
+- Self-hosted deployments can use Azure Blob storage and GPU-enabled Docker computers.
+- Optional backend affiliate attribution links referred signups to paid own-key plans and reconciles full refunds and lost disputes. Credit purchases are excluded; no affiliate program is advertised by this fork.
+
+### Changed
+
+- Desktop updates and container downloads use this fork. Existing desktop profiles, credential encryption, mobile signing identities, and legacy app links remain compatible.
+- Slash commands work throughout the composer; large pastes can be edited or attached as files. Tool history, screenshots, peer replies, and takeover requests stay available in chat.
+- Team mentions support `@all` and CJK names, with clearer account and connector auditing.
+- The fork's compact pinned grid and connector argument expansion remain available after synchronizing with the parent project.
+
+### Fixed
+
+- Sidebar controls stay visible in Search, Create, Activity, Collapse order. Long open-work titles and notes wrap inside narrow settings panels.
+- Workers recover more reliably after database outages, interrupted claimed runs, computer startup failures, and delivery retries. Failed setup attempts retain a bounded, redacted reason through `run.setup_failed`.
+- Production workers can finish active turns during rolling deployment. Permanently failed background jobs emit `job.gave_up` and remain available for investigation for seven days after their final attempt.
+- Model streaming, tool response retries, and repeated-call handling avoid lost responses and retry loops.
+- Telegram and WhatsApp preserve long-message formatting; scheduled routines handle daylight-saving changes.
+- Navigation, search, save-and-refresh behavior, and compact reply previews are more reliable. Reply previews preserve complete grapheme clusters.
+- Mobile voice handles lock-screen use and interrupted Android recording more reliably. Pages, calendars, CJK text, and right-to-left layouts receive rendering fixes.
+- Backups handle custom PostgreSQL connections and replicas, and refuse unexpectedly missing home data.
+
+### Self-host upgrade notes
+
+- Review the current Compose files before updating a customized deployment. Defaults now use `ghcr.io/saddletreeai/stirrup`; existing `RAKAZO_*` environment names and internal storage identifiers remain supported.
+- Run the normal database migration command before replacing application containers, and drain old workers after the replacements are healthy. Deferred migrations preserve the rolling-upgrade sequence; do not run extra migration passes to force them early.
+- `RUN_DRAIN_ENABLED` defaults to `true` in production Compose and permits up to five additional minutes for active turns. Start replacements first and preserve more than five minutes of shutdown grace; leave draining off for short-lived desktop stacks.
+- Affiliate reporting requires optional `DUB_API_KEY`; enabling it sends referred signup and payment details to the configured program. Its ledger survives account deletion for later reversals; partial refunds do not reverse commissions, and paid-out commissions require manual recovery. Marketing affiliate capture and the parent’s program link are not enabled in this fork.
+- Do not enable bot SMTP until old workers have drained. Do not edit the new per-model settings while old processes can still refresh those connections.
+- Ordinary rolling migrations do not convert existing vault values to wrapped keys. Explicit content-encryption migration requires stopping older APIs and workers first; consult the encryption documentation before running it.
+- The local Claude Code provider requires a compatible CLI (2.1.280 or newer) and locally configured credentials; official images do not bundle those credentials.
+- Mobile users may need to review data-sharing consent again. Translation catalog updates are delivered separately, so new product strings may initially appear in English.
 
 ## [0.11.0] - 2026-11-12
 
