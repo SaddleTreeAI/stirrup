@@ -43,7 +43,8 @@ jobs:
               const body = await response.json();
               if (!response.ok) {
                 const codes = (body.errors ?? []).map(e=>e.code).filter(c=>typeof c==='string' && /^[A-Z0-9_.-]+$/.test(c));
-                console.log(JSON.stringify({resource,status:response.status,codes}));
+                const pointers = (body.errors ?? []).map(e=>e.source?.pointer).filter(p=>typeof p==='string' && /^\/data\/[a-zA-Z0-9_/-]+$/.test(p));
+                console.log(JSON.stringify({resource,status:response.status,codes,pointers}));
                 throw new Error();
               }
               return body.data;
@@ -57,7 +58,7 @@ jobs:
             const id = exact[0].id;
             const caps = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities`, 'capabilities');
             if (!caps.some(c => c.attributes.capabilityType === 'APPLE_ID_AUTH')) {
-              await read('bundleIdCapabilities', 'enableAppleSignIn', {data:{type:'bundleIdCapabilities',attributes:{capabilityType:'APPLE_ID_AUTH',settings:[{key:'TIBURON_APP_CONSENT',options:[{key:'PRIMARY_APP_CONSENT',enabled:true}]}]},relationships:{bundleId:{data:{type:'bundleIds',id}}}}});
+              await read('bundleIdCapabilities', 'enableAppleSignIn', {data:{type:'bundleIdCapabilities',attributes:{capabilityType:'APPLE_ID_AUTH',settings:[{key:'APPLE_ID_AUTH_APP_CONSENT',options:[{key:'PRIMARY_APP_CONSENT',enabled:true}]}]},relationships:{bundleId:{data:{type:'bundleIds',id}}}}});
               console.log('Enabled Sign in with Apple for the verified existing app.');
             } else console.log('Sign in with Apple was already enabled.');
             const verified = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities`, 'verifyCapability');
