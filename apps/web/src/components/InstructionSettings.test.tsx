@@ -104,7 +104,7 @@ it("keeps history behind its label action and restores with the current baseline
   expect(host.querySelector("textarea")?.value).toBe("Earlier");
 });
 
-it("holds the field while an edit saves, then reads the bots again", async () => {
+it("holds the field while an edit saves, then reads the stirrups again", async () => {
   const saving = deferred<Bot>();
   api.update.mockReturnValue(saving.promise);
   await edit("Edited");

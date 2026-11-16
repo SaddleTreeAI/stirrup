@@ -10,7 +10,7 @@ describe("Stepper", () => {
         steps={[
           { id: "model", title: "Model", status: "complete" },
           { id: "apps", title: "Apps", status: "current" },
-          { id: "bot", title: "Bot", status: "upcoming" },
+          { id: "bot", title: "Stirrup", status: "upcoming" },
         ]}
       />,
     );

@@ -146,7 +146,7 @@ test("routine editing updates in place, preserves timezone, deletion persists, a
   await page.getByRole("button", { name: "Advanced", exact: true }).click();
   const modelSelect = page.getByRole("combobox", { name: "Model", exact: true });
   await expect(modelSelect).toHaveValue("");
-  await expect(modelSelect).toContainText("Bot's model");
+  await expect(modelSelect).toContainText("Stirrup's model");
   await captureScreenshot(page, testInfo, "routine-model-picker");
 
   await page.keyboard.press("Escape");
@@ -194,7 +194,7 @@ test("routine editing updates in place, preserves timezone, deletion persists, a
   await expect(updatedButton).toHaveCount(0);
 });
 
-test("an email trigger claims the bot's address and saves who can start it", async ({
+test("an email trigger claims the stirrup's address and saves who can start it", async ({
   page,
 }, testInfo) => {
   const stamp = Date.now();
@@ -268,7 +268,7 @@ test("a successful routine create is not reported as failed when refresh fails",
   expect(routines[0]?.name).toBe("Persisted routine");
 });
 
-test("switching bots while a routine save is pending does not reopen stale state", {
+test("switching stirrups while a routine save is pending does not reopen stale state", {
   tag: "@nightly",
 }, async ({ page }) => {
   const stamp = Date.now();

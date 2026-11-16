@@ -37,7 +37,7 @@ describe("passkeysSupported", () => {
 
   it("on the macOS app, offers passkeys only for relying parties the build is associated with", async () => {
     const mac = (rpIds?: string[] | Error) => ({
-      ...browser("app.rakazo.com"),
+      ...browser("stirrup.saddletree.ai"),
       desktop: {
         platform: "darwin",
         passkeys:
@@ -51,12 +51,18 @@ describe("passkeysSupported", () => {
               },
       },
     });
-    await expect(passkeysSupported("app.rakazo.com", mac(["app.rakazo.com"]))).resolves.toBe(true);
-    await expect(passkeysSupported("App.Rakazo.com", mac(["app.rakazo.com"]))).resolves.toBe(true);
-    await expect(passkeysSupported("app.rakazo.com", mac([]))).resolves.toBe(false);
-    await expect(passkeysSupported("app.rakazo.com", mac())).resolves.toBe(false);
-    await expect(passkeysSupported("app.rakazo.com", mac(new Error("ipc")))).resolves.toBe(false);
-    const selfHosted = { ...mac(["app.rakazo.com"]), host: "rakazo.example.com" };
+    await expect(
+      passkeysSupported("stirrup.saddletree.ai", mac(["stirrup.saddletree.ai"])),
+    ).resolves.toBe(true);
+    await expect(
+      passkeysSupported("STIRRUP.SADDLETREE.AI", mac(["stirrup.saddletree.ai"])),
+    ).resolves.toBe(true);
+    await expect(passkeysSupported("stirrup.saddletree.ai", mac([]))).resolves.toBe(false);
+    await expect(passkeysSupported("stirrup.saddletree.ai", mac())).resolves.toBe(false);
+    await expect(passkeysSupported("stirrup.saddletree.ai", mac(new Error("ipc")))).resolves.toBe(
+      false,
+    );
+    const selfHosted = { ...mac(["stirrup.saddletree.ai"]), host: "rakazo.example.com" };
     await expect(passkeysSupported("rakazo.example.com", selfHosted)).resolves.toBe(false);
     expect(
       selfHosted.credential.isUserVerifyingPlatformAuthenticatorAvailable,

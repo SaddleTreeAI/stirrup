@@ -292,7 +292,7 @@ describe("hosted voice playback controls", () => {
     expect(() => resumeVoicePlayback()).not.toThrow();
   });
 
-  it("carries who is speaking through pause and resume, and not to another bot", async () => {
+  it("carries who is speaking through pause and resume, and not to another stirrup", async () => {
     const speaker = { name: "Ada", color: "#123456" };
     const spoken = speakText("Read this", { botId: "bot-1", speaker });
     await waitFor(() => ControllableAudio.instances.length > 0);

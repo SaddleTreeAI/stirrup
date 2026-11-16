@@ -410,13 +410,13 @@ it("clears both fields and shows a generic error when saving fails", async () =>
 it.each([
   [
     BLOCKED_ITEM_ANSWER,
-    "This item is blocked for bots. Allow it in the Vault, or dismiss the request.",
+    "This item is blocked for stirrups. Allow it in the Vault, or dismiss the request.",
   ],
   [
     UNCHOSEN_ITEM_ANSWER,
-    "This bot can't use this item. Change it in the Vault, or dismiss the request.",
+    "This stirrup can't use this item. Change it in the Vault, or dismiss the request.",
   ],
-])("says why only when bots can't use the item it waited for (%s)", async (answer, shown) => {
+])("says why only when stirrups can't use the item it waited for (%s)", async (answer, shown) => {
   onSave.mockRejectedValue(new Error(answer));
   await render();
   await type("Username", "ada");

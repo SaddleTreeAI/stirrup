@@ -103,7 +103,7 @@ function searchHitChat(hit: SearchHit): ChatMenuTarget | null {
 function searchKindLabel(hit: SearchHit): string {
   switch (hit.kind) {
     case "conversation":
-      return hit.groupId ? t`Group` : t`Bot`;
+      return hit.groupId ? t`Group` : t`Stirrup`;
     case "message":
       return t`Message`;
     case "file":

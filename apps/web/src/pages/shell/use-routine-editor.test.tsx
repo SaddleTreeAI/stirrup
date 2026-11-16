@@ -110,7 +110,7 @@ it("sends on/off only when the save changes it", async () => {
   expect(update.mock.calls[1]![0]).toMatchObject({ active: false });
 });
 
-it("shows a revealed webhook secret only for the bot it belongs to", async () => {
+it("shows a revealed webhook secret only for the stirrup it belongs to", async () => {
   let finishRotate!: (result: { secret: string }) => void;
   rotateWebhookSecret.mockImplementation(() => new Promise((resolve) => (finishRotate = resolve)));
   let ensuring!: Promise<void>;
@@ -132,7 +132,7 @@ it("shows a revealed webhook secret only for the bot it belongs to", async () =>
   expect(editor.editorProps!.webhook.secret).toBe("secret-1");
 });
 
-it("keeps each bot's revealed secret when rotations overlap", async () => {
+it("keeps each stirrup's revealed secret when rotations overlap", async () => {
   const finishers: ((result: { secret: string }) => void)[] = [];
   rotateWebhookSecret.mockImplementation(() => new Promise((resolve) => finishers.push(resolve)));
   let first!: Promise<void>;
@@ -164,10 +164,10 @@ it("shows why a key cannot be set instead of leaving the rejection unhandled", a
   await act(async () => {
     await editor.editorProps!.onEnsureWebhook();
   });
-  expect(editor.editorProps!.error).toBe("Only the bot's creator can set its webhook key.");
+  expect(editor.editorProps!.error).toBe("Only the stirrup's creator can set its webhook key.");
 });
 
-it("drops a key failure that arrives after switching to another bot", async () => {
+it("drops a key failure that arrives after switching to another stirrup", async () => {
   let fail!: (error: Error) => void;
   rotateWebhookSecret.mockImplementation(() => new Promise((_resolve, reject) => (fail = reject)));
   let ensuring!: Promise<void>;

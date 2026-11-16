@@ -32,6 +32,7 @@ describe("CORS origins", () => {
       "http://127.0.0.1:19006",
       "http://[::1]:8081",
       "rakazo://sign-in",
+      "stirrup://sign-in",
       "",
     ]) {
       expect(isTrustedOrigin(origin, env), origin).toBe(true);
@@ -70,7 +71,7 @@ describe("request origin list", () => {
   }
 
   function previousVariants(origin: string): string[] {
-    if (!origin || origin === "rakazo://") return [];
+    if (!origin || origin === "rakazo://" || origin === "stirrup://") return [];
     const variants = [origin, ...previousLoopbackTwins(origin)];
     try {
       const url = new URL(origin);
@@ -144,6 +145,7 @@ describe("mobile auth origins", () => {
   it("keeps the app scheme, Expo web dev server and web origin", async () => {
     for (const url of [
       "rakazo://sign-in",
+      "stirrup://sign-in",
       "http://localhost:8081/sign-in",
       "https://app.example.test/sign-in",
     ]) {

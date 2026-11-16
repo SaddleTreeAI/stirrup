@@ -23,7 +23,7 @@ test("opening and releasing the computer keep a view-only stream; a failed relea
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
   const chrome = page.getByTestId("computer-chrome");
-  const screen = page.getByTitle("Bot screen").last();
+  const screen = page.getByTitle("Stirrup screen").last();
   const take = chrome.getByRole("button", { name: "Take control", exact: true });
   const release = chrome.getByRole("button", { name: "Hand back control", exact: true });
   // The overlay covers the conversation header, which drags the desktop window.
@@ -49,7 +49,7 @@ test("opening and releasing the computer keep a view-only stream; a failed relea
   expect(takeovers).toBe(1);
   await captureScreenshot(page, testInfo, "computer-released-view-only");
   await page.getByRole("button", { name: "Close computer" }).click();
-  await expect(page.getByTitle("Bot screen preview")).toBeVisible();
+  await expect(page.getByTitle("Stirrup screen preview")).toBeVisible();
   await captureScreenshot(page, testInfo, "computer-tab-running");
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
@@ -72,7 +72,7 @@ test("opening and releasing the computer keep a view-only stream; a failed relea
   await expect(chrome).toBeHidden();
 });
 
-test("a person can take control while a Team bot works", async ({ page }, testInfo) => {
+test("a person can take control while a Team stirrup works", async ({ page }, testInfo) => {
   const stamp = Date.now();
 
   await signup(

@@ -116,10 +116,10 @@ export function configureDistribution(
   ) as unknown as AppDocument;
   const expo = result.expo;
   Object.assign(expo, {
-    name: config.name,
+    name: app.expo.name,
     slug: config.slug,
     owner: config.owner,
-    scheme: config.scheme,
+    scheme: [...new Set(["stirrup", config.scheme, ...[app.expo.scheme ?? []].flat()])],
     version: config.version,
     runtimeVersion: { policy: "fingerprint" },
   });
@@ -142,7 +142,13 @@ export function configureDistribution(
 }
 
 async function main() {
-  const config = parseDistribution(process.env.MOBILE_DISTRIBUTION_CONFIG);
+  const stored = parseDistribution(process.env.MOBILE_DISTRIBUTION_CONFIG);
+  const config = parseDistribution(
+    JSON.stringify({
+      ...stored,
+      apiUrl: process.env.MOBILE_RELEASE_API_URL || stored.apiUrl,
+    }),
+  );
   const root = path.resolve(import.meta.dirname, "..");
   const appFile = path.join(root, "app.json");
   const easFile = path.join(root, "eas.json");

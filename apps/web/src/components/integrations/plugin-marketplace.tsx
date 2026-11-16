@@ -524,7 +524,7 @@ export function PluginDetail({
                   {activeBotId ? (
                     assigned.has(server.id) ? (
                       <span className="text-body-sm text-muted-foreground">
-                        <Trans>In this bot</Trans>
+                        <Trans>In this stirrup</Trans>
                       </span>
                     ) : (
                       <Button
@@ -533,7 +533,7 @@ export function PluginDetail({
                         disabled={busy}
                         onClick={() => void enable(server)}
                       >
-                        <Trans>Use in this bot</Trans>
+                        <Trans>Use in this stirrup</Trans>
                       </Button>
                     )
                   ) : null}

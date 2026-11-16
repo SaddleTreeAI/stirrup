@@ -960,7 +960,9 @@ export async function recordClip(
   if (signal.aborted) return null;
   if (!permission.granted)
     throw new ExpectedTurnFailure(
-      until ? t`Allow microphone access to dictate.` : t`Allow microphone access to call a bot.`,
+      until
+        ? t`Allow microphone access to dictate.`
+        : t`Allow microphone access to call a stirrup.`,
     );
   let recorder: AudioRecorder | undefined;
   let heardSpeech = false;

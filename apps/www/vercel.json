@@ -3,14 +3,14 @@
   "redirects": [
     {
       "source": "/",
-      "has": [{ "type": "host", "value": { "eq": "www.rakazo.com" } }],
-      "destination": "https://rakazo.com/",
+      "has": [{ "type": "host", "value": { "eq": "www.stirrup.saddletree.ai" } }],
+      "destination": "https://stirrup.saddletree.ai/",
       "statusCode": 301
     },
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": { "eq": "www.rakazo.com" } }],
-      "destination": "https://rakazo.com/:path*",
+      "has": [{ "type": "host", "value": { "eq": "www.stirrup.saddletree.ai" } }],
+      "destination": "https://stirrup.saddletree.ai/:path*",
       "statusCode": 301
     },
     {
@@ -30,7 +30,7 @@
     },
     {
       "source": "/github",
-      "destination": "https://github.com/elie222/rakazo",
+      "destination": "https://github.com/SaddleTreeAI/stirrup",
       "permanent": false
     },
     {

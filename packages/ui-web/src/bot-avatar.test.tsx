@@ -47,7 +47,7 @@ describe("BotAvatar", () => {
     expect(html).toContain('data-working="false"');
   });
 
-  it("renders distinct shapes for distinct bot identities", () => {
+  it("renders distinct shapes for distinct stirrup identities", () => {
     const maya = renderToString(<BotAvatar color={DEFAULT_BOT_AVATAR_COLOR} identity="maya" />);
     const github = renderToString(<BotAvatar color={DEFAULT_BOT_AVATAR_COLOR} identity="github" />);
     expect(maya).not.toEqual(github);
@@ -100,7 +100,7 @@ describe("BotAvatar", () => {
     );
   });
 
-  it("keeps the ring off while a bot waits on the user", () => {
+  it("keeps the ring off while a stirrup waits on the user", () => {
     for (const status of WAITING_ON_USER_RUN_STATUSES) {
       const html = renderToString(
         <BotAvatar color="data:image/png;base64,abc" identity="maya" size={32} status={status} />,
@@ -194,7 +194,7 @@ describe("BotAvatar", () => {
     expect(morphing("running")).toEqual(["working"]);
   });
 
-  it("draws every plain-colour bot with the organic body", () => {
+  it("draws every plain-colour stirrup with the organic body", () => {
     const html = renderToString(<BotAvatar color={DEFAULT_BOT_AVATAR_COLOR} identity="maya" />);
     expect(html).toContain("rakazo-organic-avatar");
     expect(html).not.toContain("rakazo-bot-avatar-visor");

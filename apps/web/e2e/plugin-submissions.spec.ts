@@ -13,7 +13,8 @@ function submission(overrides: Partial<PluginSubmission>): PluginSubmission {
     logo: "https://plugins.example.test/notes.svg",
     source: "https://github.com/example/planning-notes",
     description: "Plans your day from your calendar and notes.",
-    testing: "Connect the plugin, then ask a bot to plan tomorrow.\nIt should list three blocks.",
+    testing:
+      "Connect the plugin, then ask a stirrup to plan tomorrow.\nIt should list three blocks.",
     claim: null,
     status: "pending",
     reason: null,

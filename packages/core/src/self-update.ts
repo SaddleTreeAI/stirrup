@@ -1,5 +1,5 @@
-/** The repository a stock Rakazo deployment tracks. */
-export const OFFICIAL_REPO_URL = "https://github.com/elie222/rakazo";
+/** The repository a stock Stirrup deployment tracks. */
+export const OFFICIAL_REPO_URL = "https://github.com/SaddleTreeAI/stirrup";
 export const DEFAULT_UPDATE_REMOTE = "origin";
 
 const SCP_LIKE = /^(?<user>[A-Za-z0-9._-]+)@(?<host>[A-Za-z0-9._-]+):(?<path>[^:]+)$/;
@@ -177,7 +177,7 @@ export function detectRestartSupervisor(
 
 export function restartSupervisorAdvice(supervisor: RestartSupervisor): string {
   if (supervisor.kind !== "none") {
-    return `Rakazo will exit after updating and ${supervisor.label} will start it on the new code.`;
+    return `Stirrup will exit after updating and ${supervisor.label} will start it on the new code.`;
   }
-  return `No process supervisor was detected, so Rakazo will not exit on its own. Restart the API, worker, and web processes yourself, or set ${RESTART_SUPERVISOR_ENV} to the supervisor that restarts them (for example "docker" with restart: unless-stopped, or run under systemd with Restart=always).`;
+  return `No process supervisor was detected, so Stirrup will not exit on its own. Restart the API, worker, and web processes yourself, or set ${RESTART_SUPERVISOR_ENV} to the supervisor that restarts them (for example "docker" with restart: unless-stopped, or run under systemd with Restart=always).`;
 }

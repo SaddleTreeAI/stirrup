@@ -37,7 +37,7 @@ export default function BotProfile() {
   const { botId = "", name: nameParam } = useLocalSearchParams<{ botId?: string; name?: string }>();
   const [bot, setBot] = useState<MobileBot | null>(null);
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
-  const name = displayName(bot?.name ?? nameParam, t`Bot`);
+  const name = displayName(bot?.name ?? nameParam, t`Stirrup`);
   const { routines } = useBotRoutines(botId);
   const actions = useBotProfileActions(botId, name);
   // Counts switch saves as they start and end, so a reload can tell it overlapped one.
@@ -116,7 +116,7 @@ export default function BotProfile() {
           ...glassHeaderOptions(name),
           // The avatar and name below name the page; the bar title stays for the back menu.
           ...(Platform.OS === "ios" ? { headerTitle: "" } : null),
-          ...(botId ? botProfileMenuOptions(actions, t`Bot actions`, tokens.foreground) : null),
+          ...(botId ? botProfileMenuOptions(actions, t`Stirrup actions`, tokens.foreground) : null),
         }}
       />
       <View style={styles.identity}>
@@ -206,7 +206,7 @@ export default function BotProfile() {
       </SettingsGroup>
       <BotEmailGroup botId={botId} botName={name} />
       {bot ? (
-        <SettingsGroup footer={t`Get notified when this Bot finishes or needs input`}>
+        <SettingsGroup footer={t`Get notified when this Stirrup finishes or needs input`}>
           <SettingsSwitch
             key="notifications"
             label={t`Notifications`}

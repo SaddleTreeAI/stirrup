@@ -978,8 +978,9 @@ export const PLUGIN_SUBMISSIONS_PATH = "/api/v1/plugin-submissions";
 export const INTEGRATION_CLAIMS_PATH = "/api/v1/integration-claims";
 /** Opened from the email that proves a claimant reads mail at the app's domain. */
 export const INTEGRATION_CLAIM_CONFIRM_PATH = "/api/v1/integration-claims/confirm";
-export const SUBMIT_PLUGIN_URL = "https://rakazo.com/plugins/submit/";
-export const integrationPageUrl = (slug: string) => `https://rakazo.com/integrations/${slug}/`;
+export const SUBMIT_PLUGIN_URL = "https://stirrup.saddletree.ai/plugins/submit/";
+export const integrationPageUrl = (slug: string) =>
+  `https://stirrup.saddletree.ai/integrations/${slug}/`;
 
 /** People type a bare domain like `acme.com`, so a URL without a scheme gets `https://`. */
 const HttpsUrlSchema = z

@@ -68,6 +68,8 @@ describe("fork mobile distribution", () => {
       expect(extension.bundleIdentifier).toMatch(/^com\.example\.fork\./);
     expect(next.app.expo.extra!.eas.projectId).toBe(identity.projectId);
     expect(next.app.expo.updates?.url).toBe(`https://u.expo.dev/${identity.projectId}`);
+    expect(next.app.expo.name).toBe("Stirrup");
+    expect(next.app.expo.scheme).toEqual(["stirrup", identity.scheme, "rakazo"]);
     expect(next.app.expo.runtimeVersion).toEqual({ policy: "fingerprint" });
     expect(next.eas.build["fork-testflight"]?.env?.EXPO_PUBLIC_API_URL).toBe(identity.apiUrl);
     expect(next.eas.submit?.["fork-testflight"]).toEqual({

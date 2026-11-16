@@ -199,7 +199,7 @@ describe("inbox row actions", () => {
     },
   );
 
-  it("targets bots and groups by their own id", () => {
+  it("targets stirrups and groups by their own id", () => {
     expect(chatTarget("bot", "b1")).toEqual({ botId: "b1" });
     expect(chatTarget("group", "g1")).toEqual({ groupId: "g1" });
   });
@@ -416,7 +416,7 @@ describe("iOS swipe row", () => {
     act(() => root.unmount());
   });
 
-  it("offers read state, pin, notifications, move, then archive and delete last for a bot", () => {
+  it("offers read state, pin, notifications, move, then archive and delete last for a stirrup", () => {
     const { items, find, root } = render({
       unread: true,
       pinned: false,

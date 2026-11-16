@@ -219,7 +219,7 @@ it("sends no policy for an untouched item, Block or Allow when changed, and hold
 it("shows a choice that isn't the default, and the latest use opening the list on its own page", async () => {
   const use: VaultUse = {
     at: "2026-11-04T10:00:00.000Z",
-    botName: "Research bot",
+    botName: "Research stirrup",
     site: "https://api.example.test",
     chat: null,
   };
@@ -240,26 +240,26 @@ it("shows a choice that isn't the default, and the latest use opening the list o
     );
   const rows = () => [...container.querySelectorAll('[role="row"]')].map((row) => row.textContent);
   await sheet(key());
-  expect(rows().some((row) => row?.startsWith("Bots"))).toBe(false);
+  expect(rows().some((row) => row?.startsWith("Stirrups"))).toBe(false);
   expect(rows().some((row) => row?.startsWith("Used"))).toBe(false);
   await sheet(key({ policy: "off" }));
   expect(container.textContent).not.toContain("Saved, but");
-  await sheet(key({ policy: "off" }), [], "Saved, but this server can't block bots yet.");
-  expect(container.textContent).toContain("Saved, but this server can't block bots yet.");
-  expect(rows()).toContain("Bots | Block");
+  await sheet(key({ policy: "off" }), [], "Saved, but this server can't block stirrups yet.");
+  expect(container.textContent).toContain("Saved, but this server can't block stirrups yet.");
+  expect(rows()).toContain("Stirrups | Block");
   await sheet(key(), [use, { ...use, botName: "Helper", site: null }]);
-  expect(rows()).toContain("Used 2h ago by Research bot");
+  expect(rows()).toContain("Used 2h ago by Research stirrup");
   expect(rows()).not.toContain("Helper | 2h ago");
-  await click(button("Used 2h ago by Research bot"));
+  await click(button("Used 2h ago by Research stirrup"));
   // The list replaces the item in the sheet, and Back returns to it.
-  expect(rows()).toEqual(["Research bot | api.example.test | 2h ago", "Helper | 2h ago"]);
+  expect(rows()).toEqual(["Research stirrup | api.example.test | 2h ago", "Helper | 2h ago"]);
   expect(container.textContent).toContain("Activity");
   await click(button("Back"));
-  expect(rows()).toContain("Used 2h ago by Research bot");
+  expect(rows()).toContain("Used 2h ago by Research stirrup");
   expect(rows()).not.toContain("Helper | 2h ago");
 });
 
-it("limits an item to chosen bots, only when changed, and offers no choice while one isn't shown", async () => {
+it("limits an item to chosen stirrups, only when changed, and offers no choice while one isn't shown", async () => {
   const bots = [
     { id: "bot-1", name: "Ada" },
     { id: "bot-2", name: "Grace" },
@@ -267,7 +267,7 @@ it("limits an item to chosen bots, only when changed, and offers no choice while
   ];
   const chosen = key({ allBots: false, botIds: ["bot-old", "bot-1"] });
   const onSave = await edit(undefined, chosen, bots);
-  expect(button("Chosen bots").getAttribute("aria-pressed")).toBe("true");
+  expect(button("Chosen stirrups").getAttribute("aria-pressed")).toBe("true");
   await click(button("Grace"));
   await click(button("Save"));
   expect(onSave).toHaveBeenLastCalledWith(expect.anything(), undefined, {
@@ -280,14 +280,14 @@ it("limits an item to chosen bots, only when changed, and offers no choice while
   // A chosen bot the list can't name, as when archived bots couldn't be read, is never let go
   // of unseen nor widened to every bot: no choice is offered, and a save sends nothing about them.
   await edit(onSave, chosen, bots.slice(0, 2));
-  expect(button("Chosen bots")).toBeUndefined();
-  expect(button("All bots")).toBeUndefined();
+  expect(button("Chosen stirrups")).toBeUndefined();
+  expect(button("All stirrups")).toBeUndefined();
   await click(button("Save"));
   expect(onSave).toHaveBeenLastCalledWith(expect.anything(), undefined, undefined);
   // Every bot by default; choosing none is a choice too.
   await edit(onSave, key(), bots);
   expect(button("Ada")).toBeUndefined();
-  await click(button("Chosen bots"));
+  await click(button("Chosen stirrups"));
   await click(button("Save"));
   expect(onSave).toHaveBeenLastCalledWith(expect.anything(), undefined, {
     allBots: false,
@@ -296,12 +296,12 @@ it("limits an item to chosen bots, only when changed, and offers no choice while
   // Blocked, no bot may use it at all; on a server that can't keep a choice, there is none.
   await edit(onSave, key(), bots);
   await click(button("Block"));
-  expect(button("Chosen bots")).toBeUndefined();
+  expect(button("Chosen stirrups")).toBeUndefined();
   await edit(onSave, chosen);
-  expect(button("Chosen bots")).toBeUndefined();
+  expect(button("Chosen stirrups")).toBeUndefined();
   // A Space without bots has nothing to choose from.
   await edit(onSave, key(), []);
-  expect(button("Chosen bots")).toBeUndefined();
+  expect(button("Chosen stirrups")).toBeUndefined();
   await act(async () =>
     root.render(
       createElement(VaultItemSheet, {
@@ -316,7 +316,7 @@ it("limits an item to chosen bots, only when changed, and offers no choice while
     ),
   );
   expect([...container.querySelectorAll('[role="row"]')].map((row) => row.textContent)).toContain(
-    "Bots | Chosen bots",
+    "Stirrups | Chosen stirrups",
   );
 });
 
@@ -350,7 +350,7 @@ it("offers Ask first for any login, and shows it on the item", async () => {
     ),
   );
   expect([...container.querySelectorAll('[role="row"]')].map((row) => row.textContent)).toContain(
-    "Bots | Ask first",
+    "Stirrups | Ask first",
   );
   await act(async () =>
     root.render(
@@ -366,7 +366,7 @@ it("offers Ask first for any login, and shows it on the item", async () => {
     ),
   );
   expect([...container.querySelectorAll('[role="row"]')].map((row) => row.textContent)).toContain(
-    "Bots | Ask first · Chosen bots",
+    "Stirrups | Ask first · Chosen stirrups",
   );
   // Chosen, but none: no bot may use it, said as the web says it.
   await act(async () =>
@@ -383,7 +383,7 @@ it("offers Ask first for any login, and shows it on the item", async () => {
     ),
   );
   expect([...container.querySelectorAll('[role="row"]')].map((row) => row.textContent)).toContain(
-    "Bots | Ask first · No bots",
+    "Stirrups | Ask first · No stirrups",
   );
   // Seen from a Space with its own vault, an account item's saved setting isn't this Space's.
   await act(async () =>
@@ -401,12 +401,12 @@ it("offers Ask first for any login, and shows it on the item", async () => {
     ),
   );
   expect([...container.querySelectorAll('[role="row"]')].map((row) => row.textContent)).toContain(
-    "Bots | This Space keeps its own vault, so its bots can't use account items.",
+    "Stirrups | This Space keeps its own vault, so its stirrups can't use account items.",
   );
 });
 
-it("says under the bots what a choice covers, or why none can be made", async () => {
-  const note = "This limits only this Space's bots. Your other Spaces choose for their own.";
+it("says under the stirrups what a choice covers, or why none can be made", async () => {
+  const note = "This limits only this Space's stirrups. Your other Spaces choose for their own.";
   const editor = (item: BotSecretMetadata, bots?: { id: string; name: string }[]) => {
     mounts += 1;
     return act(async () =>
@@ -426,7 +426,7 @@ it("says under the bots what a choice covers, or why none can be made", async ()
   const bots = [{ id: "bot-1", name: "Ada" }];
   await editor(key(), bots);
   expect(container.textContent).not.toContain(note);
-  await click(button("Chosen bots"));
+  await click(button("Chosen stirrups"));
   expect(container.textContent).toContain(note);
   await click(button("Block"));
   expect(container.textContent).not.toContain(note);

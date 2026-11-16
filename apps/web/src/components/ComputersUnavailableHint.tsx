@@ -92,7 +92,7 @@ export function ComputersUnavailableHint({
       ) : null}
 
       {phase === "recovered" ? (
-        <SuccessPop label={t`Computers are available. Reload or open a bot to continue.`} />
+        <SuccessPop label={t`Computers are available. Reload or open a stirrup to continue.`} />
       ) : null}
 
       {showUnavailableCopy ? (
@@ -126,7 +126,7 @@ export function ComputersUnavailableHint({
           ) : null}
           <a
             className={buttonVariants({ variant: "ghost", size: "sm" })}
-            href="https://github.com/elie222/rakazo/blob/main/docs/self-host-sandbox-providers.md"
+            href="https://github.com/SaddleTreeAI/stirrup/blob/main/docs/self-host-sandbox-providers.md"
             target="_blank"
             rel="noreferrer"
           >

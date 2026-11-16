@@ -93,8 +93,8 @@ function OwnerPages({ botId, groupId }: { botId?: string; groupId?: string }) {
           </Trans>
         ) : (
           <Trans>
-            Pages this bot builds for you appear here. Ask for a dashboard, tracker or plan to make
-            one.
+            Pages this stirrup builds for you appear here. Ask for a dashboard, tracker or plan to
+            make one.
           </Trans>
         )}
       </p>

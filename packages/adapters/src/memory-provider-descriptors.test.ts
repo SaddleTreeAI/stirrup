@@ -252,7 +252,7 @@ describe("memory provider descriptors", () => {
     expect(editing.fill({ endpoint: "https://other.example.test/mcp" }).ready()).toBe(false);
   });
 
-  it("offers a user peer only inside a named workspace, and never one of Rakazo's own", () => {
+  it("offers a user peer only inside a named workspace, and never one of Stirrup's own", () => {
     const connecting = form("honcho");
     expect(connecting.shown("apiKey")).toMatchObject({ label: "API key", placeholder: "hch-…" });
     expect(connecting.shown("workspaceId")).toMatchObject({
@@ -265,7 +265,7 @@ describe("memory provider descriptors", () => {
     connecting.fill({ apiKey: "hch-test-key", workspaceId: "team-notes" });
     expect(connecting.shown("userPeerId")).toMatchObject({
       label: "User peer",
-      description: "Recall from this peer; save to Rakazo’s own peers.",
+      description: "Recall from this peer; save to Stirrup’s own peers.",
     });
     expect(connecting.ready()).toBe(true);
 
@@ -273,7 +273,7 @@ describe("memory provider descriptors", () => {
       expect(isReservedHonchoPeerId(peer)).toBe(true);
       expect(connecting.fill({ userPeerId: peer }).ready()).toBe(false);
       expect(() => assertMemoryProviderSettings("honcho", connecting.sends().settings)).toThrow(
-        "rakazo-shared and IDs starting with bot- are reserved for Rakazo.",
+        "rakazo-shared and IDs starting with bot- are reserved for Stirrup.",
       );
     }
     for (const value of ["has space", "slash/id", "a".repeat(513)]) {

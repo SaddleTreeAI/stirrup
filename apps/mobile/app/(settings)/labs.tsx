@@ -22,7 +22,7 @@ export default function Labs() {
   const [available, setAvailable] = useState<MobileMe["labsAvailable"]>([]);
   const saveRequest = useRef(0);
   const copy: Record<LabFeature, { title: string; detail: string }> = {
-    board: { title: t`Board`, detail: t`A kanban board of tickets your bots can work on` },
+    board: { title: t`Board`, detail: t`A kanban board of tickets your stirrups can work on` },
   };
 
   useFocusEffect(

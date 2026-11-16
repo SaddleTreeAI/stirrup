@@ -308,7 +308,7 @@ function OpenChat() {
       pinnedAroundRef: ref(null),
     },
     computerState: { computerRef: ref(null), showCachedComputer: vi.fn() },
-    active: { id: "bot-1", name: "Bot" },
+    active: { id: "bot-1", name: "Stirrup" },
     inGroup: false,
     activeBotId: ref("bot-1"),
     activeGroupId: ref(undefined),

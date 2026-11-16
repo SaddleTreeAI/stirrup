@@ -8,7 +8,7 @@ function rosterRow(page: Page, name: RegExp) {
   });
 }
 
-test("created bots appear as regular bots and reorder across their creator", async ({
+test("created stirrups appear as regular stirrups and reorder across their creator", async ({
   page,
 }, testInfo) => {
   const stamp = Date.now();
@@ -16,7 +16,7 @@ test("created bots appear as regular bots and reorder across their creator", asy
   await completeOnboarding(page);
 
   const composer = page.locator('textarea[name="chat-message"]');
-  await composer.fill("spawn a bot named Scout to research venues");
+  await composer.fill("spawn a stirrup named Scout to research venues");
   await page.keyboard.press("Enter");
 
   const scout = rosterRow(page, /Scout/);

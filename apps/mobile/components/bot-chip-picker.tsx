@@ -73,7 +73,7 @@ export function BotChipPicker({
           autoFocus
           value={query}
           onChangeText={setQuery}
-          placeholder={selected.length ? t`Add another` : t`Search bots`}
+          placeholder={selected.length ? t`Add another` : t`Search stirrups`}
           placeholderTextColor={tokens.mutedForeground}
           returnKeyType="search"
           autoCapitalize="none"

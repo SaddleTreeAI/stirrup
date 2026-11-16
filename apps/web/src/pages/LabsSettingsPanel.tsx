@@ -20,7 +20,7 @@ export function LabsSettingsPanel({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const copy: Record<LabFeature, { title: string; description: string }> = {
-    board: { title: t`Board`, description: t`A kanban board of tickets your bots can work on` },
+    board: { title: t`Board`, description: t`A kanban board of tickets your stirrups can work on` },
   };
 
   async function toggle(feature: LabFeature, enabled: boolean) {

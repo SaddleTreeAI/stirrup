@@ -298,7 +298,7 @@ export function ShellDialogs({
         <DeleteItemDialog
           item={deleteSectionTarget.section}
           noun="section"
-          description={<Trans>Its bots and groups are kept and leave the section.</Trans>}
+          description={<Trans>Its stirrups and groups are kept and leave the section.</Trans>}
           onCancel={() => setDeleteSectionTarget(null)}
           onConfirm={async () => {
             await rpc.botSections.remove(

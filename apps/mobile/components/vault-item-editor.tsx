@@ -539,9 +539,9 @@ export function VaultItemEditor({
             <View style={styles.group}>
               {controls.policies.length ? (
                 <View style={styles.row}>
-                  <Text style={styles.label}>{t`Bots`}</Text>
+                  <Text style={styles.label}>{t`Stirrups`}</Text>
                   <NativeSegmentedControl
-                    accessibilityLabel={t`Bots`}
+                    accessibilityLabel={t`Stirrups`}
                     disabled={!editable}
                     value={policy}
                     onChange={setPolicy}
@@ -554,17 +554,19 @@ export function VaultItemEditor({
               ) : null}
               {controls.picker ? (
                 <View style={styles.row}>
-                  {controls.policies.length ? null : <Text style={styles.label}>{t`Bots`}</Text>}
+                  {controls.policies.length ? null : (
+                    <Text style={styles.label}>{t`Stirrups`}</Text>
+                  )}
                   <NativeSegmentedControl
-                    accessibilityLabel={t`Bots`}
+                    accessibilityLabel={t`Stirrups`}
                     disabled={!editable}
                     value={access.allBots ? "all" : "chosen"}
                     onChange={(value) =>
                       setAccess((prev) => ({ ...prev, allBots: value === "all" }))
                     }
                     options={[
-                      { value: "all", label: t`All bots` },
-                      { value: "chosen", label: t`Chosen bots` },
+                      { value: "all", label: t`All stirrups` },
+                      { value: "chosen", label: t`Chosen stirrups` },
                     ]}
                   />
                 </View>

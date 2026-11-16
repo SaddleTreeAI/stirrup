@@ -82,8 +82,8 @@ function MemberPicker({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t`Filter bots`}
-            aria-label={t`Filter bots`}
+            placeholder={t`Filter stirrups`}
+            aria-label={t`Filter stirrups`}
             className="mt-2"
           />
           <p className="mt-2 text-body text-muted-foreground">
@@ -131,7 +131,7 @@ function MemberPicker({
         })}
         {visible.length === 0 ? (
           <p className="px-2.5 py-2.5 text-body text-muted-foreground">
-            {expanded ? <Trans>No bots match</Trans> : <Trans>No members yet</Trans>}
+            {expanded ? <Trans>No stirrups match</Trans> : <Trans>No members yet</Trans>}
           </p>
         ) : null}
       </div>

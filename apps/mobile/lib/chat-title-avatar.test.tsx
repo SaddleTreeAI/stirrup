@@ -86,7 +86,7 @@ const render = (rosterBot?: MobileBot) => act(() => root.render(<Title rosterBot
 const avatar = () => container.querySelector("i");
 const slot = () => container.querySelector("span");
 
-it("draws the bot's avatar on the very first render when the inbox already loaded it", () => {
+it("draws the stirrup's avatar on the very first render when the inbox already loaded it", () => {
   setSearchInbox([space("space-1", [helper], true)]);
   render();
   expect(renders).toEqual([true]);
@@ -95,7 +95,7 @@ it("draws the bot's avatar on the very first render when the inbox already loade
   expect(avatar()?.getAttribute("data-muted")).toBe("true");
 });
 
-it("holds the avatar's place at its final size until an unknown bot arrives", () => {
+it("holds the avatar's place at its final size until an unknown stirrup arrives", () => {
   render();
   expect(avatar()).toBeNull();
   expect(slot()?.getAttribute("data-width")).toBe(String(CHAT_TITLE_AVATAR_SIZE));
@@ -106,7 +106,7 @@ it("holds the avatar's place at its final size until an unknown bot arrives", ()
   expect(avatar()?.getAttribute("data-size")).toBe(String(CHAT_TITLE_AVATAR_SIZE));
 });
 
-it("draws a just-created or archived bot that a screen added to the inbox roster", () => {
+it("draws a just-created or archived stirrup that a screen added to the inbox roster", () => {
   setSearchInbox([space("space-1", [], true), space("space-2", [])]);
   addToSearchInbox({ kind: "bot", bot: { ...helper, spaceId: "space-2" } });
   render();
@@ -114,14 +114,14 @@ it("draws a just-created or archived bot that a screen added to the inbox roster
   expect(avatar()?.getAttribute("data-color")).toBe(helper.color);
 });
 
-it("replaces a bot already in the roster rather than listing it twice", () => {
+it("replaces a stirrup already in the roster rather than listing it twice", () => {
   setSearchInbox([space("space-1", [helper], true)]);
   addToSearchInbox({ kind: "bot", bot: { ...helper, color: "#FF781C" } });
   render();
   expect(avatar()?.getAttribute("data-color")).toBe("#FF781C");
 });
 
-it("never makes a roster from one added bot, nor adds to another session's", () => {
+it("never makes a roster from one added stirrup, nor adds to another session's", () => {
   addToSearchInbox({ kind: "bot", bot: helper });
   render();
   expect(avatar()).toBeNull();
@@ -135,7 +135,7 @@ it("never makes a roster from one added bot, nor adds to another session's", () 
   expect(avatar()).toBeNull();
 });
 
-it("keeps an added bot through inbox refreshes that don't list it, as an archived bot's", () => {
+it("keeps an added stirrup through inbox refreshes that don't list it, as an archived stirrup's", () => {
   setSearchInbox([space("space-1", [], true)]);
   addToSearchInbox({ kind: "bot", bot: helper });
   render();
@@ -145,7 +145,7 @@ it("keeps an added bot through inbox refreshes that don't list it, as an archive
   expect(avatar()?.getAttribute("data-color")).toBe(helper.color);
 });
 
-it("drops an added bot once a refresh no longer lists its space", () => {
+it("drops an added stirrup once a refresh no longer lists its space", () => {
   setSearchInbox([space("space-1", [], true), space("space-2", [])]);
   addToSearchInbox({ kind: "bot", bot: { ...helper, spaceId: "space-2" } });
   render();
@@ -155,7 +155,7 @@ it("drops an added bot once a refresh no longer lists its space", () => {
   expect(avatar()).toBeNull();
 });
 
-it("takes the inbox's own copy once it lists an added bot", () => {
+it("takes the inbox's own copy once it lists an added stirrup", () => {
   setSearchInbox([space("space-1", [], true)]);
   addToSearchInbox({ kind: "bot", bot: helper });
   render();
@@ -166,7 +166,7 @@ it("takes the inbox's own copy once it lists an added bot", () => {
   expect(avatar()).toBeNull();
 });
 
-it("forgets added bots when the session changes", () => {
+it("forgets added stirrups when the session changes", () => {
   setSearchInbox([space("space-1", [], true)]);
   addToSearchInbox({ kind: "bot", bot: helper });
   session.generation = 2;
@@ -176,7 +176,7 @@ it("forgets added bots when the session changes", () => {
   session.generation = 1;
 });
 
-it("drops a just-made bot that is archived or deleted before the inbox lists it", () => {
+it("drops a just-made stirrup that is archived or deleted before the inbox lists it", () => {
   setSearchInbox([space("space-1", [], true)]);
   addToSearchInbox({ kind: "bot", bot: helper });
   render();
@@ -189,13 +189,13 @@ it("drops a just-made bot that is archived or deleted before the inbox lists it"
   expect(getSearchInbox().flatMap((entry) => entry.bots)).toEqual([]);
 });
 
-it("takes an archived bot out of the inbox's own list too", () => {
+it("takes an archived stirrup out of the inbox's own list too", () => {
   setSearchInbox([space("space-1", [helper], true)]);
   removeFromSearchInbox(helper.id);
   expect(getSearchInbox().flatMap((entry) => entry.bots)).toEqual([]);
 });
 
-it("drops a bot asked for in a session the app has since left", () => {
+it("drops a stirrup asked for in a session the app has since left", () => {
   setSearchInbox([space("space-1", [], true)]);
   const askedIn = searchInboxSession();
   session.generation = 2;

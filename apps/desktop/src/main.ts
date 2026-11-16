@@ -129,6 +129,12 @@ const updaterEnvironment = {
 let requestingComputerAccess = false;
 let hostScreen: HostScreen | undefined;
 markOnce("rk:main:module-evaluated");
+// Electron derives its encryption service name from app.name. Keep it stable across
+// the rebrand; package metadata and explicit menu labels carry the display name.
+app.setName("Rakazo");
+app.setAboutPanelOptions({ applicationName: "Stirrup" });
+// Keep the existing profile, sessions and local stack when the display name changes.
+app.setPath("userData", path.join(app.getPath("appData"), "Rakazo"));
 if (PERFORMANCE_USER_DATA) {
   app.setPath("userData", PERFORMANCE_USER_DATA);
   app.setPath("sessionData", path.join(PERFORMANCE_USER_DATA, "session"));
@@ -192,7 +198,7 @@ async function probeServer(
         ok: false,
         status: response.status,
         url,
-        error: t("That address redirects elsewhere. Enter the final Rakazo server address."),
+        error: t("That address redirects elsewhere. Enter the final Stirrup server address."),
       };
     }
     if (!response.ok) {
@@ -209,7 +215,7 @@ async function probeServer(
         ok: false,
         status: response.status,
         url,
-        error: t("That address did not respond like a Rakazo server."),
+        error: t("That address did not respond like a Stirrup server."),
       };
     }
     return {
@@ -239,7 +245,7 @@ async function offerDockerMove(userStackDir: string): Promise<StackChoice> {
     return "docker";
   const { response } = await dialog.showMessageBox({
     type: "question",
-    message: t("Run Rakazo without Docker?"),
+    message: t("Run Stirrup without Docker?"),
     detail: t("Your bots and data move over. Docker is stopped, not removed."),
     buttons: [t("Move"), t("Keep Docker")],
     defaultId: 0,

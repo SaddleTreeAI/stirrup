@@ -113,7 +113,7 @@ describe("Android mobile platform contract", () => {
     expect(service).toContain("run?.threadId?.hashCode() ?: 0");
   });
 
-  it("shows live updates only for working runs and ties the pill to a real bot", () => {
+  it("shows live updates only for working runs and ties the pill to a real stirrup", () => {
     const service = readFileSync(
       resolve(
         mobileRoot,

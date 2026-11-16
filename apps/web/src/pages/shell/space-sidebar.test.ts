@@ -174,13 +174,13 @@ describe("commitSpaceRename", () => {
   });
 });
 
-it("counts unread bots and groups from the sidebar across spaces", () => {
+it("counts unread stirrups and groups from the sidebar across spaces", () => {
   const input = [
     {
       ...space("first", "First"),
       bots: [
         { ...chat("read", "Read"), unread: false },
-        { ...chat("bot", "Unread bot"), unread: true, pinned: true },
+        { ...chat("bot", "Unread stirrup"), unread: true, pinned: true },
       ],
       groups: [{ ...chat("group", "Unread group"), unread: true }],
     },

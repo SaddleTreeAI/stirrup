@@ -330,8 +330,8 @@ it("starts an ID and a phone visible and a PIN hidden, and the person can flip e
   expect(dialog()).toBeNull();
 });
 
-it("says the bot's browser stays signed in for everyone in a shared space", async () => {
-  const line = "The bot's browser stays signed in for everyone in this space";
+it("says the stirrup's browser stays signed in for everyone in a shared space", async () => {
+  const line = "The stirrup's browser stays signed in for everyone in this space";
   await render({ ...loginCard, sharedBrowser: true });
   expect(container.textContent).toContain(line);
   await render(loginCard);
@@ -348,7 +348,7 @@ it("starts every field hidden when no label names an identifier", async () => {
   }
 });
 
-it("asks for a visible username and a hidden password when the bot names no fields", async () => {
+it("asks for a visible username and a hidden password when the stirrup names no fields", async () => {
   const onAnswer = vi.fn(async () => undefined);
   const { loginFields: _, ...defaultLogin } = loginCard;
   await render(defaultLogin, undefined, onAnswer);
@@ -705,14 +705,14 @@ it("keeps the form open with a generic error when a login fails to save", async 
 it.each([
   [
     BLOCKED_ITEM_ANSWER,
-    "This item is blocked for bots. Allow it in the Vault, or dismiss the request.",
+    "This item is blocked for stirrups. Allow it in the Vault, or dismiss the request.",
   ],
   [
     UNCHOSEN_ITEM_ANSWER,
-    "This bot can't use this item. Change it in the Vault, or dismiss the request.",
+    "This stirrup can't use this item. Change it in the Vault, or dismiss the request.",
   ],
 ])(
-  "says why a login wasn't saved only when bots can't use that item (%s)",
+  "says why a login wasn't saved only when stirrups can't use that item (%s)",
   async (answer, shown) => {
     await render(loginCard, undefined, async () => {
       throw new Error(answer);
@@ -903,7 +903,7 @@ it("leaves a one-time code to the run's user, and reads Sent once answered", asy
   expect(container.textContent).not.toContain("Saved");
 });
 
-it("shows the bot's label on a code card as plain text beneath the site's own title", async () => {
+it("shows the stirrup's label on a code card as plain text beneath the site's own title", async () => {
   await render({
     ...codeCard,
     text: "Code for login.example.test",

@@ -3,7 +3,7 @@ import type { IdentityLabels } from "@rakazo/core";
 
 export function identityLabels(): IdentityLabels {
   return {
-    bot: t`Bot`,
+    bot: t`Stirrup`,
     group: t`Group`,
     space: t`Space`,
     chats: t`Chats`,

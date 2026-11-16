@@ -40,7 +40,7 @@ export function usePaletteActions({
   return [
     {
       id: "new-bot",
-      label: t`New bot`,
+      label: t`New stirrup`,
       icon: Plus,
       onSelect: onNewBot,
     },
@@ -64,7 +64,7 @@ export function usePaletteActions({
     },
     {
       id: "bot-templates",
-      label: t`Bot templates`,
+      label: t`Stirrup templates`,
       icon: LayoutTemplate,
       onSelect: () => setOverlay({ kind: "templates" }),
     },

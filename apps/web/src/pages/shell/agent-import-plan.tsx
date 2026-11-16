@@ -127,10 +127,10 @@ export function AgentImportPlanReview({
   };
   const skipReason = (reason: AgentImportSkipReason) =>
     ({
-      runtime: t`Not used by Rakazo`,
+      runtime: t`Not used by Stirrup`,
       invalid_skill: t`Not a valid skill`,
       builtin: t`Built-in`,
-      unsupported: t`Not supported in Rakazo`,
+      unsupported: t`Not supported in Stirrup`,
       connected: t`Already connected`,
       invalid_file: t`Could not read these files`,
       default: defaultNote,
@@ -235,8 +235,8 @@ export function AgentImportPlanReview({
                       }))
                     }
                   >
-                    <NativeSelectOption value="bot">{t`This bot`}</NativeSelectOption>
-                    <NativeSelectOption value="space">{t`All bots`}</NativeSelectOption>
+                    <NativeSelectOption value="bot">{t`This stirrup`}</NativeSelectOption>
+                    <NativeSelectOption value="space">{t`All stirrups`}</NativeSelectOption>
                   </NativeSelect>
                   {entry.containsKey || entry.stock
                     ? note(
@@ -257,7 +257,7 @@ export function AgentImportPlanReview({
             <Trans>Skills</Trans>
           </h3>
           <p className="mt-1 text-body-sm text-muted-foreground">
-            <Trans>Skills join the library all your bots share.</Trans>
+            <Trans>Skills join the library all your stirrups share.</Trans>
           </p>
           <ul className="mt-2">
             {plan.skills.map(
@@ -400,7 +400,7 @@ export function AgentImportPlanReview({
           value={name}
           maxLength={BOT_NAME_MAX_LENGTH}
           onChange={(event) => setName(event.target.value)}
-          placeholder={t`Name this bot`}
+          placeholder={t`Name this stirrup`}
           className="mt-2"
         />
       </label>

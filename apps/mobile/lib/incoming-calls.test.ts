@@ -209,7 +209,7 @@ describe("mobile incoming calls", () => {
       }),
     },
   ];
-  it("answers a native call from a bot outside the active organization", async () => {
+  it("answers a native call from a stirrup outside the active organization", async () => {
     stop = startIncomingCalls();
     await tick();
     // The account stream knows callers across every organization; spaces/list only the active one.

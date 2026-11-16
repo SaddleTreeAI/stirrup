@@ -96,8 +96,8 @@ test("Integrations installs a plugin, completes real broker OAuth against a fake
   )!;
   expect(connected).toMatchObject({ oauthStatus: "connected", hasSecret: true });
   expect(JSON.stringify(connected)).not.toContain("fake-marketplace-access");
-  await dialog.getByRole("button", { name: "Use in this bot", exact: true }).click();
-  await expect(dialog.getByText("In this bot", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Use in this stirrup", exact: true }).click();
+  await expect(dialog.getByText("In this stirrup", { exact: true })).toBeVisible();
   expect(await rpc<BotMcpServer[]>(page, "mcp/assignments/list", { botId })).toContainEqual(
     expect.objectContaining({ serverId: server.id }),
   );

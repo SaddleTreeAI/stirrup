@@ -237,7 +237,7 @@ export function MessageTriggerCard({
         </Button>
       </div>
       <p className="mt-2.5 text-body text-muted-foreground/70">
-        <Trans>Runs when this bot receives a verified message from this provider.</Trans>
+        <Trans>Runs when this stirrup receives a verified message from this provider.</Trans>
       </p>
     </div>
   );

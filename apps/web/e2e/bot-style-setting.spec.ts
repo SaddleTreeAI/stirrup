@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { captureScreenshot, completeOnboarding, openUserSettings, signup } from "./helpers";
 
-test("bot style stays available when bootstrap omits the saved preference", async ({
+test("stirrup style stays available when bootstrap omits the saved preference", async ({
   page,
 }, testInfo) => {
   await page.route("**/rpc/bootstrap", async (route) => {
@@ -15,7 +15,7 @@ test("bot style stays available when bootstrap omits the saved preference", asyn
   const settings = await openUserSettings(page);
   const picker = settings.getByTestId("bot-style-select");
   const original = picker.getByRole("button", { name: "Original", exact: true });
-  const rakazo = picker.getByRole("button", { name: "Rakazo", exact: true });
+  const rakazo = picker.getByRole("button", { name: "Stirrup", exact: true });
   await expect(original).toBeVisible();
   await expect(original).toHaveAttribute("aria-pressed", "false");
   await rakazo.click();

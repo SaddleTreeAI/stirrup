@@ -196,7 +196,7 @@ describe("plugin detail", () => {
     expect(onChanged).not.toHaveBeenCalled();
   });
 
-  it("signs in and enables an installed plugin's connector for the bot", async () => {
+  it("signs in and enables an installed plugin's connector for the stirrup", async () => {
     api.connect.mockResolvedValue("cancelled");
     await render({ install, servers: [server] });
     expect(api.preview).not.toHaveBeenCalled();
@@ -204,7 +204,7 @@ describe("plugin detail", () => {
     await click("Sign in");
     expect(api.connect).toHaveBeenCalledWith(server.id);
     expect(container.querySelector("[role=alert]")?.textContent).toContain("Sign-in cancelled");
-    await click("Use in this bot");
+    await click("Use in this stirrup");
     expect(api.approve).toHaveBeenCalledWith({ botId: "bot-1", serverId: server.id });
   });
 
@@ -218,7 +218,7 @@ describe("plugin detail", () => {
     await click("Sign in");
     const alert = container.querySelector('[role="alert"]');
     expect(alert?.querySelector("a")?.getAttribute("href")).toBe(
-      "https://rakazo.com/docs/troubleshooting/#mcp-oauth-redirect-mismatch",
+      "https://stirrup.saddletree.ai/docs/troubleshooting/#mcp-oauth-redirect-mismatch",
     );
     api.connect.mockRejectedValue(new Error("Could not sign in"));
     await click("Sign in");

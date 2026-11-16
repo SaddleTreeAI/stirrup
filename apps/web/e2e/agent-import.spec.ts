@@ -176,11 +176,11 @@ test("imports an OpenClaw folder and another assistant's document as new bots", 
   await expect(mcp.getByRole("checkbox", { name: "docs" })).not.toBeChecked();
   await expect(mcp.getByText("Credentials: Authorization", { exact: true })).toBeVisible();
   await expect(mcp.getByRole("checkbox", { name: "files" })).toBeDisabled();
-  await expect(mcp.getByText("Not supported in Rakazo", { exact: true })).toBeVisible();
+  await expect(mcp.getByText("Not supported in Stirrup", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "agent-import-compatibility");
   // Choices made before the opt-in survive it, in both directions.
   const nameBox = homePreview.getByRole("textbox", { name: "Name" });
-  await nameBox.fill("Home bot");
+  await nameBox.fill("Home stirrup");
   await skills.getByRole("checkbox", { name: "inbox-triage" }).click();
   await expect(skills.getByRole("checkbox", { name: "inbox-triage" })).toBeChecked();
   await homePreview
@@ -230,12 +230,12 @@ test("imports an OpenClaw folder and another assistant's document as new bots", 
   await expect(modelBox).toBeChecked();
   await expect(homePreview).not.toContainText("placeholder-");
   await captureScreenshot(page, testInfo, "agent-import-preview-settings");
-  await expect(nameBox).toHaveValue("Home bot");
+  await expect(nameBox).toHaveValue("Home stirrup");
   await expect(skills.getByRole("checkbox", { name: "inbox-triage" })).toBeChecked();
   await optIn.click();
   await expect(optIn).not.toBeChecked();
   await expect(keys.getByRole("heading", { name: "API keys" })).toHaveCount(0);
-  await expect(nameBox).toHaveValue("Home bot");
+  await expect(nameBox).toHaveValue("Home stirrup");
   await expect(skills.getByRole("checkbox", { name: "inbox-triage" })).toBeChecked();
   await expect(skills.getByRole("checkbox", { name: "cleanup" })).not.toBeChecked();
   await panel.getByRole("button", { name: "Back", exact: true }).click();
@@ -267,8 +267,8 @@ test("imports an OpenClaw folder and another assistant's document as new bots", 
   }
   await preview.getByRole("button", { name: "Not imported", exact: true }).click();
   await expect(preview.getByTestId("agent-import-skipped").getByRole("listitem")).toHaveText([
-    /IDENTITY\.md: Emoji\s*Not used by Rakazo/,
-    /TOOLS\.md\s*Not used by Rakazo/,
+    /IDENTITY\.md: Emoji\s*Not used by Stirrup/,
+    /TOOLS\.md\s*Not used by Stirrup/,
   ]);
   // IDENTITY.md names and describes the bot; it is not part of its instructions.
   await expect(preview.getByRole("textbox", { name: "Name" })).toHaveValue("Pebble");
@@ -388,7 +388,7 @@ test("imports a Grok Bot export as a new bot", async ({ page }, testInfo) => {
     .getByRole("textbox", { name: "Paste the reply" })
     .fill(grokReply(grokBot, { name: "Wren", instructions: "Plan trips." }));
   await grok.getByRole("button", { name: "Continue" }).click();
-  await expect(grok.getByText("Which Bot?")).toBeVisible();
+  await expect(grok.getByText("Which Stirrup?")).toBeVisible();
   await captureScreenshot(page, testInfo, "agent-import-grok-choose-bot");
   await clickAndWaitForRpc(
     page,

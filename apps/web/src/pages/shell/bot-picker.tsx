@@ -58,7 +58,7 @@ export function BotCreatePicker({
         </label>
         <CommandList className="flex min-h-0 max-h-none flex-col overflow-hidden p-1 [&>[cmdk-list-sizer]]:flex [&>[cmdk-list-sizer]]:min-h-0 [&>[cmdk-list-sizer]]:flex-col">
           <CommandEmpty>
-            <Trans>No bots match</Trans>
+            <Trans>No stirrups match</Trans>
           </CommandEmpty>
           <CommandGroup className="shrink-0">
             {showCreate ? (
@@ -71,7 +71,7 @@ export function BotCreatePicker({
                 <span className="flex size-[22px] shrink-0 items-center justify-center">
                   <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
                 </span>
-                <Trans>New bot</Trans>
+                <Trans>New stirrup</Trans>
               </CommandItem>
             ) : null}
             <CommandItem
@@ -99,7 +99,7 @@ export function BotCreatePicker({
               </span>
               <PickerInfo
                 testId="picker-info-space"
-                label={t`Private workspace with its own bots and groups.`}
+                label={t`Private workspace with its own stirrups and groups.`}
               />
             </CommandItem>
           </CommandGroup>

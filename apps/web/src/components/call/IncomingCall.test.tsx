@@ -44,7 +44,7 @@ const start = Date.parse("2026-10-15T00:00:00Z");
 function bot(callId: string, expiresAt: number): Bot {
   return {
     id: "bot-1",
-    name: "Test bot",
+    name: "Test stirrup",
     incomingCall: {
       callId,
       reason: "Review",
@@ -132,12 +132,12 @@ it("notifies when a visible call's tab becomes hidden", () => {
   expect(notify).toHaveBeenCalledOnce();
 });
 
-it("keeps the notification alive when the bot is renamed", () => {
+it("keeps the notification alive when the stirrup is renamed", () => {
   render([bot("call-1", start + 45_000)]);
   const renamed = bot("call-1", start + 45_000);
-  renamed.name = "Renamed bot";
+  renamed.name = "Renamed stirrup";
   render([renamed]);
-  expect(container.textContent).toContain("Renamed bot");
+  expect(container.textContent).toContain("Renamed stirrup");
   expect(notify).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
 });

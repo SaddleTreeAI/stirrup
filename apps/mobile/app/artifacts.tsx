@@ -270,7 +270,7 @@ export default function ArtifactsScreen() {
                 onChange={(value) => setMadeByBots(value === "bots")}
                 options={[
                   { value: "all" as const, label: t`All files` },
-                  { value: "bots" as const, label: t`Made by bots` },
+                  { value: "bots" as const, label: t`Made by stirrups` },
                 ]}
               />
             </View>
@@ -291,7 +291,7 @@ export default function ArtifactsScreen() {
               contentContainerStyle={styles.chipsRow}
             >
               <Chip
-                label={t`All bots`}
+                label={t`All stirrups`}
                 active={activeBotId === null}
                 onPress={() => setActiveBotId(null)}
               />

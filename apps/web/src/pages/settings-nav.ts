@@ -40,18 +40,18 @@ export function useSettingsNavItems(available: {
     // Ordered by how many people need each page: the essentials, then optional features, then
     // the account's usage and admin pages.
     { id: "general", label: t`General`, icon: Settings },
-    { id: "models", label: t`Models`, icon: Cpu, description: t`Which LLMs your bots use.` },
+    { id: "models", label: t`Models`, icon: Cpu, description: t`Which LLMs your stirrups use.` },
     {
       id: "confirmations",
       label: t`Approvals`,
       icon: ShieldCheck,
-      description: t`When bots check with you before acting.`,
+      description: t`When stirrups check with you before acting.`,
     },
     {
       id: "vault",
       label: t`Vault`,
       icon: KeyRound,
-      description: t`Logins and keys your bots can use.`,
+      description: t`Logins and keys your stirrups can use.`,
     },
     ...(available.wallet
       ? [
@@ -59,7 +59,7 @@ export function useSettingsNavItems(available: {
             id: "wallet" as const,
             label: t`Wallet`,
             icon: Wallet,
-            description: t`Where your bots pay from.`,
+            description: t`Where your stirrups pay from.`,
           },
         ]
       : []),
@@ -67,7 +67,7 @@ export function useSettingsNavItems(available: {
       id: "memory",
       label: t`Memory`,
       icon: Brain,
-      description: t`What your bots remember between chats.`,
+      description: t`What your stirrups remember between chats.`,
     },
     {
       id: "voice",
@@ -81,7 +81,7 @@ export function useSettingsNavItems(available: {
             id: "messaging" as const,
             label: t`Messaging`,
             icon: MessageCircle,
-            description: t`Chat with your bots from other apps.`,
+            description: t`Chat with your stirrups from other apps.`,
           },
         ]
       : []),
@@ -91,7 +91,7 @@ export function useSettingsNavItems(available: {
             id: "computer" as const,
             label: t`Computer`,
             icon: Monitor,
-            description: t`The computer your bots work on.`,
+            description: t`The computer your stirrups work on.`,
           },
         ]
       : []),

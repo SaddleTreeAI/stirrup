@@ -58,7 +58,7 @@ function button(name: string) {
 }
 
 async function typeName(value: string) {
-  const input = document.querySelector<HTMLInputElement>('input[placeholder="Name your Bot"]')!;
+  const input = document.querySelector<HTMLInputElement>('input[placeholder="Name your Stirrup"]')!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -96,7 +96,7 @@ describe("CreateBotDialog", () => {
     expect(onCreate.mock.lastCall?.[0]).not.toHaveProperty("id");
   });
 
-  it("sends the Rakazo preview id without an organic family", async () => {
+  it("sends the Stirrup preview id without an organic family", async () => {
     const onCreate = vi.fn(async (_input: CreateBotDialogInput) => undefined);
     await render(onCreate, "rakazo");
     await typeName("Scout");
@@ -109,7 +109,7 @@ describe("CreateBotDialog", () => {
     expect(input.color?.toUpperCase()).toBe(preview.getAttribute("data-color")?.toUpperCase());
   });
 
-  it("preserves an explicitly chosen Rakazo colour through a failed create and retry", async () => {
+  it("preserves an explicitly chosen Stirrup colour through a failed create and retry", async () => {
     const onCreate = vi
       .fn(async (_input: CreateBotDialogInput) => undefined)
       .mockRejectedValueOnce(new Error("Try again"));
@@ -154,12 +154,12 @@ describe("CreateBotDialog", () => {
 
   it("shows the error and stays open when creating fails", async () => {
     await render(async () => {
-      throw new Error("Bot limit reached");
+      throw new Error("Stirrup limit reached");
     });
     await typeName("Scout");
     await click(button("Create"));
     expect(document.querySelector('[data-testid="create-bot-error"]')?.textContent).toBe(
-      "Bot limit reached",
+      "Stirrup limit reached",
     );
     expect(document.querySelector('[data-testid="create-bot-dialog"]')).not.toBeNull();
   });

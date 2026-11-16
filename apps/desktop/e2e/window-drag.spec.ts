@@ -5,12 +5,12 @@ import { _electron as electron, expect, test } from "@playwright/test";
 const styles = readFileSync(path.resolve(import.meta.dirname, "../../web/src/styles.css"), "utf8");
 const fixture = `<!doctype html>
 <html lang="en">
-  <head><meta charset="utf-8"><title>Rakazo window drag</title><style>${styles}</style></head>
+  <head><meta charset="utf-8"><title>Stirrup window drag</title><style>${styles}</style></head>
   <body>
     <main>Desktop fixture ready</main>
     <header class="app-drag" id="conversation-header">
       <span>Chief</span>
-      <button class="app-no-drag" id="bot-settings">Bot settings</button>
+      <button class="app-no-drag" id="bot-settings">Stirrup settings</button>
     </header>
     <output id="result"></output>
     <script>
@@ -62,7 +62,7 @@ test("an active Electron window keeps header dragging selection-free and control
       header: { appRegion: "drag", userSelect: "none" },
       settings: "no-drag",
     });
-    await page.getByRole("button", { name: "Bot settings" }).click();
+    await page.getByRole("button", { name: "Stirrup settings" }).click();
     await expect(page.locator("#result")).toHaveText("opened");
   } finally {
     await app.close();

@@ -32,7 +32,7 @@ beforeEach(() => {
     headers: { "x-rakazo-space-id": "space-a" },
   });
 });
-describe("archived bot lifecycle", () => {
+describe("archived stirrup lifecycle", () => {
   it("waits for restore and propagates failure instead of opening a writable chat", async () => {
     rpc.mockResolvedValueOnce({ ok: true });
     await restoreArchivedBot("bot-fixture");
@@ -40,7 +40,7 @@ describe("archived bot lifecycle", () => {
     rpc.mockRejectedValueOnce(new Error("offline"));
     await expect(restoreArchivedBot("bot-fixture")).rejects.toThrow("offline");
   });
-  it("cancel never removes a bot, and both deletion choices are destructive", async () => {
+  it("cancel never removes a stirrup, and both deletion choices are destructive", async () => {
     await confirmDeleteBot({ id: "bot-fixture", name: "Fixture" }, vi.fn());
     expect(rpc).toHaveBeenCalledExactlyOnceWith(
       "bots/removePreview",
@@ -78,7 +78,7 @@ describe("group deletion", () => {
     const deleted = vi.fn();
     confirmDeleteGroup({ id: "group-fixture", name: "Team" }, deleted);
     const [title, message, buttons] = alert.mock.calls[0]!;
-    expect([title, message]).toEqual(["Delete Team?", "Bots and their own chats stay."]);
+    expect([title, message]).toEqual(["Delete Team?", "Stirrups and their own chats stay."]);
     expect(
       buttons.map(({ text, style }: { text: string; style: string }) => [text, style]),
     ).toEqual([
@@ -108,14 +108,14 @@ describe("group deletion", () => {
   });
 });
 
-it("keeps deletion bound to the archived bot's space through confirmation", async () => {
+it("keeps deletion bound to the archived stirrup's space through confirmation", async () => {
   const requestContext = {
     apiBase: "https://example.test",
     headers: { "x-rakazo-space-id": "space-b" },
   };
   const deleted = vi.fn();
   rpc.mockResolvedValueOnce([]).mockResolvedValueOnce({ ok: true });
-  await confirmDeleteBot({ id: "bot-b", name: "Bot" }, deleted, () => true, requestContext);
+  await confirmDeleteBot({ id: "bot-b", name: "Stirrup" }, deleted, () => true, requestContext);
   await alert.mock.calls[0]![2][1].onPress();
   await Promise.resolve();
   expect(rpc).toHaveBeenCalledWith(
@@ -134,7 +134,7 @@ it("keeps deletion bound to the archived bot's space through confirmation", asyn
   );
 });
 
-describe("bot deletion preview", () => {
+describe("stirrup deletion preview", () => {
   it.each([
     [
       [{ id: "g1", name: "Alpha" }],
@@ -185,7 +185,7 @@ describe("bot deletion preview", () => {
     const deleted = vi.fn();
     await confirmDeleteBot({ id: "bot-fixture", name: "Fixture" }, deleted);
     expect(alert.mock.calls[0]![1]).toContain(
-      "Groups left with fewer than two bots are deleted too, including their messages, files, and pages.",
+      "Groups left with fewer than two stirrups are deleted too, including their messages, files, and pages.",
     );
     alert.mock.calls[0]![2][2].onPress();
     await vi.waitFor(() => expect(deleted).toHaveBeenCalledOnce());
@@ -343,7 +343,7 @@ it("does not update a replacement session after deletion completes", async () =>
   expect(removeFromSearchInbox).not.toHaveBeenCalled();
 });
 
-it("passes pinned recovery context when another request already removed the bot", async () => {
+it("passes pinned recovery context when another request already removed the stirrup", async () => {
   const context = { apiBase: "https://example.test", headers: {}, sessionGeneration: 2 };
   captureApiRequestContext.mockResolvedValue(context);
   rpc

@@ -1,11 +1,11 @@
 export const BRAND_KIT_PATH = "/brand/";
-export const WORDMARK_SVG_PATH = "/brand/kit/rakazo-wordmark.svg";
+export const WORDMARK_SVG_PATH = "/brand/kit/stirrup-wordmark.svg";
 
 export const BRAND_LOGOS = [
   {
     name: "Logo",
-    file: "/brand/kit/rakazo-logo.png",
-    preview: "/brand/kit/rakazo-logo-preview.webp",
+    file: "/brand/kit/stirrup-logo.png",
+    preview: "/brand/kit/stirrup-logo-preview.webp",
     format: "PNG · 1712 × 576",
   },
   {
@@ -16,14 +16,14 @@ export const BRAND_LOGOS = [
   },
   {
     name: "App icon",
-    file: "/brand/kit/rakazo-icon.png",
-    preview: "/brand/kit/rakazo-icon-preview.webp",
+    file: "/brand/kit/stirrup-icon.png",
+    preview: "/brand/kit/stirrup-icon-preview.webp",
     format: "PNG · 1024 × 1024",
   },
   {
     name: "Mascot",
-    file: "/brand/kit/rakazo-mascot.png",
-    preview: "/brand/kit/rakazo-mascot-preview.webp",
+    file: "/brand/kit/stirrup-mascot.png",
+    preview: "/brand/kit/stirrup-mascot-preview.webp",
     format: "PNG · 700 × 700",
   },
 ] as const;

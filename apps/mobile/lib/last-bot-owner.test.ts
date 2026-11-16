@@ -82,7 +82,7 @@ const record = {
   userId: "account-a",
 };
 
-describe("last bot ownership", () => {
+describe("last stirrup ownership", () => {
   it.each([
     ["legacy id", "researcher"],
     ["missing owner", JSON.stringify({ botId: "researcher" })],

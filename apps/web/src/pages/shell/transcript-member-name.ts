@@ -27,7 +27,7 @@ export function resolveTranscriptMemberName({
   const current = botDisplayName(members, bots, botId);
   if (current !== undefined) return current;
   if (!botId) return undefined;
-  return nameOf(archivedBots, botId) ?? t`Deleted bot`;
+  return nameOf(archivedBots, botId) ?? t`Deleted stirrup`;
 }
 
 function nameOf(bots: readonly NamedBot[], botId: string): string | undefined {

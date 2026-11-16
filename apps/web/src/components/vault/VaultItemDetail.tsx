@@ -358,7 +358,7 @@ export function VaultItemDetail({
     : "";
   if (access)
     rows.push(
-      <DetailRow key="access" label={t`Bots`} testId="vault-item-access-detail">
+      <DetailRow key="access" label={t`Stirrups`} testId="vault-item-access-detail">
         {access}
       </DetailRow>,
     );
@@ -397,7 +397,7 @@ export function VaultItemDetail({
       {confirmingRemove ? (
         <div className="flex flex-col gap-2">
           <p className="text-body-sm text-foreground">
-            <Trans>Remove {secretName}? Bots will no longer be able to use it.</Trans>
+            <Trans>Remove {secretName}? Stirrups will no longer be able to use it.</Trans>
           </p>
           <div className="flex gap-2">
             <Button

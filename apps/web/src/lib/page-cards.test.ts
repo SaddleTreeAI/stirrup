@@ -13,7 +13,7 @@ const page = (pageId: string, version: number): MessageBlock => ({
 const text = (value: string): MessageBlock => ({ kind: "text", text: value });
 
 describe("projectPageCards", () => {
-  it("folds a saved page into the same bot's next reply and marks older cards", () => {
+  it("folds a saved page into the same stirrup's next reply and marks older cards", () => {
     const messages: Message[] = [
       { id: "m1", role: "bot", botId: "b1", blocks: [page("p1", 1)] },
       { id: "m2", role: "bot", botId: "b1", blocks: [text("Made Page p1.")] },
@@ -29,7 +29,7 @@ describe("projectPageCards", () => {
     expect(view.isSuperseded("m4", page("p1", 2) as never)).toBe(false);
   });
 
-  it("never folds into another bot's reply or across the user's turn", () => {
+  it("never folds into another stirrup's reply or across the user's turn", () => {
     const messages: Message[] = [
       { id: "m1", role: "bot", botId: "b1", blocks: [page("p1", 1)] },
       { id: "m2", role: "bot", botId: "b2", blocks: [text("Hi.")] },

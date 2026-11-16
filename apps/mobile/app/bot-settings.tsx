@@ -113,7 +113,7 @@ export default function BotSettingsScreen() {
           await rpc("bots/update", { botId, crossSpaceCommunication: value });
         },
         onChange: setCrossSpaceCommunication,
-        onError: (err) => setError(errorText(err, t`Could not save bot`)),
+        onError: (err) => setError(errorText(err, t`Could not save stirrup`)),
       }),
     [botId, t],
   );
@@ -124,7 +124,7 @@ export default function BotSettingsScreen() {
           await rpc("bots/update", { botId, dailyCheckIns: value });
         },
         onChange: setDailyCheckIns,
-        onError: (err) => setError(errorText(err, t`Could not save bot`)),
+        onError: (err) => setError(errorText(err, t`Could not save stirrup`)),
       }),
     [botId, t],
   );
@@ -136,7 +136,7 @@ export default function BotSettingsScreen() {
           await rpc("bots/update", { botId, fleetManagement: value });
         },
         onChange: setFleetManagement,
-        onError: (err) => setError(errorText(err, t`Could not save bot`)),
+        onError: (err) => setError(errorText(err, t`Could not save stirrup`)),
       }),
     [botId, t],
   );
@@ -148,7 +148,7 @@ export default function BotSettingsScreen() {
           await rpc("bots/update", { botId, replyMode: value });
         },
         onChange: setReplyMode,
-        onError: (err) => setError(errorText(err, t`Could not save bot`)),
+        onError: (err) => setError(errorText(err, t`Could not save stirrup`)),
       }),
     [botId, t],
   );
@@ -223,7 +223,7 @@ export default function BotSettingsScreen() {
         setReplyMode(next.replyMode);
         replyModeSave.reset(next.replyMode);
       })
-      .catch((err) => setError(errorText(err, t`Could not load bot`)));
+      .catch((err) => setError(errorText(err, t`Could not load stirrup`)));
   }, [botId, dailyCheckInsSave, crossSpaceSave, fleetSave, replyModeSave, notifySave, nameSave]);
 
   useEffect(() => {
@@ -463,7 +463,7 @@ export default function BotSettingsScreen() {
       ]);
       router.back();
     } catch (err) {
-      setError(errorText(err, t`Could not save bot`));
+      setError(errorText(err, t`Could not save stirrup`));
     } finally {
       pendingRef.current = false;
       setPending(false);
@@ -666,7 +666,7 @@ export default function BotSettingsScreen() {
                 }}
               />
               <SettingsSwitch
-                label={t`Allow cross-space bot communication`}
+                label={t`Allow cross-space stirrup communication`}
                 value={crossSpaceCommunication}
                 onChange={(value) => {
                   if (!botId) return;
@@ -675,7 +675,7 @@ export default function BotSettingsScreen() {
                 }}
               />
               <SettingsSwitch
-                label={t`Manage other bots`}
+                label={t`Manage other stirrups`}
                 onChange={(value) => {
                   if (!botId) return;
                   setError(null);
@@ -785,13 +785,13 @@ export default function BotSettingsScreen() {
                 fontSize={17}
               />
             </View>
-            <SettingsGroup label={t`How other bots see it`}>
+            <SettingsGroup label={t`How other stirrups see it`}>
               <GrowingTextInput
-                label={t`How other bots see it`}
+                label={t`How other stirrups see it`}
                 value={description}
                 maxLength={BOT_DESCRIPTION_MAX_LENGTH}
                 onChangeText={setDescription}
-                placeholder={t`What this bot is for`}
+                placeholder={t`What this stirrup is for`}
                 fontSize={17}
               />
             </SettingsGroup>
@@ -873,7 +873,7 @@ export default function BotSettingsScreen() {
               label={t`Icon set`}
               choices={[
                 { key: "organic", label: t`Original` },
-                { key: "rakazo", label: t`Rakazo` },
+                { key: "rakazo", label: t`Character` },
               ]}
               value={avatarSet}
               onChange={(next) => {

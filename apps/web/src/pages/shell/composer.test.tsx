@@ -110,7 +110,7 @@ function rerenderComposer(overrides: Partial<ComponentProps<typeof Composer>>) {
   act(() => root?.render(<Composer {...composerProps} />));
 }
 
-it("colors the send button like the bot's user bubbles", () => {
+it("colors the send button like the stirrup's user bubbles", () => {
   const textarea = renderComposer(async () => true, {
     sendColors: { background: "#9C47E9", foreground: "#FFFFFF" },
   });
@@ -274,7 +274,7 @@ function pressEnter(textarea: HTMLTextAreaElement) {
 
 describe("Composer", () => {
   it.each(["Enter", "Tab", "pointer"])(
-    "completes an inline bot at the caret with %s",
+    "completes an inline stirrup at the caret with %s",
     async (method) => {
       const onSend = vi.fn().mockResolvedValue(true);
       const textarea = renderComposer(onSend);
@@ -418,7 +418,7 @@ describe("Composer", () => {
     expect(options.map((option) => option.getAttribute("aria-label"))).toEqual(["@everyone"]);
   });
 
-  it("replaces a selected bot without retaining its previous routing target", async () => {
+  it("replaces a selected stirrup without retaining its previous routing target", async () => {
     const bobby: ComposerMention = { kind: "bot", id: "bot-3", name: "Bobby" };
     const onSend = vi.fn().mockResolvedValue(true);
     const textarea = renderComposer(onSend, { mentionTargets: [bob, bobby] });
@@ -509,7 +509,7 @@ describe("Composer", () => {
     expect(onSend).toHaveBeenCalledWith("@Bo", [], expect.any(String));
   });
 
-  it("retires the replaced group identity when a bot has the same name", async () => {
+  it("retires the replaced group identity when a stirrup has the same name", async () => {
     const group: ComposerMention = { kind: "group", id: "group-bob", name: "Bob" };
     const onSend = vi.fn().mockResolvedValue(true);
     const textarea = renderComposer(onSend, { mentionTargets: [group, bob] });
@@ -2517,7 +2517,7 @@ it("shows an image confirmation as a warning with file and model actions", () =>
     expect.arrayContaining(["Send as file", "Change model"]),
   );
   const note = Array.from(error.querySelectorAll("p")).find(
-    (element) => element.textContent === "The bot can use the file but won't see the picture.",
+    (element) => element.textContent === "The stirrup can use the file but won't see the picture.",
   );
   expect(note).toBeDefined();
   const sendAsFile = buttons.find((button) => button.textContent === "Send as file")!;
@@ -2529,7 +2529,9 @@ it("shows an image confirmation as a warning with file and model actions", () =>
   rerenderComposer({ sendError: "Could not send the message.", imageConfirmation: false });
   expect(error.className).toContain("text-destructive");
   expect(error.className).not.toContain("text-warning");
-  expect(error.textContent).not.toContain("The bot can use the file but won't see the picture.");
+  expect(error.textContent).not.toContain(
+    "The stirrup can use the file but won't see the picture.",
+  );
   expect(
     Array.from(error.querySelectorAll("button")).some(
       (button) => button.textContent === "Change model",

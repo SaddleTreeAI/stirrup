@@ -345,7 +345,7 @@ function profileRpc(
   {
     bot = async () => fixtureBot,
     update = async () => {
-      throw new Error("unexpected bots/update");
+      throw new Error("unexpected stirrups/update");
     },
     updateRoutine = async () => {
       throw new Error("unexpected routines/update");
@@ -379,8 +379,8 @@ function profileRpc(
 const listCalls = () => rpc.mock.calls.filter(([procedure]) => procedure === "routines/list");
 const routinesRow = () => button("Routines");
 
-describe("bot profile", () => {
-  it("links the bot's settings, routines, pages, artifacts and computer", async () => {
+describe("stirrup profile", () => {
+  it("links the stirrup's settings, routines, pages, artifacts and computer", async () => {
     profileRpc(async () => []);
     await render(createElement(BotProfile));
 
@@ -401,7 +401,7 @@ describe("bot profile", () => {
     expect(rows.slice(0, 5)).toEqual(["Edit", "Routines0 on", "Pages", "Artifacts", "Computer"]);
   });
 
-  it("keeps the bot's less common actions in its … menu, and clears the open chat", async () => {
+  it("keeps the stirrup's less common actions in its … menu, and clears the open chat", async () => {
     profileRpc(async () => []);
     await render(createElement(BotProfile));
     const [menu] = (
@@ -538,12 +538,12 @@ describe("bot profile", () => {
   });
 });
 
-describe("bot profile notifications", () => {
-  const footer = "Get notified when this Bot finishes or needs input";
+describe("stirrup profile notifications", () => {
+  const footer = "Get notified when this Stirrup finishes or needs input";
   const notificationsSwitch = () =>
     container.querySelector<HTMLInputElement>('input[aria-label="Notifications"]');
 
-  it("shows no switch until the bot has loaded", async () => {
+  it("shows no switch until the stirrup has loaded", async () => {
     let load!: Deferred<unknown>;
     profileRpc(async () => [], {
       bot: () => {
@@ -560,7 +560,7 @@ describe("bot profile notifications", () => {
   });
 
   it.each([true, false])(
-    "shows the bot's setting (%s) after the routines, with what it covers",
+    "shows the stirrup's setting (%s) after the routines, with what it covers",
     async (notifyOnFinish) => {
       profileRpc(async () => [routine("r1", "Morning digest")], {
         bot: async () => ({ ...fixtureBot, notifyOnFinish }),
@@ -818,7 +818,7 @@ describe("routines screen", () => {
 
     await act(async () => load.resolve([]));
     expect(container.querySelector("progress")).toBeNull();
-    expect(container.textContent).toBe("Ask this Bot in chat to set up a routine.New routine");
+    expect(container.textContent).toBe("Ask this Stirrup in chat to set up a routine.New routine");
     rowFor("New routine")!.click();
     expect(push).toHaveBeenCalledWith({
       pathname: "/routine",
@@ -1409,7 +1409,7 @@ describe("routine detail", () => {
   });
 });
 
-describe("artifacts opened for one bot", () => {
+describe("artifacts opened for one stirrup", () => {
   beforeEach(() => {
     rpc.mockResolvedValue([
       { id: "other-bot", name: "Other", color: "c" },
@@ -1649,7 +1649,7 @@ describe("artifacts opened for one bot", () => {
     expect(container.querySelector("progress")).toBeNull();
   });
 
-  it("loads only the profile bot's artifacts initially", async () => {
+  it("loads only the profile stirrup's artifacts initially", async () => {
     await render(createElement(ArtifactsScreen));
     expect(listSpaceArtifacts).toHaveBeenCalledTimes(1);
     expect(listSpaceArtifacts).toHaveBeenCalledWith({
@@ -1659,10 +1659,10 @@ describe("artifacts opened for one bot", () => {
     });
   });
 
-  it("lists only what bots made while Made by bots is chosen", async () => {
+  it("lists only what stirrups made while Made by stirrups is chosen", async () => {
     await render(createElement(ArtifactsScreen));
     expect(container.textContent).toContain("No artifacts yet");
-    await act(async () => button("Made by bots").click());
+    await act(async () => button("Made by stirrups").click());
     expect(listSpaceArtifacts).toHaveBeenLastCalledWith({
       botId: "bot-fixture",
       madeByBots: true,
@@ -1679,7 +1679,7 @@ describe("artifacts opened for one bot", () => {
     expect(container.textContent).toContain("No artifacts yet");
   });
 
-  it("keeps Made by bots on the next page and when the screen comes back", async () => {
+  it("keeps Made by stirrups on the next page and when the screen comes back", async () => {
     const file = (id: string, name: string) => ({
       id,
       name,
@@ -1702,7 +1702,7 @@ describe("artifacts opened for one bot", () => {
             : { items: [file("a", "first-report.md")], nextCursor: "page-2" },
     );
     await render(createElement(ArtifactsScreen));
-    await act(async () => button("Made by bots").click());
+    await act(async () => button("Made by stirrups").click());
     expect(container.textContent).toContain("first-report.md");
 
     await act(async () => button("End of list").click());
@@ -1756,7 +1756,7 @@ describe("artifacts opened for one bot", () => {
     );
     screen.endOnLayout = true;
     try {
-      await act(async () => button("Made by bots").click());
+      await act(async () => button("Made by stirrups").click());
     } finally {
       screen.endOnLayout = false;
     }
@@ -1766,7 +1766,7 @@ describe("artifacts opened for one bot", () => {
     expect(crossed).toEqual([]);
   });
 
-  it("never pages another bot with the previous bot's cursor", async () => {
+  it("never pages another stirrup with the previous stirrup's cursor", async () => {
     const file = (id: string, name: string, runId: string | null) => ({
       id,
       name,

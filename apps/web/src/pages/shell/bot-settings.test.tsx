@@ -192,7 +192,7 @@ describe("BotSettings help", () => {
     const onSave = vi.fn<(patch: SavePatch) => Promise<void>>(async () => undefined);
     await renderSettings(onSave, { ...bot, fleetManagement: false });
     const label = [...container.querySelectorAll("label")].find(
-      (entry) => entry.textContent === "Manage other bots",
+      (entry) => entry.textContent === "Manage other stirrups",
     );
     const toggle = document.getElementById(label?.htmlFor ?? "");
     const speechToggle = container.querySelector<HTMLButtonElement>('[id$="-auto-speak"]');
@@ -201,7 +201,7 @@ describe("BotSettings help", () => {
     expect(speechRow?.firstElementChild?.textContent).toBe("Read replies aloud");
     expect(speechRow?.lastElementChild).toBe(speechToggle);
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
-    expect(container.querySelector('[aria-label="About Manage other bots"]')).toBeNull();
+    expect(container.querySelector('[aria-label="About Manage other stirrups"]')).toBeNull();
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
     expect(onSave).not.toHaveBeenCalled();
     await act(async () => toggle?.click());

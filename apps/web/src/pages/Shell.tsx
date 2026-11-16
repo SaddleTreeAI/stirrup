@@ -760,7 +760,7 @@ function SpaceShell() {
       ? (otherAuthor(composer.replyTarget.author, userId)?.name ??
         channelMessageSender(composer.replyTarget.blocks) ??
         t`You`)
-      : (resolveTranscriptMemberName(composer.replyTarget.botId) ?? active?.name ?? t`Bot`)
+      : (resolveTranscriptMemberName(composer.replyTarget.botId) ?? active?.name ?? t`Stirrup`)
     : undefined;
   useRightPanelRestore({
     rightPanel,
@@ -1102,7 +1102,7 @@ function SpaceShell() {
             <div className="grid flex-1 place-items-center">
               <Button onClick={() => dialogs.setCreateBotOpen(true)}>
                 <Plus size={16} aria-hidden="true" />
-                <Trans>New bot</Trans>
+                <Trans>New stirrup</Trans>
               </Button>
             </div>
           ) : (

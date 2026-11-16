@@ -91,7 +91,7 @@ test("a failed space search says so instead of No results", async ({ page }, tes
   await expect(failure).toHaveCount(0);
 });
 
-test("a bot found by search can be pinned from its result", async ({ page }, testInfo) => {
+test("a stirrup found by search can be pinned from its result", async ({ page }, testInfo) => {
   await signup(page, `sidebar-search-pin-${Date.now()}@rakazo.test`, "password12", "Search Pin");
   await completeOnboarding(page);
   const sidebar = page.locator("aside").first();

@@ -12,13 +12,15 @@ export function secretAnswerErrorText(error: unknown, fallback: string): string 
   switch (secretAnswerRefusal(error)) {
     case "blocked":
       return i18n._({
-        id: "This item is blocked for bots. Allow it in the Vault, or dismiss the request.",
-        message: "This item is blocked for bots. Allow it in the Vault, or dismiss the request.",
+        id: "This item is blocked for stirrups. Allow it in the Vault, or dismiss the request.",
+        message:
+          "This item is blocked for stirrups. Allow it in the Vault, or dismiss the request.",
       });
     case "unchosen":
       return i18n._({
-        id: "This bot can't use this item. Change it in the Vault, or dismiss the request.",
-        message: "This bot can't use this item. Change it in the Vault, or dismiss the request.",
+        id: "This stirrup can't use this item. Change it in the Vault, or dismiss the request.",
+        message:
+          "This stirrup can't use this item. Change it in the Vault, or dismiss the request.",
       });
     default:
       return fallback;
@@ -44,16 +46,16 @@ export function vaultBotsNote(space: { ownVault: boolean; otherSpaces: boolean }
   if (space.ownVault) return ownVaultText();
   if (space.otherSpaces)
     return i18n._({
-      id: "This limits only this Space's bots. Your other Spaces choose for their own.",
-      message: "This limits only this Space's bots. Your other Spaces choose for their own.",
+      id: "This limits only this Space's stirrups. Your other Spaces choose for their own.",
+      message: "This limits only this Space's stirrups. Your other Spaces choose for their own.",
     });
   return undefined;
 }
 
 const ownVaultText = () =>
   i18n._({
-    id: "This Space keeps its own vault, so its bots can't use account items.",
-    message: "This Space keeps its own vault, so its bots can't use account items.",
+    id: "This Space keeps its own vault, so its stirrups can't use account items.",
+    message: "This Space keeps its own vault, so its stirrups can't use account items.",
   });
 
 /**
@@ -78,20 +80,20 @@ export function vaultBotsLine(item: {
     item.blockable && (blocked || item.policy === "ask") && item.policy
       ? vaultPolicyLabels()[item.policy]
       : "";
-  const noBots = () => i18n._({ id: "No bots", message: "No bots" });
+  const noBots = () => i18n._({ id: "No stirrups", message: "No stirrups" });
   const { chosen } = item;
   const bots =
     blocked || item.allBots !== false || chosen === "loading"
       ? ""
       : chosen === "failed"
         ? i18n._({
-            id: "Could not load bots. Reload to try again.",
-            message: "Could not load bots. Reload to try again.",
+            id: "Could not load stirrups. Reload to try again.",
+            message: "Could not load stirrups. Reload to try again.",
           })
         : chosen
           ? chosen.join(", ") || noBots()
           : item.botIds?.length
-            ? i18n._({ id: "Chosen bots", message: "Chosen bots" })
+            ? i18n._({ id: "Chosen stirrups", message: "Chosen stirrups" })
             : noBots();
   return [policy, bots].filter(Boolean).join(" · ");
 }
@@ -105,13 +107,13 @@ function dropText(drop: VaultSaveDrop): string {
       });
     case "block":
       return i18n._({
-        id: "Saved, but this server can't block bots yet.",
-        message: "Saved, but this server can't block bots yet.",
+        id: "Saved, but this server can't block stirrups yet.",
+        message: "Saved, but this server can't block stirrups yet.",
       });
     case "bots":
       return i18n._({
-        id: "Saved, but this server can't limit an item to chosen bots.",
-        message: "Saved, but this server can't limit an item to chosen bots.",
+        id: "Saved, but this server can't limit an item to chosen stirrups.",
+        message: "Saved, but this server can't limit an item to chosen stirrups.",
       });
     case "alsoOn":
       return i18n._({
@@ -148,10 +150,10 @@ export function vaultImportText() {
   };
   return {
     labels,
-    // Said in the review of logins about to be added, where no item's Bots setting is in sight.
+    // Said in the review of logins about to be added, where no item's Stirrups setting is in sight.
     botsNote: i18n._({
-      id: "Bots can use each imported login until you change its Bots setting.",
-      message: "Bots can use each imported login until you change its Bots setting.",
+      id: "Stirrups can use each imported login until you change its Stirrups setting.",
+      message: "Stirrups can use each imported login until you change its Stirrups setting.",
     }),
     reasons: {
       notHttps: labels.notHttps,

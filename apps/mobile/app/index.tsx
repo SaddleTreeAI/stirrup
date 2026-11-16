@@ -694,7 +694,7 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
           isCurrent,
         );
       } catch (err) {
-        if (isCurrent()) Alert.alert(t`Could not load bots`, errorText(err, t`Try again.`));
+        if (isCurrent()) Alert.alert(t`Could not load stirrups`, errorText(err, t`Try again.`));
         return;
       }
       if (!target) return;
@@ -812,7 +812,7 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
         onSignIn={() => void signInAgain()}
       />
     ) : activityView ? undefined : (
-      <Text style={styles.empty}>{me && !onShareSelect ? t`Tap + to create a bot` : null}</Text>
+      <Text style={styles.empty}>{me && !onShareSelect ? t`Tap + to create a stirrup` : null}</Text>
     );
   const listFooter = activityView ? undefined : (
     <InboxListFooter

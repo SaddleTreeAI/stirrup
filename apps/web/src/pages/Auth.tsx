@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { BOT_COLOR_LIST, signInProviders } from "@rakazo/contracts";
+import { signInProviders } from "@rakazo/contracts";
 import {
   credentialIssue,
   MAX_PASSWORD_LENGTH,
@@ -7,15 +7,7 @@ import {
   signupRequiresEmailVerification,
   suggestEmailCorrection,
 } from "@rakazo/core";
-import {
-  Button,
-  Input,
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-  Label,
-  LogoAvatar,
-} from "@rakazo/ui-web";
+import { Button, Input, InputOTP, InputOTPGroup, InputOTPSlot, Label } from "@rakazo/ui-web";
 import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -89,7 +81,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     ) : presented && mode === "in" ? (
       <Trans>Welcome back</Trans>
     ) : mode === "in" ? (
-      <Trans>Sign in to Rakazo</Trans>
+      <Trans>Sign in to Stirrup</Trans>
     ) : mode === "up" ? (
       <Trans>Create your account</Trans>
     ) : (
@@ -654,11 +646,7 @@ export function AuthFrame({
         >
           {leading ? <div className="mb-4 self-start">{leading}</div> : null}
           <div className={surface ? "flex w-full flex-col items-center" : "contents"}>
-            <LogoAvatar
-              size={74}
-              avatarValue={BOT_COLOR_LIST.find((color) => color.id === "orange")?.hex}
-              motion={false}
-            />
+            <img src="/icon-192.png" alt="" width={74} height={74} className="rounded-2xl" />
             <h1
               aria-live="polite"
               className={

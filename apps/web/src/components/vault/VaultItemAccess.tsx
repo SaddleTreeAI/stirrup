@@ -67,10 +67,10 @@ export function VaultItemAccess({
   if (!controls.policies.length && !controls.picker && !controls.note) return null;
   return (
     <div data-testid="vault-item-access" className="flex flex-wrap items-center gap-2">
-      <span className="text-body-sm text-muted-foreground">{t`Bots`}</span>
+      <span className="text-body-sm text-muted-foreground">{t`Stirrups`}</span>
       {controls.policies.length ? (
         <ToggleGroup
-          aria-label={t`Bots`}
+          aria-label={t`Stirrups`}
           value={[policy]}
           onValueChange={([next]) => {
             const chosen = Policies.safeParse(next).data;

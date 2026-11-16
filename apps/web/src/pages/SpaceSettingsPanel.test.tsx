@@ -214,7 +214,7 @@ describe("SpaceSettingsPanel", () => {
     expect(button("Delete space")).toBeUndefined();
   });
 
-  it("names the bots that go with the space before deleting it", async () => {
+  it("names the stirrups that go with the space before deleting it", async () => {
     const onDelete = vi.fn(async () => undefined);
     await render({
       space: {
@@ -227,12 +227,12 @@ describe("SpaceSettingsPanel", () => {
       onDelete,
     });
     await click("Delete space");
-    expect(container.querySelector("h2")?.textContent).toBe("Delete Support and its 2 bots?");
+    expect(container.querySelector("h2")?.textContent).toBe("Delete Support and its 2 stirrups?");
     await click("Delete");
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
-  it("asks plainly when the space has no bots", async () => {
+  it("asks plainly when the space has no stirrups", async () => {
     await render({});
     await click("Delete space");
     expect(container.querySelector("h2")?.textContent).toBe("Delete Support?");

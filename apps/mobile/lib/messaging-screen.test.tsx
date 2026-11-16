@@ -237,7 +237,7 @@ it("says which line to send a link code to", async () => {
   );
 });
 
-it("falls back to the first bot when the selected one is archived elsewhere", async () => {
+it("falls back to the first stirrup when the selected one is archived elsewhere", async () => {
   responses["bots/list"] = [
     { id: "bot-1", name: "Chief" },
     { id: "bot-2", name: "Lead" },
@@ -287,7 +287,7 @@ it("connects Slack to the default bot with workspace authorization", async () =>
   expect(Linking.openURL).toHaveBeenCalledWith("https://slack.example.test/authorize");
 });
 
-it("links DMs to the bot that answers in the workspace", async () => {
+it("links DMs to the stirrup that answers in the workspace", async () => {
   responses["messaging/status"] = {
     enabled: true,
     providers: ["slack", "telegram"],
@@ -352,7 +352,7 @@ it("keeps a new DM code visible when Slack is already linked in another workspac
   expect(container.textContent).toContain("ABCD-2345");
 });
 
-it("lets a member choose which bot their DMs link to in a teammate's workspace", async () => {
+it("lets a member choose which stirrup their DMs link to in a teammate's workspace", async () => {
   responses["bots/list"] = [
     { id: "bot-1", name: "Chief" },
     { id: "bot-2", name: "Lead" },

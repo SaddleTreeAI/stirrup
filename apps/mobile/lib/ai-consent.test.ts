@@ -42,7 +42,7 @@ function t(message: string, values?: Record<string, string>) {
 }
 
 const MODEL_DISCLOSURE =
-  "Messages, chat history, bot instructions, memories, attachments, screenshots and connected-app content are sent to run your bots, including routines.";
+  "Messages, chat history, stirrup instructions, memories, attachments, screenshots and connected-app content are sent to run your stirrups, including routines.";
 
 type AlertButton = { text?: string; onPress?: () => void };
 type AlertOptions = { onDismiss?: () => void };

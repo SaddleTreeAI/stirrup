@@ -202,7 +202,7 @@ export default function General() {
       .catch(() => {
         if (request !== botStyleRequest.current) return;
         setMe((current) => (current ? { ...current, botAvatarSet: previous } : current));
-        Alert.alert(t`Couldn't update bot style`);
+        Alert.alert(t`Couldn't update stirrup style`);
       });
   }
 
@@ -228,14 +228,14 @@ export default function General() {
         </View>
 
         {me ? (
-          <View accessibilityLabel={t`Bot style`} style={styles.section}>
-            <SettingsLabel>{t`Bot style`}</SettingsLabel>
+          <View accessibilityLabel={t`Stirrup style`} style={styles.section}>
+            <SettingsLabel>{t`Stirrup style`}</SettingsLabel>
             <NativeSegmentedControl
-              accessibilityLabel={t`Bot style`}
+              accessibilityLabel={t`Stirrup style`}
               onChange={updateBotStyle}
               options={[
                 { value: "organic", label: t`Original` },
-                { value: "rakazo", label: t`Rakazo` },
+                { value: "rakazo", label: t`Character` },
               ]}
               value={me.botAvatarSet ?? ""}
             />

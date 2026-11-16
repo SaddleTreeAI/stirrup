@@ -168,7 +168,7 @@ function harness(
     localWebUrl: "http://127.0.0.1:5173",
     imageTag: "v1.0.0",
     serverBundle: { version: "1.0.0", file: "/bundle.tar.xz" },
-    nodeBinary: "/Applications/Rakazo.app/Contents/MacOS/Rakazo",
+    nodeBinary: "/Applications/Stirrup.app/Contents/MacOS/Stirrup",
     env: { HOME: "/Users/someone", OPENAI_API_KEY: "from-the-shell" },
     uid: 501,
     run,
@@ -289,7 +289,7 @@ describe("NativeStackController", () => {
       API_PORT: "40001",
       SANDBOX_PROVIDER: "local-vm",
       LOCAL_VM_CLI: CLI,
-      LOCAL_VM_COMPUTER_IMAGE: "ghcr.io/elie222/rakazo/computer:v1.0.0",
+      LOCAL_VM_COMPUTER_IMAGE: "ghcr.io/saddletreeai/stirrup/computer:v1.0.0",
       OPENROUTER_API_KEY: "sk-or-test",
       WEB_ORIGIN: "http://127.0.0.1:5173",
       SANDBOX_HOST_URL: "http://127.0.0.1:47000",
@@ -310,7 +310,7 @@ describe("NativeStackController", () => {
       "pull",
       "--progress",
       "plain",
-      "ghcr.io/elie222/rakazo/computer:v1.0.0",
+      "ghcr.io/saddletreeai/stirrup/computer:v1.0.0",
     ]);
 
     // Running services keep the menu's off-switch available after a server switch.
@@ -443,7 +443,7 @@ describe("NativeStackController", () => {
     });
     const state = await controller.start();
     expect(state.message).toBe(
-      "Your Rakazo data is in a different computer runtime. Quit the one running, then retry.",
+      "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.",
     );
     expect(other.commands().filter((command) => /create/.test(command))).toEqual([]);
 
@@ -476,7 +476,7 @@ describe("NativeStackController", () => {
     expect(resolved).toEqual([true]);
     expect(state.phase).toBe("failed");
     expect(state.message).toBe(
-      "Your Rakazo data is in a different computer runtime. Quit the one running, then retry.",
+      "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.",
     );
     expect(commands()).not.toContain("create --name");
   });
@@ -529,7 +529,7 @@ describe("NativeStackController", () => {
     const state = await controller.start();
     order.push("start failed");
     expect(state.message).toBe(
-      "Downloading Rakazo failed. Check the internet connection, then retry.",
+      "Downloading Stirrup failed. Check the internet connection, then retry.",
     );
     expect(order).toEqual(["runtime stopped", "start failed"]);
   });
@@ -617,7 +617,7 @@ describe("NativeStackController", () => {
     const state = await controller.start();
     expect(state.phase).toBe("failed");
     expect(state.message).toBe(
-      "Rakazo services did not start. Check the output below, then retry.",
+      "Stirrup services did not start. Check the output below, then retry.",
     );
     expect(controller.hasProcesses()).toBe(false);
   });
@@ -634,7 +634,7 @@ describe("NativeStackController", () => {
     const state = await controller.start();
     expect(state.phase).toBe("failed");
     expect(state.message).toBe(
-      "Rakazo services did not start. Check the output below, then retry.",
+      "Stirrup services did not start. Check the output below, then retry.",
     );
     expect(state.output).toContain("postgres exited");
     expect(controller.hasProcesses()).toBe(false);
@@ -653,7 +653,7 @@ describe("NativeStackController", () => {
     const state = await controller.start();
     expect(state.phase).toBe("failed");
     expect(state.message).toBe(
-      "Downloading Rakazo failed. Check the internet connection, then retry.",
+      "Downloading Stirrup failed. Check the internet connection, then retry.",
     );
     expect(state.output).toContain("Pulling the database image exited with code 1");
     expect(children).toEqual([]);

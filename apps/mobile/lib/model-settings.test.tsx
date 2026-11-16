@@ -515,7 +515,7 @@ describe("a Space's model override", () => {
     });
   });
 
-  it("moves that Space's bots onto the main model in that Space", async () => {
+  it("moves that Space's stirrups onto the main model in that Space", async () => {
     params.spaceId = "space-other";
     saved.bots = [
       { id: "bot-own", name: "Archie", modelProvider: "anthropic", modelId: "claude-fixture" },
@@ -525,11 +525,11 @@ describe("a Space's model override", () => {
         await act(async () => root.render(createElement(Models)));
       });
       rpcCalls.length = 0;
-      await switchToSpaceDefault("Switch 1 bot to the space default?");
+      await switchToSpaceDefault("Switch 1 stirrup to the space default?");
       const sent = (procedure: string) => rpcCalls.find(([name]) => name === procedure)?.[2];
       expect(sent("bots/update")).toEqual({ requestContext: otherSpace });
       expect(sent("bots/list")).toMatchObject({ requestContext: otherSpace });
-      expect(container.textContent).toContain("1 bot now uses the space default.");
+      expect(container.textContent).toContain("1 stirrup now uses the space default.");
     } finally {
       saved.bots = [];
     }
@@ -547,7 +547,7 @@ async function switchToSpaceDefault(confirmTitle: string) {
   await act(async () => buttons!.find((choice) => choice.text === "Switch")!.onPress!());
 }
 
-it("moves bots off their own model onto the main model, keeping failed ones listed", async () => {
+it("moves stirrups off their own model onto the main model, keeping failed ones listed", async () => {
   const pinned = (id: string, name: string) => ({
     id,
     name,
@@ -570,7 +570,7 @@ it("moves bots off their own model onto the main model, keeping failed ones list
     saved.failBotList = true;
     await renderModels();
     expect(container.textContent).toContain("Main model");
-    expect(container.textContent).not.toContain("Bot models");
+    expect(container.textContent).not.toContain("Stirrup models");
     expect(container.textContent).not.toContain("Could not load model settings");
     saved.failBotList = false;
     // Without a main model there is no default to move bots onto.
@@ -581,21 +581,21 @@ it("moves bots off their own model onto the main model, keeping failed ones list
     saved.needsModel = false;
     await renderModels();
     expect(container.textContent).toContain(
-      "4 bots have their own model: Archie, Basil, Nova, Inbox",
+      "4 stirrups have their own model: Archie, Basil, Nova, Inbox",
     );
     expect(container.textContent).not.toContain("Scout");
 
     saved.failBotUpdates = { "bot-inbox": "kept", "bot-nova": "changed elsewhere" };
     rpcCalls.length = 0;
-    await switchToSpaceDefault("Switch 4 bots to the space default?");
-    expect(container.textContent).toContain("2 bots now use the space default.");
+    await switchToSpaceDefault("Switch 4 stirrups to the space default?");
+    expect(container.textContent).toContain("2 stirrups now use the space default.");
     expect(container.textContent).toContain("Could not switch Inbox. Try again.");
-    expect(container.textContent).toContain("1 bot has its own model: Inbox");
+    expect(container.textContent).toContain("1 stirrup has its own model: Inbox");
     expect(container.textContent).not.toMatch(/Archie|Basil|Nova/);
 
     saved.failBotUpdates = {};
     rpcCalls.length = 0;
-    await switchToSpaceDefault("Switch 1 bot to the space default?");
+    await switchToSpaceDefault("Switch 1 stirrup to the space default?");
     expect(rpcCalls.filter(([procedure]) => procedure === "bots/update")).toEqual([
       [
         "bots/update",
@@ -603,7 +603,7 @@ it("moves bots off their own model onto the main model, keeping failed ones list
         { requestContext: pinnedTo("space-fixture") },
       ],
     ]);
-    expect(container.textContent).toContain("1 bot now uses the space default.");
+    expect(container.textContent).toContain("1 stirrup now uses the space default.");
     expect(container.textContent).not.toContain("Could not switch");
     expect(container.textContent).not.toContain("Use space default");
   } finally {
@@ -928,11 +928,11 @@ it("keeps setup help and API key collapsible for generic compatible servers", as
   const row = (name: string) =>
     [...container.querySelectorAll("button")].find((button) => button.textContent === name)!;
   expect(field("API key")).toBeNull();
-  expect(container.textContent).not.toContain("Rakazo adds /v1");
+  expect(container.textContent).not.toContain("Stirrup adds /v1");
   await act(async () => row("Setup help").click());
-  expect(container.textContent).toContain("Rakazo adds /v1");
+  expect(container.textContent).toContain("Stirrup adds /v1");
   await act(async () => row("Setup help").click());
-  expect(container.textContent).not.toContain("Rakazo adds /v1");
+  expect(container.textContent).not.toContain("Stirrup adds /v1");
   await act(async () => row("API key").click());
   expect(field("API key")).not.toBeNull();
   await act(async () => row("API key").click());

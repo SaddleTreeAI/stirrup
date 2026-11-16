@@ -205,7 +205,7 @@ export function BotEmailAddressesGroup() {
   );
   if (!email?.addresses.length) return null;
   return (
-    <SettingsGroup label={t`Bot email addresses`}>
+    <SettingsGroup label={t`Stirrup email addresses`}>
       {email.addresses.map((row) => (
         <SettingsRow
           key={row.botId}

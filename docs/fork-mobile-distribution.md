@@ -10,3 +10,7 @@ Set these repository secrets:
 The workflow rewrites configuration only in its temporary checkout, including native extension identities, app groups, and the update project. Native fingerprints keep incompatible builds from sharing updates. Build numbers increment in the build service. Keep `version` at least as new as the installed app version, and raise it for a new marketing release.
 
 Run the workflow from Actions or through an authorized repository connection. Only the exact finished iOS build whose project and bundle identifier match the configuration is submitted. Private build logs remain in the temporary runner filesystem; investigate failures in the build-service dashboard. Testers install through TestFlight; their device controls automatic installation.
+
+## Installing Stirrup
+
+Existing testers install updates from TestFlight. Public App Store distribution is not enabled by this workflow. The display name comes from `app.json`; the existing bundle, signing, project and legacy URL-scheme identities are preserved.

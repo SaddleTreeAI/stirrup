@@ -67,7 +67,7 @@ test("unavailable computers say so plainly and link setup help", async ({ page }
   await expect(hint.getByRole("button", { name: "Open computer settings" })).toBeVisible();
   await expect(hint.getByRole("link", { name: "Setup help" })).toHaveAttribute(
     "href",
-    "https://github.com/elie222/rakazo/blob/main/docs/self-host-sandbox-providers.md",
+    "https://github.com/SaddleTreeAI/stirrup/blob/main/docs/self-host-sandbox-providers.md",
   );
   await expect(preview.getByTestId("computer-preview-open")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "computers-unavailable-preview");
@@ -105,7 +105,7 @@ test("unavailable computers say so plainly and link setup help", async ({ page }
   sandboxProvider = "docker";
   await settingsHint.getByRole("button", { name: "Check again" }).click();
   const recovered = settingsHint.getByText(
-    "Computers are available. Reload or open a bot to continue.",
+    "Computers are available. Reload or open a stirrup to continue.",
   );
   await expect(recovered).toBeVisible();
   await expect(recovered).toBeHidden({ timeout: 10_000 });

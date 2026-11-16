@@ -613,7 +613,7 @@ it("does not recover the active chat screen over another computer pane", async (
   expect(screenUrl).not.toHaveBeenCalled();
 });
 
-it("reads no screen for a failed control call of a bot that is no longer shown", async () => {
+it("reads no screen for a failed control call of a stirrup that is no longer shown", async () => {
   state.expectOwnControlEvent("bot-2", "computer.takeover.granted");
   screenUrl.mockClear();
   await act(async () => state.forgetOwnControlEvent("bot-2"));
@@ -804,7 +804,7 @@ it("keeps control when the server refuses I'm done, and hands it back on close",
   await act(async () => {
     await takeControl();
   });
-  release.mockRejectedValueOnce(new Error("The bot is waiting for someone else"));
+  release.mockRejectedValueOnce(new Error("The stirrup is waiting for someone else"));
   await act(async () => {
     await handBack("done");
   });

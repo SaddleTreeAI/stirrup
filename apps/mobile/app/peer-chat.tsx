@@ -48,7 +48,7 @@ export default function PeerChat() {
   }>();
   const botId = params.botId ?? "";
   const peerBotId = params.peerBotId ?? "";
-  const botName = displayName(params.botName, t`Bot`);
+  const botName = displayName(params.botName, t`Stirrup`);
   const [state, setState] = useState<
     { kind: "loading" } | { kind: "failed" } | { kind: "ready"; chat: PeerConversation | null }
   >({ kind: "loading" });
@@ -88,7 +88,7 @@ export default function PeerChat() {
       blocks: message.blocks ?? [],
     })),
   );
-  const peerName = displayName(chat?.peerBotName ?? params.peerBotName, t`Bot`);
+  const peerName = displayName(chat?.peerBotName ?? params.peerBotName, t`Stirrup`);
   return (
     <View style={[styles.screen, sideInsets]}>
       <Stack.Screen

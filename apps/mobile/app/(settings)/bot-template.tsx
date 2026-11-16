@@ -142,11 +142,11 @@ function TemplateDetail({
     },
     onFailed: (cause, { existingId }) => {
       if (!navigation.isFocused()) return;
-      if (existingId) Alert.alert(t`Could not load bot`, errorText(cause, t`Try again.`));
+      if (existingId) Alert.alert(t`Could not load stirrup`, errorText(cause, t`Try again.`));
       else if (isBotTemplateChanged(cause)) {
         Alert.alert(t`This template was just updated. Check it again.`);
         onChanged();
-      } else Alert.alert(t`Could not create the bot`, errorText(cause, t`Try again.`));
+      } else Alert.alert(t`Could not create the stirrup`, errorText(cause, t`Try again.`));
     },
   });
 
@@ -162,7 +162,7 @@ function TemplateDetail({
         </View>
       </View>
       <NativeActionButton
-        label={botId ? t`Open` : t`Create bot`}
+        label={botId ? t`Open` : t`Create stirrup`}
         busy={open.pending}
         onPress={() => open.run({ existingId: botId, askedIn: searchInboxSession() })}
       />

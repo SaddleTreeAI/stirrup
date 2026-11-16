@@ -86,7 +86,7 @@ export function ComputerDeviceSettings() {
         <SettingsRow
           label={
             <Label htmlFor={switchId} className="text-body font-normal text-foreground">
-              <Trans>Let bots use this computer</Trans>
+              <Trans>Let stirrups use this computer</Trans>
             </Label>
           }
           control={

@@ -604,7 +604,7 @@ export class StoredMcpOAuthProvider implements OAuthClientProvider {
       : registrationAuthMethod(this.material.oauth?.discoveryState);
     return {
       redirect_uris: [redirectUri],
-      client_name: "Rakazo",
+      client_name: "Stirrup",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       ...(authMethod ? { token_endpoint_auth_method: authMethod } : {}),

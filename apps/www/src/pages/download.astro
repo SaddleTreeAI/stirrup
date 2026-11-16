@@ -20,17 +20,17 @@ const platforms = [
     href: desktopDownloadHref(platform),
     attr: platform,
   })),
-  { name: "iPhone, iPhone Duo, and iPad", action: "App Store", href: IOS_APP_URL, attr: "ios" },
-  { name: "Android", action: "Google Play", href: ANDROID_APP_STORE_URL, attr: "android" },
+  { name: "iPhone, iPhone Duo, and iPad", action: "iOS beta", href: IOS_APP_URL, attr: "ios" },
+  { name: "Android", action: "Android setup", href: ANDROID_APP_STORE_URL, attr: "android" },
   { name: "Web", action: "Open", href: APP_URL, attr: "web" },
 ];
 ---
 
-<BaseLayout title="Download · Rakazo" description="Get Rakazo for macOS, Windows, Linux, iPhone, iPhone Duo, iPad, Android, and the web.">
+<BaseLayout title="Download · Stirrup" description="Get Stirrup for macOS, Windows, Linux, iPhone, iPhone Duo, iPad, Android, and the web.">
   <div class="container">
     <Header starsLabel={starsLabel} />
     <main id="main" class="privacy-copy">
-      <h1>Download Rakazo</h1>
+      <h1>Download Stirrup</h1>
       <ul class="platform-list">
         {
           platforms.map((platform) => (

@@ -268,7 +268,7 @@ function RoutineView({
             onPress={() =>
               router.push({
                 pathname: "/thread",
-                params: { botId, name: botName ?? t`Bot` },
+                params: { botId, name: botName ?? t`Stirrup` },
               })
             }
           />

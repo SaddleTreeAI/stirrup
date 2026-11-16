@@ -11,14 +11,14 @@ download_ref=main
 if [[ "$image_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   download_ref="$image_tag"
 fi
-DOWNLOAD_BASE="${RAKAZO_DOWNLOAD_BASE:-https://raw.githubusercontent.com/elie222/rakazo/${download_ref}/infra/compose}"
+DOWNLOAD_BASE="${RAKAZO_DOWNLOAD_BASE:-https://raw.githubusercontent.com/SaddleTreeAI/stirrup/${download_ref}/infra/compose}"
 while [[ "$DOWNLOAD_BASE" == */ ]]; do
   DOWNLOAD_BASE="${DOWNLOAD_BASE%/}"
 done
 case "$DOWNLOAD_BASE" in
   https://*) ;;
   *)
-    echo "Rakazo setup failed: RAKAZO_DOWNLOAD_BASE must use https." >&2
+    echo "Stirrup setup failed: RAKAZO_DOWNLOAD_BASE must use https." >&2
     exit 1
     ;;
 esac
@@ -75,7 +75,7 @@ cleanup() {
 trap cleanup EXIT
 
 fail() {
-  echo "Rakazo setup failed: $*" >&2
+  echo "Stirrup setup failed: $*" >&2
   exit 1
 }
 
@@ -417,7 +417,7 @@ validate_required_secrets
 warn_unpassed_settings
 
 if [[ "$prepare_only" == true ]]; then
-  echo "Rakazo files are ready. Edit .env, then run: bash install-images.sh"
+  echo "Stirrup files are ready. Edit .env, then run: bash install-images.sh"
   exit 0
 fi
 
@@ -451,4 +451,4 @@ else
 fi
 remove_replaced_images
 
-echo "Rakazo is starting at http://127.0.0.1:5173"
+echo "Stirrup is starting at http://127.0.0.1:5173"

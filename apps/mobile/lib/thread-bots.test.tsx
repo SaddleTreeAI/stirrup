@@ -40,7 +40,7 @@ describe("thread roster refresh", () => {
   });
 
   it.each([{ botId: "bot-1" }, { groupId: "group-1" }])(
-    "refreshes only bots for live updates in %j",
+    "refreshes only stirrups for live updates in %j",
     async (target) => {
       await act(async () => root.render(createElement(Thread, target)));
       vi.mocked(rpc).mockClear();
@@ -80,18 +80,20 @@ describe("thread roster refresh", () => {
     expect(router.setParams).not.toHaveBeenCalled();
   });
 
-  it("keeps bot title refresh independent of a failed group request", async () => {
-    const bots = [{ id: "bot-1", name: "Renamed bot" }] as MobileBot[];
+  it("keeps stirrup title refresh independent of a failed group request", async () => {
+    const bots = [{ id: "bot-1", name: "Renamed stirrup" }] as MobileBot[];
     vi.mocked(rpc).mockImplementation(async (method) => {
       if (method === "bots/list") return bots;
       throw new Error("groups unavailable");
     });
-    await act(async () => root.render(createElement(Thread, { botId: "bot-1", name: "Old bot" })));
+    await act(async () =>
+      root.render(createElement(Thread, { botId: "bot-1", name: "Old stirrup" })),
+    );
     await act(async () => {
       await state.refreshMentionRoster();
     });
     expect(state.mentionBots).toEqual(bots);
-    expect(router.setParams).toHaveBeenCalledWith({ name: "Renamed bot" });
+    expect(router.setParams).toHaveBeenCalledWith({ name: "Renamed stirrup" });
   });
 
   it("keeps a successful group roster if the next refresh fails", async () => {
@@ -110,10 +112,10 @@ describe("thread roster refresh", () => {
     expect(router.setParams).not.toHaveBeenCalled();
   });
 
-  it("refreshes groups even when the bot request fails", async () => {
+  it("refreshes groups even when the stirrup request fails", async () => {
     vi.mocked(rpc).mockImplementation(async (method) => {
       if (method === "groups/list") return [group("group-1", "New name")];
-      throw new Error("bots unavailable");
+      throw new Error("stirrups unavailable");
     });
     await render();
     await act(async () => {
@@ -122,7 +124,7 @@ describe("thread roster refresh", () => {
     expect(router.setParams).toHaveBeenCalledWith({ name: "New name" });
   });
 
-  it("keeps a pending focus group refresh independent of live bot refreshes", async () => {
+  it("keeps a pending focus group refresh independent of live stirrup refreshes", async () => {
     const pending = deferred<MobileGroup[]>();
     vi.mocked(rpc).mockImplementation(async (method) =>
       method === "groups/list" ? pending.promise : [],

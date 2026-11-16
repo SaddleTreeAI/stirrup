@@ -512,7 +512,7 @@ describe("computer screen", () => {
     vi.useRealTimers();
   });
 
-  it("gives a switched-to bot a fresh reconnect budget", async () => {
+  it("gives a switched-to stirrup a fresh reconnect budget", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const bot2Working = { ...botWorking, botId: "bot-2" };
     rpc.mockImplementation(async (method: string, args?: { botId?: string }) => {
@@ -550,7 +550,7 @@ describe("computer screen", () => {
     vi.useRealTimers();
   });
 
-  it("opens the full window from the preview without taking control from the bot", async () => {
+  it("opens the full window from the preview without taking control from the stirrup", async () => {
     respond(botWorking);
     const view = await render();
     expect(view.querySelector("section")).toBeNull();

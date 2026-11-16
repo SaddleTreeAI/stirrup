@@ -73,7 +73,7 @@ export function FailedSendBubble({
     const message = isModelRequiredSendError(attempt.error)
       ? undefined
       : attempt.imageConfirmation
-        ? [attempt.error, t`The bot can use the file but won't see the picture.`]
+        ? [attempt.error, t`The stirrup can use the file but won't see the picture.`]
             .filter(Boolean)
             .join("\n\n")
         : attempt.error;

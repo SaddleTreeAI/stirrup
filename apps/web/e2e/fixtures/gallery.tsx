@@ -222,7 +222,7 @@ const approvals: Scenario = {
           "Oat milk 1L × 2: $8.40",
           "Delivery: $6.00",
           "Total on the page: $17.40",
-          "The button label, items and total are read from the page. The bot has not checked them.",
+          "The button label, items and total are read from the page. The stirrup has not checked them.",
         ].join("\n"),
         detailFormat: "text",
         receipt: {

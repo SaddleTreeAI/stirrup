@@ -162,10 +162,10 @@ function expectNothingOpened() {
   expect(mocks.openFromSettingsSheet).not.toHaveBeenCalled();
 }
 
-it("creates the template's bot as previewed, busy meanwhile, then opens its chat", async () => {
+it("creates the template's stirrup as previewed, busy meanwhile, then opens its chat", async () => {
   const create = hold("bots/createFromTemplate");
   await render();
-  expect(action().textContent).toBe("Create bot");
+  expect(action().textContent).toBe("Create stirrup");
   await act(async () => action().click());
   expect(action().getAttribute("aria-busy")).toBe("true");
   expect(create.calls()[0]?.slice(0, 2)).toEqual([
@@ -179,7 +179,7 @@ it("creates the template's bot as previewed, busy meanwhile, then opens its chat
   expect(mocks.alert).not.toHaveBeenCalled();
 });
 
-it("opens the bot an earlier create made", async () => {
+it("opens the stirrup an earlier create made", async () => {
   template.botId = "bot-9";
   const get = hold("bots/get");
   await render();
@@ -194,12 +194,12 @@ it("opens the bot an earlier create made", async () => {
   expect(action().getAttribute("aria-busy")).toBe("false");
 });
 
-it("says in an alert why a bot was not created or loaded, and offers the action again", async () => {
+it("says in an alert why a stirrup was not created or loaded, and offers the action again", async () => {
   const create = hold("bots/createFromTemplate");
   await render();
   await act(async () => action().click());
   await create.finish(new Error("Server said no"));
-  expect(mocks.alert.mock.calls).toEqual([["Could not create the bot", "Server said no"]]);
+  expect(mocks.alert.mock.calls).toEqual([["Could not create the stirrup", "Server said no"]]);
   expect(action().getAttribute("aria-busy")).toBe("false");
   expectNothingOpened();
 
@@ -211,7 +211,7 @@ it("says in an alert why a bot was not created or loaded, and offers the action 
   await act(async () => action().click());
   await settle();
   await get.finish(new Error("Server said no"));
-  expect(mocks.alert.mock.lastCall).toEqual(["Could not load bot", "Server said no"]);
+  expect(mocks.alert.mock.lastCall).toEqual(["Could not load stirrup", "Server said no"]);
   expect(action().getAttribute("aria-busy")).toBe("false");
   expectNothingOpened();
 });
@@ -227,7 +227,7 @@ it("asks to check a template that changed since it was shown, and reads it again
 });
 
 it.each([
-  ["a bot", { bot, created: true }],
+  ["a stirrup", { bot, created: true }],
   ["a failure", new Error("Server said no")],
 ])("ignores %s that arrives after the screen lost focus", async (_what, outcome) => {
   const create = hold("bots/createFromTemplate");
@@ -240,7 +240,7 @@ it.each([
   expect(mocks.alert).not.toHaveBeenCalled();
 });
 
-it("creates one bot when the button is tapped twice in one tick", async () => {
+it("creates one stirrup when the button is tapped twice in one tick", async () => {
   const create = hold("bots/createFromTemplate");
   await render();
   await act(async () => {
@@ -253,7 +253,7 @@ it("creates one bot when the button is tapped twice in one tick", async () => {
 });
 
 it.each([
-  ["a bot", { bot, created: true }],
+  ["a stirrup", { bot, created: true }],
   ["a failure", new Error("Server said no")],
 ])("ignores %s that arrives after the screen has gone", async (_what, outcome) => {
   const create = hold("bots/createFromTemplate");

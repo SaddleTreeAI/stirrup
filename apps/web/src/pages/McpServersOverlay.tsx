@@ -271,7 +271,7 @@ export function McpServersOverlay({
         ]),
       ]);
     } catch (err) {
-      setError(errorDetails(err, t`Could not update bot access`));
+      setError(errorDetails(err, t`Could not update stirrup access`));
     }
   }
 

@@ -182,7 +182,7 @@ afterEach(async () => {
 });
 
 it("keeps an ongoing call in reach after leaving the shell", async () => {
-  startCall({ botId: "bot-1", botName: "Test bot" });
+  startCall({ botId: "bot-1", botName: "Test stirrup" });
   await render("/app/bot-1");
   await act(async () => find('a[href="/app/artifacts"]')?.click());
   await settle();
@@ -205,7 +205,7 @@ const ringing = (callId: string, spaceId = "space-1") =>
   ({
     id: "bot-1",
     spaceId,
-    name: "Test bot",
+    name: "Test stirrup",
     incomingCall: {
       callId,
       reason: "Review",
@@ -221,7 +221,7 @@ it("rings for an incoming call on a page outside the shell", async () => {
   await act(async () => pushCalls([ringing("call-1")]));
   await settle();
   expect(find('[data-testid="incoming-call"]')?.getAttribute("aria-label")).toBe(
-    "Test bot is calling you",
+    "Test stirrup is calling you",
   );
 
   const decline = [...container.querySelectorAll("button")].find(

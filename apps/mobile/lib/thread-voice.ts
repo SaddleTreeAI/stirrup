@@ -240,7 +240,7 @@ export function useThreadVoiceCall({
         );
         return;
       }
-      const botName = displayName ?? t`Bot`;
+      const botName = displayName ?? t`Stirrup`;
       // The call keeps the Space it starts in: an organization or Space switch mid-call must
       // not move its turns, speech or hang-up to another Space.
       const requestContext: ApiRequestContext = await captureApiRequestContext();

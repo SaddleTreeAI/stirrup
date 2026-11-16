@@ -414,7 +414,7 @@ describe("mobile call session", () => {
     }
   });
 
-  it("starts listening for the bot on the call", async () => {
+  it("starts listening for the stirrup on the call", async () => {
     const fake = fakes();
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -422,7 +422,7 @@ describe("mobile call session", () => {
     expect(fake.recordings).toHaveLength(1);
   });
 
-  it("sends what it heard to the call's bot", async () => {
+  it("sends what it heard to the call's stirrup", async () => {
     const fake = fakes();
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -436,7 +436,7 @@ describe("mobile call session", () => {
     expect(getSnapshot()).toMatchObject({ phase: "thinking", heard: "how is the deploy going" });
   });
 
-  describe("answering what the bot is waiting on", () => {
+  describe("answering what the stirrup is waiting on", () => {
     const waitingOn = (
       blocks: MobileSnapshot["messages"][number]["blocks"],
       status = "waiting_input",
@@ -586,7 +586,7 @@ describe("mobile call session", () => {
       expect(getSnapshot()?.caption).toBe("Hang up, then enter the code on screen.");
     });
 
-    it("keeps the microphone shut until it knows whether the bot waits on a code", async () => {
+    it("keeps the microphone shut until it knows whether the stirrup waits on a code", async () => {
       const fake = fakes({ loadThread: false });
       startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
       await flush();
@@ -628,7 +628,7 @@ describe("mobile call session", () => {
       expect(fake.followUp).not.toHaveBeenCalled();
     });
 
-    it("keeps the microphone shut while the bot waits on a code typed on screen", async () => {
+    it("keeps the microphone shut while the stirrup waits on a code typed on screen", async () => {
       const fake = fakes();
       startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
       await flush();
@@ -890,7 +890,7 @@ describe("mobile call session", () => {
     expect(fake.recordings).toHaveLength(1);
   });
 
-  it("says it is switching, hangs up, then rings the bot the caller asked for", async () => {
+  it("says it is switching, hangs up, then rings the stirrup the caller asked for", async () => {
     const fake = fakes();
     const ring = vi.fn();
     const switchBot = vi.fn((text: string) =>
@@ -947,7 +947,7 @@ describe("mobile call session", () => {
   });
 
   it.each([undefined, "Talk soon."])(
-    "ignores an old bot's end event throughout hand-over with farewell %j",
+    "ignores an old stirrup's end event throughout hand-over with farewell %j",
     async (farewell) => {
       const endCue = deferred<void>();
       const fake = fakes();
@@ -989,7 +989,7 @@ describe("mobile call session", () => {
     expect(fake.waits).toEqual(["preload", "start", "stop", "release"]);
   });
 
-  it("does not ring the other bot when the caller hangs up during the hand-over", async () => {
+  it("does not ring the other stirrup when the caller hangs up during the hand-over", async () => {
     const fake = fakes();
     const ring = vi.fn();
     startCall(
@@ -1026,7 +1026,7 @@ describe("mobile call session", () => {
     expect(fake.spoken.at(-1)).toBe("Back on the line.");
   });
 
-  it("does not ring the other bot when the caller hangs up before the hand-over is spoken", async () => {
+  it("does not ring the other stirrup when the caller hangs up before the hand-over is spoken", async () => {
     const endCue = deferred<void>();
     const fake = fakes();
     const ring = vi.fn();
@@ -1159,7 +1159,7 @@ describe("mobile call session", () => {
     expect(fake.recordings).toHaveLength(1);
   });
 
-  it("hangs up once the bot has answered a goodbye", async () => {
+  it("hangs up once the stirrup has answered a goodbye", async () => {
     const fake = fakes();
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -1178,7 +1178,7 @@ describe("mobile call session", () => {
     expect(fake.unwatch).toHaveBeenCalled();
   });
 
-  it("speaks the farewell and hangs up when the bot ends the call itself", async () => {
+  it("speaks the farewell and hangs up when the stirrup ends the call itself", async () => {
     const fake = fakes();
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -1193,7 +1193,7 @@ describe("mobile call session", () => {
     expect(getSnapshot()).toBeNull();
   });
 
-  it("never speaks the work the bot files after it hung up", async () => {
+  it("never speaks the work the stirrup files after it hung up", async () => {
     const fake = fakes();
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -1246,7 +1246,7 @@ describe("mobile call session", () => {
     expect(getSnapshot()).toBeNull();
   });
 
-  it("aborts the bot feed on hang up", async () => {
+  it("aborts the stirrup feed on hang up", async () => {
     const fake = fakes();
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -1305,7 +1305,7 @@ describe("mobile call session", () => {
     expect(fake.closeCall).toHaveBeenCalledWith("bot-1", callId);
   });
 
-  it("drops a run id that lands after the same bot was called again", async () => {
+  it("drops a run id that lands after the same stirrup was called again", async () => {
     const fake = fakes();
     const pending = deferred<string | undefined>();
     fake.send.mockReturnValueOnce(pending.promise);
@@ -1341,7 +1341,7 @@ describe("mobile call session", () => {
     expect(fake.closeCall).toHaveBeenCalledWith("bot-1", callId);
   });
 
-  it("does not close the call again when the bot ended it", async () => {
+  it("does not close the call again when the stirrup ended it", async () => {
     const fake = fakes();
     startCall({ botId: "bot-1", botName: "Ada" }, fake.deps);
     await flush();
@@ -1661,7 +1661,7 @@ describe("mobile call recognition recovery", () => {
     });
     const fake = fakes();
     const { dictate: _dictate, ...deps } = fake.deps;
-    startCall({ botId: "bot-1", botName: "Bot", greeting: "Hello there.", transcribe }, deps);
+    startCall({ botId: "bot-1", botName: "Stirrup", greeting: "Hello there.", transcribe }, deps);
     await vi.advanceTimersByTimeAsync(0);
     expect(start).not.toHaveBeenCalled();
     fake.speeches[0]?.resolve();
@@ -1913,7 +1913,7 @@ describe("mobile call session on a timer", () => {
     );
   });
 
-  it("keeps the bot's farewell when the barged-out reply settles late", async () => {
+  it("keeps the stirrup's farewell when the barged-out reply settles late", async () => {
     const fake = fakes({ onDevice: true });
     const id = startCall({ botId: "bot-1", botName: "Ada", transcribe: false }, fake.deps);
     await tick();

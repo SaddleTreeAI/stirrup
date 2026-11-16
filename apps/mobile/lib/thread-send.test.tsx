@@ -183,7 +183,7 @@ it("taps only valid sends and confirms delivery only for the visible chat", asyn
   }
 });
 
-it("shows the bots at work outside the app once the server accepts a run", async () => {
+it("shows the stirrups at work outside the app once the server accepts a run", async () => {
   let delivered!: Parameters<typeof feedbackModule.subscribeDelivered>[0];
   const subscription = vi
     .spyOn(feedbackModule, "subscribeDelivered")

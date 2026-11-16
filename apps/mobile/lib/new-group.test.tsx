@@ -296,7 +296,7 @@ async function pickPair() {
   await click("Next");
 }
 
-it("keeps each selected bot's icon set in the name-step group preview", async () => {
+it("keeps each selected stirrup's icon set in the name-step group preview", async () => {
   const looks = bots.map((bot, index) => ({
     ...bot,
     color: index === 0 ? "#10B981" : "#8B5CF6",
@@ -317,7 +317,7 @@ it("keeps each selected bot's icon set in the name-step group preview", async ()
   );
 });
 
-it("adds and removes chips, hides picked and archived bots, and clears filters on pick", async () => {
+it("adds and removes chips, hides picked and archived stirrups, and clears filters on pick", async () => {
   rpc.mockResolvedValue([
     ...bots,
     { ...bots[0], id: "archived", name: "Archived", archivedAt: "date" },
@@ -333,7 +333,7 @@ it("adds and removes chips, hides picked and archived bots, and clears filters o
   expect(container.querySelector("input")?.placeholder).toBe("Add another");
   await click("Remove Writer");
   expect(button("Writer")).toBeDefined();
-  expect(container.querySelector("input")?.placeholder).toBe("Search bots");
+  expect(container.querySelector("input")?.placeholder).toBe("Search stirrups");
   await type("research");
   expect(button("Researcher")).toBeDefined();
   expect(button("Support")).toBeUndefined();
@@ -377,17 +377,17 @@ it("enforces ten picks with only an accessibility announcement and permits remov
     Array.from({ length: GROUP_MEMBER_MAX + 1 }, (_, i) => ({
       ...bots[0],
       id: `bot-${i}`,
-      name: `Bot ${i}`,
+      name: `Stirrup ${i}`,
     })),
   );
   await start();
-  for (let i = 0; i < GROUP_MEMBER_MAX; i++) await click(`Bot ${i}`);
-  await click("Bot 10");
+  for (let i = 0; i < GROUP_MEMBER_MAX; i++) await click(`Stirrup ${i}`);
+  await click("Stirrup 10");
   expect(announce).toHaveBeenCalledOnce();
-  expect(button("Remove Bot 10")).toBeUndefined();
-  await click("Remove Bot 0");
-  await click("Bot 10");
-  expect(button("Remove Bot 10")).toBeDefined();
+  expect(button("Remove Stirrup 10")).toBeUndefined();
+  await click("Remove Stirrup 0");
+  await click("Stirrup 10");
+  expect(button("Remove Stirrup 10")).toBeDefined();
 });
 it("Skip posts the default name in pick order and routes to the group", async () => {
   await start();
@@ -596,7 +596,7 @@ it("opens the new group even when the sheet was closed before the answer", async
   });
 });
 
-it("reads the bots for the selected space, afresh on each visit", async () => {
+it("reads the stirrups for the selected space, afresh on each visit", async () => {
   await start();
   expect(rpc).toHaveBeenCalledWith("bots/list", undefined, sentFor("space-1"));
   expect(button("Writer")).toBeDefined();
@@ -616,7 +616,7 @@ it("reads the bots for the selected space, afresh on each visit", async () => {
   expect(botReads()).toHaveLength(2);
 });
 
-it("shows no bots, and nothing else, when the list cannot be read", async () => {
+it("shows no stirrups, and nothing else, when the list cannot be read", async () => {
   rpc.mockRejectedValue(new Error("Offline"));
   await start();
   expect(container.textContent).not.toContain("Offline");

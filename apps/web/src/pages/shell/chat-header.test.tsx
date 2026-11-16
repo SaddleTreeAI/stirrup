@@ -115,7 +115,7 @@ it("shows no gift when the account cannot invite", () => {
   expect(gift()).toBeNull();
 });
 
-it("shows the gift only in a bot chat, as mobile does", () => {
+it("shows the gift only in a stirrup chat, as mobile does", () => {
   billing.status = { referral: { url: "https://example.test/sign-up?ref=abc", rewards: 0 } };
   renderHeader({ inGroup: true });
   expect(gift()).toBeNull();

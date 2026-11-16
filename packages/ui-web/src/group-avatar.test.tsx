@@ -13,7 +13,7 @@ describe("GroupAvatar", () => {
     expect(html).toContain("rakazo-organic-avatar");
   });
 
-  it("renders 2 overlapping bot avatars for 2 members", () => {
+  it("renders 2 overlapping stirrup avatars for 2 members", () => {
     const html = renderToString(
       <GroupAvatar
         members={[
@@ -40,7 +40,7 @@ describe("GroupAvatar", () => {
     expect(html).toContain("rakazo-organic-avatar");
   });
 
-  it("renders 3 mini bot avatars for 3 members", () => {
+  it("renders 3 mini stirrup avatars for 3 members", () => {
     const html = renderToString(
       <GroupAvatar
         members={[

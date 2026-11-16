@@ -69,7 +69,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("does not auto-speak a reply while a call with another bot is active", () => {
+it("does not auto-speak a reply while a call with another stirrup is active", () => {
   const first = snapshot([message("m1", "first reply")]);
   renderRead({ snapshot: first });
   rerenderRead({

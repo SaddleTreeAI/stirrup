@@ -26,15 +26,15 @@ export function KeyboardShortcutsDialog({
     { label: t`New`, keys: [[mod, "N"]] },
     host.desktop && { label: t`New group chat`, keys: [[mod, shift, "N"]] },
     host.desktop && { label: t`Find in chat`, keys: [[mod, "F"]] },
-    host.desktop && { label: t`Search bots`, keys: [[mod, shift, "F"]] },
+    host.desktop && { label: t`Search stirrups`, keys: [[mod, shift, "F"]] },
     { label: t`Toggle sidebar`, keys: [[mod, "B"]] },
     { label: t`Focus message`, keys: [[mod, "I"]] },
     dictation && { label: t`Dictate`, keys: [[mod, "D"]] },
     { label: t`Chat details`, keys: [[mod, shift, ","]] },
     { label: t`Connect apps`, keys: [[mod, shift, "M"]] },
-    host.desktop && { label: t`Go to bot`, keys: [[mod, "1–9"]] },
+    host.desktop && { label: t`Go to stirrup`, keys: [[mod, "1–9"]] },
     {
-      label: t`Next or previous bot`,
+      label: t`Next or previous stirrup`,
       keys: host.desktop
         ? [
             [ctrl, "Tab"],

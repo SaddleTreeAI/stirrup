@@ -60,7 +60,7 @@ test("opens Artifacts from the account menu and lists created files", async ({
 
   const source = page.getByRole("combobox", { name: "Filter by who made it" });
   await source.click();
-  await page.getByRole("option", { name: "Made by bots" }).click();
+  await page.getByRole("option", { name: "Made by stirrups" }).click();
   await expect(page.getByText("notes/artifacts-tab.md")).toBeHidden();
   await expect(page.getByRole("link", { name: /weekly\.md/ })).toBeVisible();
   await captureScreenshot(page, testInfo, "artifacts-made-by-bots");

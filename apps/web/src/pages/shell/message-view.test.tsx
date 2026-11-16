@@ -126,7 +126,7 @@ it("keeps a received peer marker off the user's side while user replies align to
   expect(container.querySelector(".items-end")?.textContent).toContain("Thanks.");
 });
 
-it("names a new bot inline in the reply, in its color", () => {
+it("names a new stirrup inline in the reply, in its color", () => {
   const { mention, onOpenBot } = renderMessage(
     [{ kind: "text", text: "Planner is ready." }],
     existingBot,
@@ -140,7 +140,7 @@ it("names a new bot inline in the reply, in its color", () => {
   expect(onOpenBot).toHaveBeenCalledWith("child");
 });
 
-it("puts the bot first when the reply does not name it", () => {
+it("puts the stirrup first when the reply does not name it", () => {
   renderMessage([{ kind: "text", text: "Ready when you are." }], existingBot, [planner()]);
   expect(container.querySelector('[data-testid="message-bot-bubble"]')?.textContent).toBe(
     "Planner Ready when you are.",
@@ -150,7 +150,7 @@ it("puts the bot first when the reply does not name it", () => {
 it.each([
   ["no longer exists", "created", missingBot],
   ["was deleted", "deleted", existingBot],
-] as const)("keeps the name without color or link when the bot %s", (_, status, peerBot) => {
+] as const)("keeps the name without color or link when the stirrup %s", (_, status, peerBot) => {
   const { mention, onOpenBot } = renderMessage(
     [{ kind: "text", text: "Planner is gone." }],
     peerBot,
@@ -168,7 +168,7 @@ it("shows an announcement with no reply yet on its own", () => {
   expect(onOpenBot).toHaveBeenCalledWith("child");
 });
 
-it("names the bot once across a reply's text blocks", () => {
+it("names the stirrup once across a reply's text blocks", () => {
   renderMessage(
     [
       { kind: "text", text: "Setting up." },

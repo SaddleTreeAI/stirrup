@@ -9,11 +9,11 @@ import {
   signup,
 } from "./helpers";
 
-test("a bot gets its email address from its settings and lists it in the Vault", async ({
+test("a stirrup gets its email address from its settings and lists it in the Vault", async ({
   page,
 }, testInfo) => {
   const stamp = Date.now();
-  await signup(page, `bot-email-${stamp}@rakazo.test`, "password12", "Bot Email");
+  await signup(page, `bot-email-${stamp}@rakazo.test`, "password12", "Stirrup Email");
   await completeOnboarding(page);
   const botId = activeBotId(page);
   await openBotPanelTab(page, "Computer");
@@ -37,11 +37,11 @@ test("a bot gets its email address from its settings and lists it in the Vault",
   await captureScreenshot(page, testInfo, "vault-bot-email");
 });
 
-test("a bot email claim stays in its shell's Space when another tab switches Spaces", async ({
+test("a stirrup email claim stays in its shell's Space when another tab switches Spaces", async ({
   page,
 }, testInfo) => {
   const stamp = Date.now();
-  await signup(page, `bot-email-space-${stamp}@rakazo.test`, "password12", "Bot Email Space");
+  await signup(page, `bot-email-space-${stamp}@rakazo.test`, "password12", "Stirrup Email Space");
   await completeOnboarding(page);
 
   const home = await rpc<{ id: string }>(page, "spaces/create", { name: "Email Home" });

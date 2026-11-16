@@ -234,7 +234,7 @@ export const MessageView = memo(function MessageView({
             ? (replyAuthor?.name ?? t`You`)
             : ((replyBotId ? peerBot(replyBotId)?.name : undefined) ??
               memberName?.(replyBotId) ??
-              t`Bot`)
+              t`Stirrup`)
         }
         onJump={onJumpToMessage}
       />
@@ -360,8 +360,8 @@ export const MessageView = memo(function MessageView({
           }
           if (isToolActivityBlock(block)) return null;
           if (block.kind === "handoff") {
-            const from = memberName?.(block.fromBotId) ?? t`bot`;
-            const to = memberName?.(block.toBotId) ?? t`bot`;
+            const from = memberName?.(block.fromBotId) ?? t`stirrup`;
+            const to = memberName?.(block.toBotId) ?? t`stirrup`;
             return (
               <div
                 key={i}

@@ -81,7 +81,7 @@ function syncInput({
       isOwnControlEvent: vi.fn(() => false),
       isOwnAnswer: vi.fn(() => false),
     },
-    active: inGroup ? undefined : { id: "bot-1", name: "Bot", ...bot },
+    active: inGroup ? undefined : { id: "bot-1", name: "Stirrup", ...bot },
     activeGroup: inGroup ? { id: "group-1", name: "Group" } : undefined,
     inGroup,
     groupId: inGroup ? "group-1" : undefined,
@@ -317,7 +317,7 @@ it.each([
   ["running", null, false],
   ["idle", { status: "running" }, false],
 ])(
-  "paints a %s bot's cached chat only when its run state still matches",
+  "paints a %s stirrup's cached chat only when its run state still matches",
   async (botStatus, run, painted) => {
     await expectCachedPaint({ status: botStatus, threadStatus: botStatus }, { run }, painted);
   },
@@ -331,7 +331,7 @@ it("checks every active run in a cached chat, not just the primary one", async (
   );
 });
 
-it("ignores the bot's work in other chats when judging its own cached chat", async () => {
+it("ignores the stirrup's work in other chats when judging its own cached chat", async () => {
   await expectCachedPaint({ status: "running", threadStatus: "idle" }, { run: null }, true);
 });
 
@@ -630,7 +630,7 @@ it.each([false, true])(
         release: vi.fn(async () => ({ ok: true })),
       },
     };
-    const bot = { id: "bot-1", name: "Bot", status: "idle", threadStatus: "idle" };
+    const bot = { id: "bot-1", name: "Stirrup", status: "idle", threadStatus: "idle" };
     const input = syncInput({ inGroup: false, get, commitSnapshot: vi.fn() });
     let state!: ReturnType<typeof useComputerState>;
     let controls!: ReturnType<typeof useComputerControls>;

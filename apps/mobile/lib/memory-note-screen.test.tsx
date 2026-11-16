@@ -150,7 +150,7 @@ function lastAlert() {
   return { title, press: (text: string) => buttons.find((b) => b.text === text)?.onPress?.() };
 }
 
-it("edits a bot's note against the revision it opened, then goes back", async () => {
+it("edits a stirrup's note against the revision it opened, then goes back", async () => {
   mocks.rpc.mockImplementation(async (proc: string, body: Record<string, unknown>) => {
     if (proc === "memory/list") return [note];
     if (proc === "memory/update") return { ...note, content: body.content, revision: 4 };
@@ -203,7 +203,7 @@ it("asks before leaving with unsaved changes", async () => {
 });
 
 it("offers the latest version or the edit when the note changed elsewhere", async () => {
-  const latest = { ...note, content: "Bot rewrote this.\n", revision: 5 };
+  const latest = { ...note, content: "Stirrup rewrote this.\n", revision: 5 };
   let lists = 0;
   mocks.rpc.mockImplementation(async (proc: string, body: Record<string, unknown>) => {
     if (proc === "memory/list") return lists++ === 0 ? [note] : [latest];
@@ -231,7 +231,7 @@ it("offers the latest version or the edit when the note changed elsewhere", asyn
 });
 
 it("can replace the edit with the latest version after a conflict", async () => {
-  const latest = { ...note, content: "Bot rewrote this.\n", revision: 5 };
+  const latest = { ...note, content: "Stirrup rewrote this.\n", revision: 5 };
   let lists = 0;
   mocks.rpc.mockImplementation(async (proc: string) => {
     if (proc === "memory/list") return lists++ === 0 ? [note] : [latest];

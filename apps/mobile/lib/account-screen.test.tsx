@@ -425,7 +425,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("keeps bot style visible when the account has no saved style", async () => {
+it("keeps stirrup style visible when the account has no saved style", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
@@ -434,7 +434,7 @@ it("keeps bot style visible when the account has no saved style", async () => {
 
   expect(container.querySelector('[aria-label="Appearance"]')).not.toBeNull();
   expect(container.textContent).toContain("Language");
-  expect(container.querySelector('[aria-label="Bot style"]')).not.toBeNull();
+  expect(container.querySelector('[aria-label="Stirrup style"]')).not.toBeNull();
   expect(container.textContent).not.toContain("Avatars");
   expect(container.textContent).not.toContain("Robot");
   expect(container.textContent).not.toContain("Organic");
@@ -442,7 +442,7 @@ it("keeps bot style visible when the account has no saved style", async () => {
 
 it("saves an Original choice even when the saved style is absent", async () => {
   const { screen } = await renderAccount(General);
-  const picker = screen.querySelector('[aria-label="Bot style"]')!;
+  const picker = screen.querySelector('[aria-label="Stirrup style"]')!;
   const original = Array.from(picker.querySelectorAll("button")).find(
     (node) => node.textContent === "Original",
   )!;

@@ -97,7 +97,7 @@ export function browserNotificationMessage(
   event: Pick<ProductEvent, "type" | "payload">,
   botName: string,
 ): { title: string; body: string } {
-  const name = displayName(botName, i18n._({ id: "Bot", message: "Bot" }));
+  const name = displayName(botName, i18n._({ id: "Stirrup", message: "Stirrup" }));
   if (event.type === "thread.message.created") {
     const blocks = Array.isArray(event.payload.blocks) ? event.payload.blocks : [];
     const body = blocks

@@ -186,7 +186,7 @@ export function ComputerOverlay({
               {screenFrames(screenFrameKey, embeddedScreenUrl, heldScreen).map((frame) => (
                 <iframe
                   key={frame.key}
-                  title={frame.held ? undefined : t`Bot screen`}
+                  title={frame.held ? undefined : t`Stirrup screen`}
                   aria-hidden={frame.held || undefined}
                   tabIndex={frame.held ? -1 : undefined}
                   ref={frame.held ? undefined : screenFrameRef}

@@ -194,7 +194,7 @@ export function SecretAskCard({ block, canAnswer, canDismiss, onAnswer, onDismis
           ) : null}
           {block.sharedBrowser && !ownerOnly && !answered ? (
             <div className="text-body-sm text-muted-foreground">
-              {t`The bot's browser stays signed in for everyone in this space`}
+              {t`The stirrup's browser stays signed in for everyone in this space`}
             </div>
           ) : null}
           {block.replaces && !ownerOnly && !answered ? (

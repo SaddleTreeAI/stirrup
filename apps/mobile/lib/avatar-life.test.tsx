@@ -154,13 +154,13 @@ describe("avatar motion on mobile", () => {
   it.each([
     ["a shipped shape", SHAPE],
     ["an organic avatar", "#FF781C"],
-  ] as const)("plays %s's working clips in the inbox while its bot works", (_, color) => {
+  ] as const)("plays %s's working clips in the inbox while its stirrup works", (_, color) => {
     render(<BotAvatar color={color} identity="bot-1" size={62} status="running" motion="lazy" />);
     expect(clockStarted()).toBe(true);
     expect(awake()).toBe(1);
   });
 
-  it("keeps every other avatar still, even while its bot works, and keeps the working dot", () => {
+  it("keeps every other avatar still, even while its stirrup works, and keeps the working dot", () => {
     render(<BotAvatar color={SHAPE} identity="bot-1" size={28} status="running" />);
     wait(30_000);
     expect(clockStarted()).toBe(false);
@@ -176,7 +176,7 @@ describe("avatar motion on mobile", () => {
     expect(Number(workingDot()?.getAttribute("data-width"))).toBeCloseTo(10 + 2 * 28 * 0.046);
   });
 
-  it("rests a bot waiting on you: no motion, no working dot", () => {
+  it("rests a stirrup waiting on you: no motion, no working dot", () => {
     render(
       <BotAvatar color={SHAPE} identity="bot-1" size={62} status="waiting_input" motion="lazy" />,
     );
@@ -184,7 +184,7 @@ describe("avatar motion on mobile", () => {
     expect(workingDot()).toBeNull();
   });
 
-  it("turns into the typing dots while the bot writes its reply, and back into its face after", () => {
+  it("turns into the typing dots while the stirrup writes its reply, and back into its face after", () => {
     render(
       <BotAvatar color={SHAPE} identity="bot-1" size={28} status="running" motion="running" />,
     );
@@ -206,7 +206,7 @@ describe("avatar motion on mobile", () => {
     expect(motion.springs.at(-1)).toEqual([0, MORPH_SPRING]);
   });
 
-  it("drops the chat header's working dot while the bot writes, and keeps it a still picture", () => {
+  it("drops the chat header's working dot while the stirrup writes, and keeps it a still picture", () => {
     render(<BotAvatar color={SHAPE} identity="bot-1" size={28} status="running" composing />);
     expect(workingDot()).toBeNull();
     expect(clockStarted()).toBe(false);
@@ -244,7 +244,7 @@ describe("avatar motion on mobile", () => {
     expect(awake()).toBe(0);
   });
 
-  it("keeps a writing bot's face under Reduce Motion instead of turning it into moving dots", () => {
+  it("keeps a writing stirrup's face under Reduce Motion instead of turning it into moving dots", () => {
     motion.reducedMotion = true;
     render(
       <BotAvatar
@@ -289,7 +289,7 @@ describe("avatar motion on mobile", () => {
     expect(clockStarted()).toBe(false);
   });
 
-  it("keeps moving 1.4 s after the bot finishes so the pose settles, then goes still", () => {
+  it("keeps moving 1.4 s after the stirrup finishes so the pose settles, then goes still", () => {
     render(<BotAvatar color={SHAPE} identity="bot-1" size={62} status="running" motion="lazy" />);
     const cancelled = motion.cancelled;
     render(<BotAvatar color={SHAPE} identity="bot-1" size={62} status="completed" motion="lazy" />);
@@ -447,7 +447,7 @@ describe("activity mark", () => {
     expect(container.querySelector("button")).not.toBeNull();
   });
 
-  it("turns into the typing dots while its bot writes", () => {
+  it("turns into the typing dots while its stirrup writes", () => {
     render(<ActivityMark bots={[{ ...bots[0]!, composing: true }]} atBottom />);
     expect(motion.springs).toContainEqual([1, MORPH_SPRING]);
   });
