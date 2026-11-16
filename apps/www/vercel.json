@@ -20,12 +20,12 @@
     },
     {
       "source": "/x",
-      "destination": "https://x.com/rakazobot",
+      "destination": "https://saddletree.ai/contact",
       "permanent": false
     },
     {
       "source": "/twitter",
-      "destination": "https://x.com/rakazobot",
+      "destination": "https://saddletree.ai/contact",
       "permanent": false
     },
     {
@@ -35,7 +35,7 @@
     },
     {
       "source": "/discord",
-      "destination": "https://discord.gg/RWwKa2Sn7h",
+      "destination": "https://saddletree.ai/contact",
       "permanent": false
     }
   ],
