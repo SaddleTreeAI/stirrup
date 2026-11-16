@@ -48,7 +48,10 @@ jobs:
 
   publish:
     needs: result
-    if: needs.result.outputs.result != 'skipped'
+    if: >-
+      needs.result.outputs.result != 'skipped' &&
+      vars.S3_BUCKET != '' && vars.S3_ENDPOINT != '' &&
+      vars.PLAYWRIGHT_PUBLIC_BASE_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
