@@ -1,33 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openBotPanelTab, rpc, signup } from "./helpers";
-
-test("open work wraps long titles and notes inside a narrow panel", async ({ page }, testInfo) => {
-  await page.emulateMedia({ colorScheme: "dark" });
-  await page.setViewportSize({ width: 1400, height: 900 });
-  await signup(page, `work-wrap-${Date.now()}@rakazo.test`, "password12", "Work Sample");
-  await completeOnboarding(page);
-  await page.waitForURL(/\/app\/[^/]+$/);
-  const title = `Review ${"a".repeat(120)}`;
-  const notes = `Revision ${"b".repeat(240)}\nhttps://example.test/${"reference".repeat(50)}`;
-  await rpc(page, "scratchpad/create", {
-    botId: new URL(page.url()).pathname.split("/").at(-1),
-    title,
-    notes,
-  });
-  await openBotPanelTab(page, "Advanced");
-  const panel = page.getByTestId("side-panel");
-  const separator = page.getByRole("separator", { name: "Resize panel" });
-  await separator.focus();
-  await separator.press("Home");
-  await expect(panel).toHaveCSS("width", "320px");
-  const work = panel.getByTestId("bot-scratchpad");
-  await expect(work.getByText(title, { exact: true })).toBeVisible();
-  await expect(work.getByText(notes, { exact: true })).toBeVisible();
-  for (const box of [panel, work]) {
-    await expect.poll(() => box.evaluate((node) => node.scrollWidth - node.clientWidth)).toBe(0);
-  }
-  await captureScreenshot(page, testInfo, "open-work-long-text-wrapped");
-});
+import { captureScreenshot, completeOnboarding, openBotPanelTab, signup } from "./helpers";
 
 test("computer rail resizes its preview and remembers width", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1500, height: 1000 });

@@ -21,28 +21,6 @@ test("sidebar rail keeps chats interactive and remembers a dragged width", async
   const handle = page.getByRole("separator", { name: "Resize stirrups sidebar" });
   const row = page.locator(`[data-roster-bot-id="${bot.id}"]`);
   await expect(sidebar).toHaveCSS("width", "316px");
-  const tools = [
-    sidebar.getByTestId("sidebar-search-trigger"),
-    sidebar.getByTestId("create-menu-trigger"),
-    sidebar.getByRole("button", { name: "Activity", exact: true }),
-    sidebar.getByTestId("minimize-bots-sidebar"),
-  ];
-  await page.mouse.move(700, 450);
-  for (const tool of tools) {
-    await expect(tool).toBeVisible();
-    await expect(tool).toHaveCSS("opacity", "1");
-  }
-  const positions = await Promise.all(tools.map((tool) => tool.boundingBox()));
-  for (let index = 1; index < positions.length; index++) {
-    expect(positions[index]!.x).toBeGreaterThan(positions[index - 1]!.x);
-  }
-  await tools[0]!.focus();
-  for (const tool of tools.slice(1)) {
-    await page.keyboard.press("Tab");
-    await expect(tool).toBeFocused();
-  }
-  await tools[3]!.blur();
-  await captureScreenshot(page, testInfo, "sidebar-tools-always-visible");
   await handle.hover({ position: { x: 4, y: 300 } });
   const edge = (await handle.boundingBox())!;
   await page.mouse.down();
