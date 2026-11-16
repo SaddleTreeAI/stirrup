@@ -2,7 +2,7 @@
 
 ## Reporting vulnerabilities
 
-Email **security@rakazo.com** only. Do not open public GitHub issues for security bugs.
+Report vulnerabilities privately through [SaddleTree contact](https://saddletree.ai/contact). Do not open public GitHub issues for security bugs.
 
 Please include:
 
@@ -14,8 +14,7 @@ We will acknowledge your report and work on a fix. Please do not file a public i
 
 ## Other contact
 
-- General support: **support@rakazo.com**
-- Maintainer: **elie@rakazo.com**
+- General support and maintainer contact: [SaddleTree AI](https://saddletree.ai/contact)
 
 ## Scope
 

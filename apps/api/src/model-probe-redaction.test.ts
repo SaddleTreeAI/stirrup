@@ -1,6 +1,7 @@
 import { createRouterClient } from "@orpc/server";
 import * as adapters from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
+import { ConnectionSetupError } from "@rakazo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
 import { createRouter } from "./router.js";
@@ -48,7 +49,9 @@ describe("failed model probe messages", () => {
 
   it("hides the saved key and headers before answering a failed endpoint probe", async () => {
     vi.spyOn(adapters, "probeOpenAiCompatibleModels").mockRejectedValue(
-      new TypeError("The endpoint refused fixture-saved-key with fixture-session-value."),
+      new ConnectionSetupError(
+        "The endpoint refused fixture-saved-key with fixture-session-value.",
+      ),
     );
     await expect(fixture().models.probeOpenAiCompatible({ baseUrl })).rejects.toThrow(
       "The endpoint refused ••• with •••.",
@@ -66,7 +69,7 @@ describe("failed model probe messages", () => {
 
   it("hides the submitted key before answering a failed catalog probe", async () => {
     vi.spyOn(adapters, "probeCatalogProviderModels").mockRejectedValue(
-      new Error("The catalog refused fixture-catalog-key."),
+      new ConnectionSetupError("The catalog refused fixture-catalog-key."),
     );
     await expect(
       fixture().models.probeCatalog({ provider: "openai", apiKey: "fixture-catalog-key" }),

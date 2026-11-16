@@ -124,6 +124,7 @@ export type HomeCopy = {
       all: string;
       about: string;
       brand: string;
+      affiliates: string;
       support: string;
       privacy: string;
       terms: string;
@@ -1056,6 +1057,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Wszystkie",
         about: "O nas",
         brand: "Marka",
+        affiliates: "Program partnerski",
         support: "Pomoc",
         privacy: "Prywatność",
         terms: "Regulamin",
@@ -1207,6 +1209,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "All",
         about: "About",
         brand: "Brand",
+        affiliates: "Affiliates",
         support: "Support",
         privacy: "Privacy",
         terms: "Terms",
@@ -1363,6 +1366,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Alle",
         about: "Über uns",
         brand: "Marke",
+        affiliates: "Partnerprogramm",
         support: "Support",
         privacy: "Datenschutz",
         terms: "AGB",
@@ -1375,7 +1379,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
   ko: {
     title: "Stirrup | 오픈소스 Grok Bot 대안",
     description:
-      "Rakazo는 실제 업무를 수행하는 지속형 AI 팀원을 위한 오픈소스 Grok Bot 대안입니다. 키, 모델, 머신, 모두 당신 것.",
+      "Stirrup는 실제 업무를 수행하는 지속형 AI 팀원을 위한 오픈소스 Grok Bot 대안입니다. 키, 모델, 머신, 모두 당신 것.",
     ogImageAlt: "Stirrup. 진짜로 내 것인 AI 팀원. 키, 모델, 머신, 모두 당신 것.",
     availableLanguage: "Korean",
     skipToContent: "본문으로 건너뛰기",
@@ -1468,7 +1472,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         {
           question: "Claude Pro/Max 또는 ChatGPT Plus/Pro 구독을 쓸 수 있나요?",
           answer:
-            "네. 해당 요금제로 ChatGPT에 로그인하세요. Claude Pro나 Max를 쓰려면 소스 코드에서 Rakazo를 본인 전용으로 직접 호스팅하고, 본인 계정으로 로그인한 공식 Claude Code CLI를 통해 실행하세요. API 키를 연결해도 됩니다. 자세한 내용은 문서의 Model subscriptions를 확인하세요.",
+            "네. 해당 요금제로 ChatGPT에 로그인하세요. Claude Pro나 Max를 쓰려면 소스 코드에서 Stirrup를 본인 전용으로 직접 호스팅하고, 본인 계정으로 로그인한 공식 Claude Code CLI를 통해 실행하세요. API 키를 연결해도 됩니다. 자세한 내용은 문서의 Model subscriptions를 확인하세요.",
         },
         {
           question: "로컬 모델을 쓸 수 있나요?",
@@ -1518,6 +1522,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "전체",
         about: "소개",
         brand: "브랜드",
+        affiliates: "제휴 프로그램",
         support: "지원",
         privacy: "개인정보 처리방침",
         terms: "이용약관",
@@ -1673,6 +1678,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "全部",
         about: "关于",
         brand: "品牌",
+        affiliates: "联盟计划",
         support: "支持",
         privacy: "隐私",
         terms: "条款",
@@ -1829,6 +1835,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "すべて",
         about: "概要",
         brand: "ブランド",
+        affiliates: "アフィリエイト",
         support: "サポート",
         privacy: "プライバシー",
         terms: "利用規約",
@@ -1985,6 +1992,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Todas",
         about: "Acerca de",
         brand: "Marca",
+        affiliates: "Afiliados",
         support: "Soporte",
         privacy: "Privacidad",
         terms: "Términos",
@@ -2141,6 +2149,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Toutes",
         about: "À propos",
         brand: "Marque",
+        affiliates: "Affiliation",
         support: "Support",
         privacy: "Confidentialité",
         terms: "Conditions",
@@ -2297,6 +2306,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Todas",
         about: "Sobre",
         brand: "Marca",
+        affiliates: "Afiliados",
         support: "Suporte",
         privacy: "Privacidade",
         terms: "Termos",
@@ -2453,6 +2463,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Alle",
         about: "Over ons",
         brand: "Merk",
+        affiliates: "Affiliateprogramma",
         support: "Support",
         privacy: "Privacy",
         terms: "Voorwaarden",
@@ -2609,6 +2620,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Все",
         about: "О нас",
         brand: "Бренд",
+        affiliates: "Партнёрская программа",
         support: "Поддержка",
         privacy: "Конфиденциальность",
         terms: "Условия",
@@ -2765,6 +2777,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "Tümü",
         about: "Hakkımızda",
         brand: "Marka",
+        affiliates: "Ortaklık programı",
         support: "Destek",
         privacy: "Gizlilik",
         terms: "Koşullar",
@@ -2921,6 +2934,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "הכול",
         about: "אודות",
         brand: "מותג",
+        affiliates: "תוכנית שותפים",
         support: "תמיכה",
         privacy: "פרטיות",
         terms: "תנאים",
@@ -3077,6 +3091,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "सभी",
         about: "हमारे बारे में",
         brand: "ब्रांड",
+        affiliates: "एफ़िलिएट प्रोग्राम",
         support: "सहायता",
         privacy: "गोपनीयता",
         terms: "शर्तें",
@@ -3232,6 +3247,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         all: "全部",
         about: "關於我們",
         brand: "品牌",
+        affiliates: "聯盟計畫",
         support: "支援",
         privacy: "隱私權",
         terms: "條款",

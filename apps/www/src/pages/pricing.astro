@@ -5,6 +5,7 @@ import PlanCard from "../components/PlanCard.astro";
 import { githubStarsLabel } from "../github";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { PRICING_PLANS } from "../pricing";
+import { pricingStructuredData } from "../structured-data";
 
 const starsLabel = await githubStarsLabel();
 ---
@@ -12,6 +13,7 @@ const starsLabel = await githubStarsLabel();
 <BaseLayout
   title="Pricing · Stirrup"
   markdownAlternate="/pricing.md"
+  structuredData={pricingStructuredData()}
   description="Self-host Stirrup for free, or contact SaddleTree about deployment and support."
 >
   <div class="container">

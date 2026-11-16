@@ -83,7 +83,8 @@ export function assessReleaseWatchRoutinePrompt(prompt: string): {
     };
   }
 
-  const mentionsRepo = /rakazo|elie222/i.test(text);
+  // Existing routines may still name the parent; new routines name this fork.
+  const mentionsRepo = /stirrup|saddletreeai|rakazo|elie222/i.test(text);
   const mentionsReleases = /release/i.test(text);
   const mentionsGithubTool =
     /GITHUB_LIST_RELEASES|GITHUB_GET_RELEASE|list(?:\s+\w+){0,4}\s+releases|github\s+(tool|integration|plugin|connector|api)/i.test(

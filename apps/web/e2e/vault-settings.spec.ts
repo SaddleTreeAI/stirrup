@@ -167,7 +167,7 @@ test("saves a contact, a card billed to it, and a login from Settings, showing n
   // A new item's save returns to the list, as every new item's does.
   await vault.getByText("scoped.example.test", { exact: true }).click();
   const chosen = detail.getByTestId("vault-item-access-detail");
-  await expect(chosen).toHaveText(/^Bots./);
+  await expect(chosen).toHaveText(/^Stirrups./);
   await expect(chosen).not.toContainText("Researcher");
 
   // A key no bot may use yet: every bot let go of.
