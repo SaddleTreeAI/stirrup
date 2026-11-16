@@ -6,95 +6,170 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [0.9.1] - 2026-11-10
+## [0.11.0] - 2026-11-12
 
 ### Security
 
-- Patch file-pattern dependencies against denial-of-service issues and filesystem traversal continuing after cancellation.
-- Patch the diagram math dependency so inherited object properties cannot enable trusted rendering. Existing strict SVG labels and sanitization remain unchanged.
-
-### Fixed
-
-- Desktop release feeds accept valid fork repository names beginning with punctuation while rejecting dot path segments and malformed coordinates.
-
-## [0.9.0] - 2026-11-09
-
-### Security
-
-- Computer browser, screen and control helpers ignore startup files and executable replacements in bot-writable homes, and child commands do not inherit the control token. Working directories cannot escape the assigned workspace; custom Incus images run commands as the workspace user.
-- Local MCP launch credentials are redacted from errors, tool output and model history, including saved records, `auth` arguments and numeric key values.
-- Auto Review accepts only one complete, unambiguous JSON verdict. Malformed, duplicate-key or multiple verdicts ask the owner instead of approving an action.
-- Mobile server changes discard and revoke late sign-ins. Remembered bots and shortcuts stay bound to their account, server and Space. Offline sign-outs retry revocation; Android ignores message pushes without a session, and other devices retain their registrations.
-- Revoked chat, call and page streams stop promptly. Mobile read-aloud clears when leaving a Space.
-- Group membership ignores stale, duplicate and far-future rosters, so delayed events cannot restore removed members. Unavailable attachment names cannot inject extra prompt lines.
-- Spaces being deleted cannot start new messages, webhooks, retries or computer work. Billing actions stay bound to the organization shown, deletion coordinates with pending checkout, and own-key trials cannot be reused across organizations or account deletion.
-- Payment forms with partial card details still require purchase approval. Mandatory routine approvals do not offer an ineffective persistent bypass. Initial credit-plan purchases and top-ups request bank confirmation.
-- Editing a page shared by link asks for approval with a preview, unless the owner has already selected Never ask.
-- Email quotas apply across Spaces and survive bot deletion, with atomic reservations for concurrent sends. Mail for deactivated owners is discarded before storage; authenticated signatures must cover one Subject header, and untrusted attachments cannot overwrite existing files.
-- Inbound email sender, subject and body are encrypted when content encryption is enabled, including existing records. Recipient-unsigned mail requires a recent signed date and a verified, explicitly trusted relay. New bot addresses cannot impersonate reserved operator or project names.
-- Account imports create temporary files exclusively, reject unsafe archive metadata and bound nested ZIP entry counts, directory size and decompressed sizes.
-- Bot-computer frames cannot read the desktop host clipboard. Pasting into the computer remains available; copying out is temporarily disabled.
-- Connected tool names cannot override local helper restrictions. Hosted transcription asks for voice consent before recording, including calls without a greeting.
-- Chat and routine inputs and external provider responses have bounded sizes to prevent unbounded resource use.
-- Instance themes keep font files within their configured folder. Public model, voice and MCP proxy traffic retains checked-address routing and private-address protections.
-- Public issue-triage automation can read only its repository checkout.
-- Updated container package-management security patches, React/server-component safeguards, affected HTTP-client dependencies and optional payment-protocol hardening.
-- Patched XML parsing, URI parsing, YAML, brace expansion, cryptography, compression, Markdown and IP-address dependencies. The checked dependency tree has no reported high or critical advisories; moderate glob/minimatch and low-severity math-rendering findings remain.
+- Updated third-party dependencies with known vulnerabilities, including the HTTP client used by model, mail and scraping connections, the mail sender, and XML and Markdown parsers.
+- The development launcher's database cleanup accepts only database names it generated and quotes them, so forged database metadata can no longer inject SQL or point the cleanup at another folder. This affects source checkouts only.
 
 ### Added
 
-- Share a Space's bots, chats, routines, memory and computer with invited members. Credentials and model billing remain personal, while the shared computer also shares browser sign-ins. Read state, snooze and notifications are independent for each member ([Spaces](docs/spaces.md)).
-- Background helpers can work on longer tasks while the main bot remains available, with progress cards and independent stop controls. A Messages reply mode separates deliberate updates from tool steps.
-- Bots can receive, search and reply to email at their own addresses, retain sent copies and run on permitted senders. Verified owner mail can start work without a routine; delegated and shared-channel runs cannot read the owner's inbox ([email setup](docs/self-host-inbound-email.md)).
-- Account-wide spending limits apply across bots and Spaces and are checked before approval and execution. Payment cards show order items when available, and settings list recent approved payments ([approvals](docs/approvals.md)).
-- Snooze individual and group chats until later on web, desktop and mobile. Snooze is personal in shared Spaces.
-- Mobile can create and edit routines, inspect their history, manage email triggers, and edit bot memory and shared notes ([routines](docs/routines.md)).
-- Ready-made bot templates start paused and identify missing connections. Mobile setup can name and customize a bot before creating it.
-- Bots can recall earlier tool work and attachments, read large files by line range, and send files or folders to another bot. Completed generated videos can arrive after the requesting run finishes.
-- Sandboxed interactive connector apps render in chats across web, desktop and mobile. Question cards can include the content being decided on, and Artifacts can filter to bot-created files.
-- Optional directory provisioning can create and deactivate accounts. Optional paid-data lookups expose prices and follow approval rules before running.
-- Self-hosted instances can customize web and connected-desktop colors, fonts and corner radius with `RAKAZO_THEME`; font assets can stay local ([configuration](docs/self-host-configuration.md)).
-- Compatible iPhone builds can show active bots on the Lock Screen and Dynamic Island. Mobile haptics are an optional device setting; speech connections can expose model selection.
-- Forks can build their own iPhone app for TestFlight and publish signed, notarized macOS updates from their own repository ([iPhone distribution](docs/fork-mobile-distribution.md), [Mac distribution](docs/fork-desktop-distribution.md)). Switching signing teams requires one manual Mac installation; subsequent updates retain that fork's identity.
+- On Apple silicon Macs running macOS 26 or newer, the desktop app's **This computer** runs without Docker. The app downloads what it needs the first time you pick it, and each bot's computer runs as its own small VM with a firewall that lets it reach the internet but not your Mac or local network. If you already run This computer on Docker, the app asks once whether to move your bots and data; Docker is stopped, not removed. Intel Macs, older macOS, Linux and Windows keep using Docker ([This computer on a Mac without Docker](docs/desktop-mac-without-docker.md)).
+- Message your bots from Microsoft Teams direct messages after linking your Teams account ([messaging apps](docs/messaging-apps.md)).
+- Routines can watch a public HTTPS address and run only when its response changes, without starting a computer ([routines](docs/routines.md#when-something-changes)).
+- When This computer needs Docker and it is missing, the desktop app offers one button to download the right Docker Desktop installer, opens Docker if it is stopped, and continues setup on its own once Docker is running.
 
 ### Changed
 
-- Quieter activity navigation, progressively disclosed model settings, clearer connection health and consistent typography retain this fork's sidebar layout. Translations cover its sidebar controls and additional upstream screens.
-- Approval settings group rules by effect and provide a searchable tool picker. Work steps identify the connected app and action instead of internal routing names.
-- Mobile uses native inbox actions and menus, supports swipe-to-archive and clearer unanswered states, and reduces freezes in long streaming messages. A desktop sign-in screen can open Change server directly.
-- Docker computers adopt the owner's language and time zone. New computers include file-search, file-type and SQLite tools; open-egress networks can use IPv6 with IPv4 fallback.
-- Server images exclude unnecessary build tooling. Release-pinned installers use matching Compose files and clean up replaced, unused stack images.
+- Webhook and email routine runs now follow the owner's approval mode and **Always allow** list instead of asking on every step. Text in a webhook or email can try to steer the bot, so a tool on your **Always allow** list will run on it without a person looking ([approvals](docs/approvals.md)).
+- When a bot needs you to use its computer, its card shows a still of the screen with **Skip**, **I'm done** and **Take control**, and folds into one line once settled.
+- A bot's chat no longer shows the prompt that started a webhook, email or chat-message routine; it shows only what the bot does.
+- Your chat bubbles stay close to the bot's avatar color, and the first bot created at sign-up starts orange.
+- Answered questions stay in the chat as dimmed cards, with your reply shown once in its own message, and the iOS inbox controls sit closer to the sidebar toggle.
+- Mobile settings are a short hub, with display and device preferences on a new **General** page and sign-in and security on an **Account** page opened by tapping your name.
+- Usage shows when monthly computer hours next reset separately from the plan's renewal date, including on annual plans.
+- InstaBox computers start at their plan's computer size. A stopped computer moves to its plan's size when it next starts, which discards its paused memory but keeps its files.
+- Bots see every open scratchpad item at the start of a run, and know the scratchpad's title and notes size limits before writing.
+- The sidebar updates when something changes instead of polling, and computer update progress is checked quickly only while an update is running.
+- Deploys are smoother: the old API finishes in-flight requests before exiting, and apps spread out their reconnects and retries afterwards.
+- Updating a self-hosted server downloads only the app's own files when its dependencies haven't changed, instead of the whole image.
+- The worker spends less CPU on memory cleanup under load.
+- Self-host monitoring raises the CPU overload alert when work actually waits for a processor rather than on a high load average, and says which measure tripped it.
 
 ### Fixed
 
-- Retained memory archives stay available as files without being automatically added to active bot context.
-- Paused or deleted webhook routines cannot wake bots. Retried mobile sends do not duplicate routine execution, and runs use the committed prompt and model together.
-- Mobile drafts and unsent attachments survive navigation and interrupted saves; sign-out and server changes warn before clearing unsent work. Failed sends reuse uploads and retain dictation with its original chat.
-- Voice calls keep their original Space and speaker, end before sign-out and do not compete with unrelated read-aloud. Silent recordings are discarded and lock-screen answers no longer wait on unrelated roster requests.
-- Concurrent chat writes, attachments, reactions and settings updates handle database contention without losing completed replies. External group-chat deliveries preserve order and long replies.
-- Backup models use their own thinking settings and can shorten context before taking over. Interrupted streams retry appropriately; signed-in model token refreshes coordinate across server instances.
-- Long OAuth permission lists use a separate authorization-link limit instead of failing with "MCP URL exceeds 2048 characters". MCP client registration negotiates supported authentication, native identity sign-in supports compatible nonce-less requests, and unusable catalog connections are hidden.
-- Model, speech and MCP requests honor supported proxy settings. Deployment-local models can use an optional API key, and local desktop model/tool connections can reach permitted private endpoints ([models](docs/self-host-models.md), [integrations](docs/self-host-integrations.md)).
-- Computer startup, updates, cleanup, object storage and key-service requests have bounded recovery. Oversized backups no longer prevent sleep; temporarily unavailable tools and provider capacity can retry.
-- Import tools retain parameter descriptions and explicit GraphQL nulls. Account archives preserve binary files, and generated media downloads recognize mixed-case content types.
-- Chat scrolling stays anchored, streamed tables retain their state, copied text has a fallback on plain HTTP, and the web app opens when browser storage is blocked. Generated pages reject invalid top-level hooks before saving.
-- Model-credit holds and computer-hour balances recover correctly after interrupted or concurrent billing operations. Internal failures distinguish provider outages from access or deployment errors.
+- A Docker computer that comes up unable to write its home folder, such as after Docker or the host restarts, is restarted automatically instead of failing every run.
+- Docker computers start on Windows hosts instead of failing a home folder permission check.
+- Android message notifications no longer arrive blank while the app is in the background.
+- Compatible model connections whose label already starts with the service name no longer repeat it.
+- Chat tables sort decimals written without a leading zero, such as `.5`, in numeric order.
 
 ### Self-host upgrade notes
 
-- Source installs require Node `^24.15.0 || >=26.0.0` and pnpm `12.18.0`. Published images include their runtime. Run migrations before the new API; use the normal deployed-migration mechanism so deferred drops wait until previous workers no longer need them.
-- Refresh computer images for isolated helpers, security patches, payment-total checks, receipt details and desktop-menu changes. Language/time-zone adoption restarts existing Docker computers once; home files and browser profiles are retained.
-- Build a fresh native mobile binary for the SDK, inbox, notification and native-control changes; an OTA update alone cannot deliver them. Live Activities require configured Apple push delivery. TestFlight installation remains controlled by each device.
-- `docker-compose.prod.yml` now targets an 8 GB host. Smaller hosts should set `POSTGRES_MEMORY_LIMIT`, `POSTGRES_SHARED_BUFFERS` and `POSTGRES_EFFECTIVE_CACHE_SIZE` before deployment. Postgres restarts when applying these settings; the published-image stack retains its defaults ([configuration](docs/self-host-configuration.md)).
-- Set `COMPUTER_SETTINGS_ENABLED=true` to expose computer-provider settings. Existing saved connections keep working when the form is hidden.
-- External health monitors must read the `integrations` array from `/internal/health` instead of former provider-specific fields.
-- Pass `INBOUND_EMAIL_DOMAIN` and the existing `EMAIL_*` settings to workers as well as the API, and verify the sending domain. Optionally set `INBOUND_EMAIL_RELAY_ARC_DOMAIN` only for a trusted sealing relay. Email encryption backfills existing rows; quota records start fresh. Bot inboxes and addresses are not included in account exports.
-- Bare bot webhooks now need an active webhook routine. Reimport existing GraphQL sources to regenerate schemas with explicit-null support.
-- Existing encrypted chat attachments and steps remain readable, but newly added filename/step search terms need rewritten indexes to find old content. Imports need temporary disk for the compressed archive and extracted entries.
-- For additional addresses, configure `RAKAZO_ALLOWED_HOSTS` for web hosts and `RAKAZO_EXTRA_AUTH_ORIGINS` for trusted authentication origins. `WEB_ORIGIN` remains the source of links and callbacks.
-- Private model/tool endpoints require `MCP_ALLOW_PRIVATE_ENDPOINT=true` on API and workers. Local Docker installs use `RAKAZO_LOOPBACK_HOST` for model/speech loopback URLs; Linux services must listen on an address reachable from the Docker bridge. The desktop local stack enables private endpoints, so exposing it also grants that reachability to signed-in users.
-- Optional settings include `RAKAZO_LOCAL_MODELS_API_KEY`, `MCP_MAX_TOOLS`, `MCP_MAX_PAGES` and longer `MODEL_STREAM_TIMEOUT_MS`; `MODEL_STREAM_IDLE_TIMEOUT_MS=0` disables the idle watchdog. See the [configuration reference](docs/self-host-configuration.md) before changing deployment-wide access or limits.
-- For fork releases, configure the documented distribution secrets and set `DESKTOP_RELEASE_MAC_ONLY=true` when publishing only macOS. Keep private signing identities and app configuration out of tracked files.
+- Servers on Apple silicon Macs with macOS 26 or newer can run computers as VMs instead of Docker containers with `SANDBOX_PROVIDER=local-vm`, tuned by `LOCAL_VM_CLI`, `LOCAL_VM_COMPUTER_IMAGE`, `LOCAL_VM_CPUS` and `LOCAL_VM_MEMORY` ([computer providers](docs/self-host-sandbox-providers.md#local-vm)).
+- The computer image now includes nftables, which `local-vm` requires; no action is needed.
+- To enable Microsoft Teams, set `TEAMS_APP_ID`, `TEAMS_APP_PASSWORD` and `TEAMS_APP_TENANT_ID` ([integrations](docs/self-host-integrations.md#microsoft-teams)).
+- The bundled Compose files start the worker with `--max-semi-space-size=64`. If you maintain your own Compose file, add it to the worker's start command for the same CPU saving.
+
+## [0.10.0] - 2026-11-11
+
+### Security
+
+- Updated the IP-address parser to fix a regular-expression denial of service affecting address parsing in rate limiting and proxy connections.
+- Failed MCP responses now have a total size limit even when they use an event stream, preventing oversized error responses from being buffered without a bound.
+
+### Added
+
+- In the desktop app's **This computer** mode, bots can see and use Mac and Windows apps when **Let bots use this computer** is enabled. Screen access is limited to owner-started chats and asks for approval on the first use of each app in a Space ([computer](docs/computer.md)).
+- See subscription allowances, reset times and remaining credits in the account menu and Settings > Usage, with the same breakdown on the mobile account screen.
+- Voice connections can reuse a supported model sign-in for speech and transcription instead of requiring another key ([voice and calls](docs/voice-and-calls.md)).
+- Added another optional remote computer adapter with suspend and resume support ([computer providers](docs/self-host-sandbox-providers.md#instabox-computers)).
+- Mobile now offers French, Hebrew, Hindi, Korean, Brazilian Portuguese and Turkish; Hebrew uses a right-to-left layout.
+- Owners can delete an unpaid organization from the plan choice, with the existing type-the-name confirmation.
+- Operators can cap an account's total hosted model-credit usage without deactivating it ([billing](docs/self-host-billing.md)).
+
+### Changed
+
+- Deleting a bot on web or desktop names the group chats that will also be deleted, including their messages, files and pages.
+- Bots retain earlier conversation by token budget rather than stopping at eight exchanges, helping them follow decisions made earlier in a chat. Longer retained history can use more input tokens.
+- Bots receive a description of their Docker computer's tools and limits before starting work, and can offer the computer card when you need to see or scan its screen.
+- Admin-granted credit now includes computer hours for organizations without a monthly plan; purchased top-ups remain unchanged.
+- Mobile Activity replaces the regular chat list while the bell is on. Chat messages fade under the header and composer, page cards fill the message column, and Android answer options align to the left.
+- Self-host monitoring now alerts on sustained CPU overload and low available memory.
+
+### Fixed
+
+- Local and compatible model streams honor the configured timeouts without a hidden five-minute limit. Leading inline thought blocks are treated as reasoning instead of appearing in replies, and rejected thinking levels recover from more endpoint error formats.
+- Unresponsive Docker computers recover instead of leaving commands hanging or blaming the model connection. Quiet long-running commands keep their connection alive; recovery retains home files but ends running programs.
+- Team computer file choosers open on the screen that requested them, screen startup waits for a chooser still launching, and stale process records no longer interfere with other screens after a restart.
+- Computer workspace saves avoid repeated large-buffer copies, and mounted-home checkpoints keep screens available. Kubernetes computers whose pods disappear are recognized as gone and replaced automatically.
+- Concurrent page-browser calls no longer read partially written settings. Group computer screens refresh when control changes in another tab, and typed input appears sooner during takeover.
+- Voice calls keep a steady audio session so replies play and the microphone keeps working. Web and desktop no longer transcribe the bot's own spoken reply, and failed playback reports an error.
+- Switching bots returns the transcript to the latest messages reliably. Snoozed open chats suppress ordinary browser notifications, and computer takeover requests produce one notification.
+- The Mac computer-view header clears the window buttons, page views show one scrollbar, and dated bot-to-bot messages are easier to scan.
+- The bot style setting stays available when no preference has been saved, so either style can be chosen.
+- Incoming voice notes and other supported attachments are accepted when their reported media type includes parameters.
+- Group messages, handoffs and membership changes no longer deadlock against a finishing bot turn.
+- Group messages keep author labels after a bot leaves or is deleted. Android incoming-call labels use the selected app language; Android 12 and later still use the phone language for system-provided Answer and Decline buttons.
+- Mobile dictation keeps a pending transcription across backgrounding or screen blur, and Send stays disabled until recording and transcription finish.
+- Android custom server settings show Save, sheets fit tablets and foldables, composer controls align with the text, and voice calls show a hang-up icon.
+
+### Self-host upgrade notes
+
+- If you use hosted model-credit caps, finish updating both API and worker processes before relying on enforcement. Existing admitted calls can finish, and costs above their reservation can exceed a cap; personal model connections remain available ([billing](docs/self-host-billing.md)).
+- Local and compatible model streams now fully respect `MODEL_STREAM_TIMEOUT_MS` and `MODEL_STREAM_IDLE_TIMEOUT_MS`. Setting the idle timeout to `0` allows a stalled stream to wait until cancellation ([model connections](docs/self-host-models.md)).
+- Mobile language resources require the new native mobile build; the desktop release does not distribute that build.
+
+## [0.9.0] - 2026-11-10
+
+### Security
+
+- Mobile discards sign-ins that finish after a server change, preventing the previous server's session credentials from reaching the new server. Offline sign-out now retries session revocation when connectivity returns; Android also suppresses bot notifications while signed out. On iOS, old notification previews can still appear until revocation reaches the server.
+- Credentials passed in local MCP server launch arguments are hidden from tool output, errors and run history, including authorization flags, numeric secret values and passwords in URLs.
+- Incus computers explicitly start as an unprivileged user, including custom images without a declared user. Remote command working directories stay within the bot workspace, and team-chat attachment names are sanitized before entering bot context.
+- Computer helpers no longer load Python code from the bot-writable home directory or inherit the control token when starting commands, protecting saved logins and payment details.
+- The desktop computer viewer can no longer read the host clipboard. Copying from the bot's computer to the host clipboard is disabled; pasting into it remains available.
+- Calls ask for voice consent before recording audio for hosted transcription, including calls without a greeting.
+- Bot edits to pages shared by link now follow approval rules and show the proposed changes before publishing them. **Never ask** still saves without a prompt.
+- Hardened bot email authentication and send limits, encrypted existing inbox content when content encryption is enabled, and prevented untrusted attachments from replacing existing files. Deactivated owners no longer receive bot email.
+- Purchase approval recognizes payment-card forms that also request a security code or expiry. Account imports refuse temporary-file symlinks, and background helpers cannot bypass their read-only tools through connector name collisions.
+- Auto Review only accepts a single complete, valid verdict; malformed or ambiguous replies ask the owner instead of allowing the action. Oversized chat messages are refused, and future-dated group roster updates cannot prevent later membership removals.
+- Bounded third-party response reads to prevent unbounded memory use, and updated image and JavaScript dependencies for security fixes, including apt CVE-2026-109518.
+
+### Added
+
+- Invite people into a Space to share bots, chats, memory, routines and its computer. Each member has their own unread state, notifications, connected accounts and billing. Browser logins on the shared computer are visible to everyone in the Space ([Spaces](docs/spaces.md)).
+- Bots can hand read-only research to background helpers and keep chatting while it runs. Results return to the chat, and each helper's card has its own **Stop** control ([bots and chats](docs/bots-and-chats.md)).
+- Snooze a chat until later, then bring it back to the inbox.
+- On iOS, a Live Activity shows working bots and those waiting for an answer on the Lock Screen and Dynamic Island. This needs the new app build.
+- Dictate into the mobile message box, review the text, and send it ([voice and calls](docs/voice-and-calls.md)).
+- Create and edit routines, including email triggers, and edit or delete bot memory and shared notes on iOS and Android ([routines](docs/routines.md)).
+- Give bots their own email addresses, receive and search their inboxes, send email from chat, and start routines from incoming mail ([bot email](docs/self-host-inbound-email.md)).
+- Set a spending limit for purchases bots make, review recent payments, and see order items on purchase approval cards ([computer](docs/computer.md)).
+- Speech connections can select a speech model, saved logins show their site icons, and open-egress Docker computers can reach IPv6-only sites with IPv4 fallback ([voice](docs/voice-and-calls.md), [computer](docs/computer.md)).
+- Connected MCP servers can show interactive apps in chat. Bots can also use optional deployment-funded paid data services for read-only lookups, with approval and credit accounting ([integrations](docs/self-host-integrations.md)).
+- Create bots from ready-made templates, and choose **Messages** under **Replies** to keep working notes with tool steps while showing deliberate messages and the final answer in chat ([bots and chats](docs/bots-and-chats.md)).
+- Bots can find files shared earlier in chat, send files to each other by path, read large files in line ranges, and look up the tool work behind earlier replies. Finished generated videos arrive automatically.
+- Self-hosters can provision and deactivate accounts through SCIM, and theme web and desktop colors, fonts and corners with `RAKAZO_THEME` ([accounts](docs/self-host-accounts.md), [themes](docs/self-host-clients.md)).
+- Mobile gains optional haptic feedback and an App Store update link in Settings. Haptics need the new app build.
+
+### Changed
+
+- Desktop opens Cloud sign-in on first launch. **Change server** on sign-in and the app menu still open server setup.
+- The iOS inbox uses a native list with swipe and long-press actions. Mobile bot creation asks for a name and appearance, and inbox rows identify bots waiting for you.
+- Artifacts focuses on files bots made; settings, routines and connection states are simpler to scan. Web translations now cover previously untranslated strings.
+- New credit purchases and monthly plans top out at $200, while existing larger plans retain their credits and renewals. Credit checkout requests bank authentication. The Max own-key plan is now $99 monthly or $79 per month billed yearly; existing subscriptions retain their price.
+- Bot-to-bot turns no longer each trigger a notification. Running routines show their name, and stopping one leaves a note the bot can read.
+- Desktop-managed local stacks allow private model and connector endpoints. Docker deployments can reach host-local model and speech servers through loopback addresses when private endpoints are enabled ([local models](docs/self-host-models.md)).
+
+### Fixed
+
+- Reading web pages with very large numbers of HTML elements no longer freezes unrelated sign-ins, page loads and chat runs. Oversized pages use simpler text extraction, which may include navigation.
+- Rejected personal access tokens open model connection recovery, and unavailable hosted models offer another model instead of showing a generic server error.
+- Mobile drafts and unsent attachments survive chat changes, rejected sessions and cache cleanup. Failed dictated sends retain their words without duplication, and near-silent recordings are discarded before transcription.
+- Sending, stopping, streaming and answering cards are more reliable while other chat operations are running. Background command output reaches the next model request, and loop detection stops equivalent repeated tool calls.
+- Android avoids a native memory-sampling launch crash, and long mobile messages and streamed replies cause fewer layout stalls.
+- Calls can be answered while bot lists load, stay with their original Space, stop on sign-out, and no longer compete with chat read-aloud. Android long-press menus and notification content work reliably.
+- Computer screens reconnect through restarts, large workspaces finish saving, and oversized backups no longer prevent sleep. Unresponsive computer, storage and encryption services no longer leave requests hanging indefinitely.
+- Interrupted model streams retry, backup models use their own thinking settings, and compatible model and MCP connections honor configured proxies. Settings retain edits across saves and reconnects.
+- Connecting an MCP server whose OAuth requests many permissions no longer fails with "MCP URL exceeds 2048 characters". Native OIDC sign-in accepts authorization URLs that previously failed validation.
+- Billing actions stay with the Space shown in the window; paid own-key plans receive their computer hours regardless of model funding, and interrupted credit holds settle automatically.
+- Account exports containing nested ZIP files or files beginning with zero bytes import correctly. Account and Space deletion recover from interruptions without accepting new work during deletion.
+- Pinned installs download their Compose files from the chosen release. Updates remove replaced unused images, migrations run before deployment, and volume startup avoids needlessly changing ownership of every file.
+- OpenAPI tools retain parameter descriptions, GraphQL tools preserve explicit null inputs, and paused routines ignore webhook deliveries.
+
+### Self-host upgrade notes
+
+- Source installs now require Node.js 24.15 or newer on the 24.x line, or Node.js 26+, and pnpm 12.18. Published images include compatible runtimes. Run migrations before restarting the API and worker ([upgrading](docs/self-host-upgrading.md)).
+- Update computer images to receive helper isolation, purchase safeguards and image security fixes. Mobile native changes, including the SDK upgrade and Live Activities, require new store builds; an over-the-air update cannot deliver them.
+- Incus-backed computers require Incus 6.11 or newer. Docker computers adopt their owner's time zone and language; existing computers are replaced on their next start, preserving home files and browser profiles but closing running apps.
+- Production Compose database memory defaults target an 8 GB host. Smaller hosts should set `POSTGRES_MEMORY_LIMIT`, `POSTGRES_SHARED_BUFFERS` and `POSTGRES_EFFECTIVE_CACHE_SIZE` for their capacity; the published-images Compose setup is unchanged.
+- Computer provider settings are hidden by default. Set `COMPUTER_SETTINGS_ENABLED=true` to edit them; saved connections continue working ([computer providers](docs/self-host-sandbox-providers.md)).
+- Docker loopback model and speech URLs now refer to the Docker host. Private endpoints still require `MCP_ALLOW_PRIVATE_ENDPOINT`; on Linux, the service must listen on an address reachable from the Docker bridge ([models](docs/self-host-models.md)).
+- Bot outbound mail needs the sending-domain DNS configuration and `EMAIL_*` settings on the worker as well as the API. `INBOUND_EMAIL_RELAY_ARC_DOMAIN` optionally trusts a configured relay's sealed authentication results ([bot email](docs/self-host-inbound-email.md)).
+- Deactivating an account removes its memberships in other people's Spaces, transfers its work to the Space owner and pauses its routines. Reactivating the account does not restore those memberships ([accounts](docs/self-host-accounts.md)).
+- Reimport existing GraphQL sources to regenerate schemas with nullable inputs. Optional paid services use `PAID_SERVICES_PROVIDER`, `PAID_SERVICES_API_KEY` and `PAID_SERVICES_BASE_URL`; without managed credits, usage charges the operator's service account ([integrations](docs/self-host-integrations.md)).
 
 ## [0.8.0] - 2026-11-04
 

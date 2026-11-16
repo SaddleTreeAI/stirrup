@@ -24,6 +24,7 @@ function setup() {
     resolveCatalogCall(call, catalogEntries([target])),
   );
   const ctx = {
+    state: { tainted: false },
     bot: { id: "bot-1", computer: { id: "computer" } },
     tools: {
       disabled: new Set<string>(),

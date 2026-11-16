@@ -393,11 +393,19 @@ function redactKnownSecrets(text: string, secrets: ReadonlyArray<string | null |
   return output.replace(standingAlone, MARKER);
 }
 
+/** The credentials a model connection form holds, for `sanitizeModelConnectionError`. */
+export function modelConnectionFormSecrets(form: {
+  apiKey: string;
+  headerRows: ReadonlyArray<{ value: string }> | null;
+}): string[] {
+  return [form.apiKey, ...(form.headerRows ?? []).map((row) => row.value)];
+}
+
 /**
  * Hides credentials in a model connection error before it is shown or sent to a client.
- * `knownSecrets` are the credentials the connection was tried with. Values of eight or more
- * characters are hidden wherever they appear; four-to-seven-character values only on word
- * boundaries, and shorter values are ignored. Credential shapes cover additional unknown values.
+ * `knownSecrets` are the credentials the connection was tried with: every occurrence of them is
+ * hidden wherever it appears, then the shapes a credential takes in provider errors are hidden
+ * too, for the ones the caller does not know.
  */
 export function sanitizeModelConnectionError(
   raw: string,

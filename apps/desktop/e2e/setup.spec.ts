@@ -80,9 +80,12 @@ test.beforeEach(async () => {
 });
 
 test.afterEach(async () => {
-  await app?.close();
-  app = undefined;
-  await rm(userData, { recursive: true, force: true });
+  try {
+    await app?.close();
+  } finally {
+    app = undefined;
+    await rm(userData, { recursive: true, force: true });
+  }
 });
 
 function launch(extraEnv: Record<string, string> = {}) {
@@ -113,10 +116,10 @@ test("setup offers Rakazo Cloud first, with local and existing instances", async
   const setup = await app.firstWindow();
 
   await expect(setup.getByRole("heading", { name: "Welcome to Rakazo" })).toBeVisible();
-  await expect(setup.getByText("Choose which server this app should use.")).toBeVisible();
-  await expect(setup.getByText("Rakazo Cloud")).toBeVisible();
-  await expect(setup.getByText("This computer")).toBeVisible();
-  await expect(setup.getByText("Existing instance")).toBeVisible();
+  await expect(setup.getByText("Choose where Rakazo runs.")).toBeVisible();
+  await expect(setup.getByText("Rakazo Cloud", { exact: true })).toBeVisible();
+  await expect(setup.getByText("This computer", { exact: true })).toBeVisible();
+  await expect(setup.getByText("Existing instance", { exact: true })).toBeVisible();
   await expect(setup.locator(".card")).toHaveCount(0);
 
   // Cloud is the default: one click opens the hosted app, with nothing to fill in.
@@ -795,7 +798,7 @@ test("the app window stays on its server when a link redirects to another site",
       elsewhereUrl,
     );
     await expect(appWindow.getByText("Another site")).toBeVisible();
-    expect(await openSignIn(appWindow)).toContain("Invalid sign-in request.");
+    expect(await openSignIn(appWindow)).toContain("may not call desktop.oauth.open");
     expect(await openedUrls()).toEqual([elsewhereUrl, elsewhereUrl, signInUrl]);
   } finally {
     await app?.close();

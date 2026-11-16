@@ -26,6 +26,7 @@ import { useSignOut } from "../../lib/sign-out";
 import { ActivityList } from "../ActivityList";
 import { SpaceSearchResults } from "../SpaceSearch";
 import type { SettingsSection } from "../shell-overlay";
+import type { ChatMenuState } from "./chat-context-menu";
 import { MoreUnreads } from "./more-unreads";
 import { SidebarHeader } from "./sidebar-header";
 import type { SidebarSearch } from "./use-sidebar-search";
@@ -74,10 +75,12 @@ export function ShellSidebar({
   navigate,
   setNewSpaceOpen,
   setCreateBotOpen,
+  chatMenu,
   roster,
   archived,
+  footerLogos,
   user,
-  ticketBoardEnabled,
+  boardEnabled,
   navLinks,
   openSettings,
   openIntegrations,
@@ -102,10 +105,12 @@ export function ShellSidebar({
   navigate: (path: string) => void;
   setNewSpaceOpen: (open: boolean) => void;
   setCreateBotOpen: (open: boolean) => void;
+  chatMenu: ChatMenuState;
   roster: ReactNode;
   archived: ReactNode;
+  footerLogos: Array<{ name: string; logo?: string | null }>;
   user: User | undefined;
-  ticketBoardEnabled: boolean;
+  boardEnabled: boolean;
   navLinks: NavLink[];
   openSettings: (section: SettingsSection) => void;
   openIntegrations: () => void;
@@ -259,6 +264,7 @@ export function ShellSidebar({
               error={searchError}
               onRetry={retrySearch}
               onSelect={(hit) => jumpToSearchHit(hit)}
+              chatMenu={chatMenu}
             />
           ) : activityMode && !mini ? (
             <ActivityList
@@ -303,8 +309,9 @@ export function ShellSidebar({
         </div>
         <ShellSidebarFooter
           mini={mini}
+          logos={footerLogos}
           user={user}
-          ticketBoardEnabled={ticketBoardEnabled}
+          boardEnabled={boardEnabled}
           navLinks={navLinks}
           closeMobileSidebar={() => setMobileOpen(false)}
           navigate={navigate}
@@ -320,8 +327,9 @@ export function ShellSidebar({
 
 function ShellSidebarFooter({
   mini,
+  logos,
   user,
-  ticketBoardEnabled,
+  boardEnabled,
   navLinks,
   closeMobileSidebar,
   navigate,
@@ -331,8 +339,9 @@ function ShellSidebarFooter({
   openSpaceChat,
 }: {
   mini: boolean;
+  logos: Array<{ name: string; logo?: string | null }>;
   user: User | undefined;
-  ticketBoardEnabled: boolean;
+  boardEnabled: boolean;
   navLinks: NavLink[];
   closeMobileSidebar: () => void;
   navigate: (path: string) => void;
@@ -379,6 +388,7 @@ function ShellSidebarFooter({
       ) : null}
       <SidebarFooter
         mini={mini}
+        logos={logos}
         name={userName}
         initials={initials}
         image={user?.image}
@@ -397,7 +407,7 @@ function ShellSidebarFooter({
           openSkills();
         }}
         onBoard={
-          ticketBoardEnabled
+          boardEnabled
             ? () => {
                 setMenuOpen(false);
                 closeMobileSidebar();

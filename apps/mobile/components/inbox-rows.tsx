@@ -387,8 +387,8 @@ function chatTime(
 /** A chat row with the iOS swipe actions and context menu; other platforms get the row as is. */
 export function ChatSwipe({
   target,
-  swipe,
   rowKey = `${target.kind}:${target.chat.id}`,
+  swipe = true,
   onAction,
   sections,
   onOrganize,

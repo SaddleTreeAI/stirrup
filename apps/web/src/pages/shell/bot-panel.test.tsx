@@ -16,6 +16,8 @@ vi.mock("../../lib/rpc", () => {
       get: vi.fn(),
       update: vi.fn(),
       restoreInstructions: vi.fn(),
+      // Saved instructions mark the roster stale; nothing here reads it.
+      list: vi.fn(async () => []),
       // This server receives no email, so the panel offers no address.
       emailAddress: vi.fn(async () => null),
     },
@@ -396,7 +398,7 @@ describe("BotSettings thinking options", () => {
     expect(onSave.mock.lastCall?.[0]).not.toHaveProperty("thinkingLevel");
   });
 
-  it("shows the connection's thinking levels for a bot on a second enabled model", async () => {
+  it("shows the thinking levels the bot's own model offers on its connection", async () => {
     i18n.load("en", {});
     i18n.activate("en");
     vi.mocked(rpc.models.credentials).mockResolvedValueOnce([
@@ -417,7 +419,8 @@ describe("BotSettings thinking options", () => {
         isDefault: true,
         modelId: "alpha",
         enabledModelIds: ["alpha", "beta"],
-        thinkingLevels: ["off", "low", "high"],
+        apiProtocol: "anthropic-messages",
+        modelSettings: { beta: { reasoning: true } },
       },
     ]);
     await render("Billing", { modelProvider: "openai-compatible", modelId: "beta" });
@@ -433,7 +436,13 @@ describe("BotSettings thinking options", () => {
     if (!(model instanceof HTMLSelectElement)) throw new Error("Missing model select");
     expect(model.value).toBe("openai-compatible::beta");
     if (!(thinking instanceof HTMLSelectElement)) throw new Error("Missing thinking select");
-    expect([...thinking.options].map((option) => option.value)).toEqual(["", "low", "high"]);
+    expect([...thinking.options].map((option) => option.value)).toEqual([
+      "",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+    ]);
   });
 });
 
@@ -545,18 +554,23 @@ describe("BotSettings description saves", () => {
 });
 
 describe("instruction settings refresh", () => {
+  const instructions = (shown: Bot) => (
+    <QueryClientProvider client={queryClient}>
+      <InstructionSettings bot={shown} />
+    </QueryClientProvider>
+  );
   it("refreshes a saved field against its latest baseline before the parent catches up", async () => {
     const initial = bot();
     vi.mocked(rpc.bots.update).mockResolvedValueOnce({ ...initial, instructions: "Saved edit" });
     await act(async () => {
-      root.render(<InstructionSettings bot={initial} />);
+      root.render(instructions(initial));
     });
     await setDescription("Saved edit");
     await act(async () => {
       descriptionField().dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
     await act(async () => {
-      root.render(<InstructionSettings bot={{ ...initial, instructions: "External update" }} />);
+      root.render(instructions({ ...initial, instructions: "External update" }));
     });
     expect(descriptionField().value).toBe("External update");
     await setDescription("Fresh edit");
@@ -573,13 +587,11 @@ describe("instruction settings refresh", () => {
   it("keeps a dirty draft when run completion refreshes the bot", async () => {
     const initial = bot();
     await act(async () => {
-      root.render(<InstructionSettings bot={initial} />);
+      root.render(instructions(initial));
     });
     await setDescription("Unsaved instructions");
     await act(async () => {
-      root.render(
-        <InstructionSettings bot={{ ...initial, updatedAt: "2026-09-02T00:00:00.000Z" }} />,
-      );
+      root.render(instructions({ ...initial, updatedAt: "2026-09-02T00:00:00.000Z" }));
     });
     expect(descriptionField().value).toBe("Unsaved instructions");
   });
@@ -590,13 +602,11 @@ describe("instruction settings refresh", () => {
       instructions: "Unsaved instructions",
     });
     await act(async () => {
-      root.render(<InstructionSettings bot={initial} />);
+      root.render(instructions(initial));
     });
     await setDescription("Unsaved instructions");
     await act(async () => {
-      root.render(
-        <InstructionSettings bot={{ ...initial, instructions: "Newer saved instructions" }} />,
-      );
+      root.render(instructions({ ...initial, instructions: "Newer saved instructions" }));
     });
     await act(async () => {
       descriptionField().dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
@@ -619,7 +629,7 @@ describe("instruction settings refresh", () => {
         instructions: "Newer saved instructions",
       });
     await act(async () => {
-      root.render(<InstructionSettings bot={initial} />);
+      root.render(instructions(initial));
     });
     await setDescription("Unsaved instructions");
     await act(async () => {
@@ -657,12 +667,10 @@ describe("instruction settings refresh", () => {
   it("refreshes pristine instructions after an external update", async () => {
     const initial = bot();
     await act(async () => {
-      root.render(<InstructionSettings bot={initial} />);
+      root.render(instructions(initial));
     });
     await act(async () => {
-      root.render(
-        <InstructionSettings bot={{ ...initial, instructions: "Approved replacement" }} />,
-      );
+      root.render(instructions({ ...initial, instructions: "Approved replacement" }));
     });
     expect(descriptionField().value).toBe("Approved replacement");
   });

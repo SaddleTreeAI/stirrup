@@ -539,6 +539,57 @@ describe("shared Linux desktop lifecycle", () => {
     },
   );
 
+  it("starts a screen's window manager so it keeps its settings and cannot open a wallpaper error dialog", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "desktop-wallpaper-test-"));
+    roots.push(root);
+    const bin = path.join(root, "bin");
+    const log = path.join(root, "log");
+    mkdirSync(bin);
+    const stub = (name: string, body: string) =>
+      writeFileSync(path.join(bin, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+    stub("Xvfb", "exit 0");
+    stub("websockify", "exit 0");
+    stub("xsetroot", `echo "xsetroot $*" >>"${log}"`);
+    // fluxbox replaces its -rc file with the system default when $HOME/.fluxbox is missing, and
+    // a stock image's style asks for its wallpaper like this.
+    stub(
+      "fluxbox",
+      [
+        `test -d "$HOME/.fluxbox" && echo "home settings folder" >>"${log}"`,
+        `echo "fbsetbg=$(command -v fbsetbg)" >>"${log}"`,
+        "fbsetbg -z -f /usr/share/images/fluxbox/debian-squared.jpg",
+      ].join("\n"),
+    );
+    const script = ensureScreenCommand(0, "bot", "token", env)
+      .replaceAll("/etc/rakazo/", path.join(root, "image/"))
+      .replaceAll("/tmp/fluxbox-home-", path.join(root, "flux-"))
+      .replaceAll("/tmp/.X", path.join(root, ".X"))
+      .replaceAll("/tmp/rakazo", root)
+      .replaceAll("/usr/share/novnc", root)
+      .replaceAll(env.homeDir, path.join(root, "home"));
+    const result = spawnSync(
+      "bash",
+      [
+        "-c",
+        // The display is down on the first check; stop once the window manager has started.
+        [
+          "checks=0",
+          'xdpyinfo() { checks=$((checks + 1)); if [ "$checks" -ge 4 ]; then wait; exit 0; fi; [ "$checks" -gt 1 ]; }',
+          script,
+        ].join("\n"),
+      ],
+      {
+        encoding: "utf8",
+        timeout: 10_000,
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(log, "utf8")).toBe(
+      `home settings folder\nfbsetbg=${path.join(root, "flux-20/bin/fbsetbg")}\nxsetroot -solid #111113\n`,
+    );
+  });
+
   it.skipIf(process.platform !== "linux").each([false, true])(
     "repairs an empty control route or fails if publication fails (failPublish=%s)",
     async (failPublish) => {

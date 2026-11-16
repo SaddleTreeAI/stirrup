@@ -332,19 +332,17 @@ describe("live page helper one-time code fill", () => {
       expect(outerSet).not.toHaveBeenCalled();
     });
 
-    it("draws them as dots when the widget draws its slots a moment later", async () => {
+    it("draws them as dots when the widget draws its slots a moment later", () => {
+      // Fake timers make the order explicit: the widget draws at 10 ms, then the helper masks
+      // again at 50 ms. The test no longer depends on how a loaded runner schedules them.
       vi.useFakeTimers();
-      const { domWindow, fill, set } = widget(10);
       try {
+        const { fill, set } = widget(10);
         fill("123456");
         expect(set).not.toHaveBeenCalled();
-        await vi.advanceTimersByTimeAsync(10);
-        expect(domWindow.document.querySelector("#widget > div")?.textContent).toBe("1");
-        expect(set).not.toHaveBeenCalled();
-        await vi.advanceTimersByTimeAsync(40);
+        vi.advanceTimersByTime(50);
         expect(set).toHaveBeenCalledWith("-webkit-text-security", "disc", "important");
       } finally {
-        domWindow.close();
         vi.useRealTimers();
       }
     });

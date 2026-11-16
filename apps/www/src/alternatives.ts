@@ -587,7 +587,7 @@ export const ALTERNATIVES: readonly Alternative[] = [
     otherName: "Claude Duet",
     intro: [
       "Claude Duet is Anthropic's proactive personal agent, released as a research preview on October 21, 2026. You message it like a person. It sends a morning brief, checks your connected accounts, and works on a cloud computer Anthropic runs.",
-      "Rakazo is open source software for persistent AI teammates. You run it, you choose the model, and you can have more than one bot. Rakazo can also sign in with your Claude Pro or Max subscription.",
+      "Rakazo is open source software for persistent AI teammates. You run it, you choose the model, and you can have more than one bot. For Claude models, connect an Anthropic API key.",
     ],
     rows: [
       {
@@ -611,7 +611,7 @@ export const ALTERNATIVES: readonly Alternative[] = [
       {
         topic: "Model",
         rakazo:
-          "Bring your own model credentials, including Claude Pro/Max sign-in, other providers, and a local server. Each bot can use a different model.",
+          "Bring your own model credentials, including ChatGPT sign-in, API keys, and a local server. Each bot can use a different model.",
         other: "Claude Opus 5.5. The help center says you cannot choose a model.",
       },
       {
@@ -640,7 +640,7 @@ export const ALTERNATIVES: readonly Alternative[] = [
       {
         question: "Can Rakazo use my Claude subscription?",
         answer:
-          "Yes. Sign in with Claude Pro or Max, or bring an Anthropic key. Claude is one model choice, and each bot can use a different one.",
+          "Yes, when you self-host Rakazo from a source checkout for yourself. It runs Claude through the official Claude Code CLI, signed in with your Pro or Max account. On a shared server or the hosted plan, use an Anthropic API key. See Model subscriptions in the docs for details.",
       },
       {
         question: "Is Claude Duet open source or self-hosted?",
