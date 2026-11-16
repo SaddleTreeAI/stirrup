@@ -1,8 +1,21 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { ExpoConfig } from "expo/config";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-type Document = { [key: string]: any };
+type AppDocument = { expo: ExpoConfig };
+type BuildProfile = {
+  env?: Record<string, string>;
+  distribution?: string;
+  autoIncrement?: boolean;
+  environment?: string;
+  channel?: string;
+  [key: string]: unknown;
+};
+type EasDocument = {
+  build: { production: BuildProfile; [profile: string]: BuildProfile };
+  submit?: Record<string, { ios: { ascAppId: string } }>;
+};
 
 export type MobileDistribution = {
   name: string;
@@ -88,15 +101,19 @@ function remapIdentifiers(value: Json, previous: string, next: string): Json {
   return value;
 }
 
-export function configureDistribution(app: Document, eas: Document, config: MobileDistribution) {
+export function configureDistribution(
+  app: AppDocument,
+  eas: EasDocument,
+  config: MobileDistribution,
+) {
   const previous = app.expo?.ios?.bundleIdentifier;
   if (typeof previous !== "string" || !previous || !eas.build?.production)
     throw new Error("Mobile source configuration is incomplete.");
   const result = remapIdentifiers(
-    structuredClone(app),
+    structuredClone(app) as unknown as Json,
     previous,
     config.bundleIdentifier,
-  ) as Document;
+  ) as unknown as AppDocument;
   const expo = result.expo;
   Object.assign(expo, {
     name: config.name,

@@ -34,8 +34,8 @@ describe("large connector response files", () => {
       "connected_read",
       "../../external-id",
       input,
-    )) as any;
-    const file = writeFile.mock.calls[0]![1] as any;
+    )) as { savedResult: { sha256: string; bytes: number } };
+    const file = writeFile.mock.calls[0]![1];
     expect(file.path).toMatch(/^bots\/bot-1\/tool-results\/[a-f0-9]{64}\.json$/);
     expect(JSON.parse(file.content.toString())).toEqual(input);
     expect(result.savedResult.sha256).toBe(createHash("sha256").update(file.content).digest("hex"));
@@ -50,9 +50,7 @@ describe("large connector response files", () => {
       credential: "fixture-secret-value",
     });
     expect(JSON.stringify(result)).not.toContain("fixture-secret-value");
-    expect((writeFile.mock.calls[0]![1] as any).content.toString()).not.toContain(
-      "fixture-secret-value",
-    );
+    expect(writeFile.mock.calls[0]![1].content.toString()).not.toContain("fixture-secret-value");
   });
   it("keeps small results and remote errors intact without starting a computer", async () => {
     const { ctx, get } = setup();

@@ -62,15 +62,15 @@ describe("fork mobile distribution", () => {
     const next = configureDistribution(app, eas, parseDistribution(JSON.stringify(identity)));
     expect(JSON.stringify({ app, eas })).toBe(before);
     expect(JSON.stringify(next.app)).not.toContain(app.expo.ios.bundleIdentifier);
-    expect(next.app.expo.ios.bundleIdentifier).toBe(identity.bundleIdentifier);
-    expect(next.app.expo.android.package).toBe(identity.bundleIdentifier);
-    for (const extension of next.app.expo.extra.eas.build.experimental.ios.appExtensions)
+    expect(next.app.expo.ios?.bundleIdentifier).toBe(identity.bundleIdentifier);
+    expect(next.app.expo.android?.package).toBe(identity.bundleIdentifier);
+    for (const extension of next.app.expo.extra!.eas.build.experimental.ios.appExtensions)
       expect(extension.bundleIdentifier).toMatch(/^com\.example\.fork\./);
-    expect(next.app.expo.extra.eas.projectId).toBe(identity.projectId);
-    expect(next.app.expo.updates.url).toBe(`https://u.expo.dev/${identity.projectId}`);
+    expect(next.app.expo.extra!.eas.projectId).toBe(identity.projectId);
+    expect(next.app.expo.updates?.url).toBe(`https://u.expo.dev/${identity.projectId}`);
     expect(next.app.expo.runtimeVersion).toEqual({ policy: "fingerprint" });
-    expect(next.eas.build["fork-testflight"].env.EXPO_PUBLIC_API_URL).toBe(identity.apiUrl);
-    expect(next.eas.submit["fork-testflight"]).toEqual({
+    expect(next.eas.build["fork-testflight"]?.env?.EXPO_PUBLIC_API_URL).toBe(identity.apiUrl);
+    expect(next.eas.submit?.["fork-testflight"]).toEqual({
       ios: { ascAppId: identity.appStoreConnectAppId },
     });
     expect(next.eas.build.production).toEqual(eas.build.production);
