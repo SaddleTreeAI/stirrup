@@ -14,7 +14,7 @@ describe("server request headers", () => {
   });
 
   it("refuses headers Stirrup or the transport own, without echoing values", () => {
-    for (const name of ["Authorization", "Cookie", "Origin", "X-Stirrup-Space-Id", "Host"]) {
+    for (const name of ["Authorization", "Cookie", "Origin", "X-Rakazo-Space-Id", "Host"]) {
       expect(() => serverHeadersFromRows([{ name, value: "secret" }])).toThrow(
         /^Invalid custom headers$/,
       );

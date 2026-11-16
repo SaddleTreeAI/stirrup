@@ -37,6 +37,7 @@ import {
   createArtifactStore,
   createCloudAgentConnection,
   createConnectorRuntime,
+  createDubPartnerProgram,
   createMediaGenerationProvider,
   createPaymentWalletProvider,
   createProductAnalytics,
@@ -328,6 +329,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       masterKeyIds: unreadableMasterKeys,
     });
   const analytics = createProductAnalytics();
+  const partnerProgram = env.dubApiKey ? createDubPartnerProgram(env.dubApiKey) : undefined;
   const events = createThreadEvents(prisma, realtime, {
     analytics,
     runSecretWriter: createRunSecretWriter(secrets),
@@ -469,6 +471,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
         managedModelsAvailable: resolveDeploymentModel().configured,
         analytics,
         experiments: createExperiments(env.experiments),
+        partnerProgram,
       })
     : undefined;
   const modelCreditsEnabled = billing?.modelCreditsEnabled ?? false;
@@ -536,6 +539,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   const auth = createAuth(prisma, {
     directoryProvisioning: Boolean(directory),
     analytics,
+    partnerProgram,
     passwordAuth: env.passwordAuth,
     breachedPasswordCheck: env.breachedPasswordCheck,
     oidc: env.oidc,

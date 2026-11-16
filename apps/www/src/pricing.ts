@@ -39,3 +39,5 @@ ${plan.features.map((feature) => `- ${feature}`).join("\n")}
 
 [${plan.action.label}](${new URL(plan.action.href, SITE_URL).href})`).join("\n\n")}
 `;
+
+export const PRICE_OFFERS = [{ name: "Self-hosted", monthlyCents: 0 }];

@@ -16,7 +16,7 @@ describe("Stirrup skill", () => {
       const slug =
         url === "https://stirrup.saddletree.ai/docs.md"
           ? publishedSlugs[0]
-          : /^https:\/\/rakazo\.com\/docs\/([\w-]+)\.md$/.exec(url)?.[1];
+          : /^https:\/\/stirrup\.saddletree\.ai\/docs\/([\w-]+)\.md$/.exec(url)?.[1];
       expect(publishedSlugs, url).toContain(slug);
       expect(existsSync(repoFile(`docs/${slug}.md`)), url).toBe(true);
     }
