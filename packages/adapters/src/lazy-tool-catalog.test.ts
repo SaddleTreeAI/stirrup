@@ -829,14 +829,23 @@ describe("catalog wrapper tool definitions", () => {
       },
       {
         name: "installed_execute_tool",
-        description: "Run an API tool by id.",
+        description:
+          "Run an API tool by id. Supply arguments inline or argumentsPath for a UTF-8 JSON object file in the workspace.",
         inputSchema: {
           type: "object",
           properties: {
             id,
-            arguments: { type: "object", description: "Arguments matching the loaded schema" },
+            arguments: {
+              type: "object",
+              description:
+                "Arguments matching the loaded schema. Supply this or argumentsPath, not both.",
+            },
+            argumentsPath: {
+              type: "string",
+              description: "Workspace path to a UTF-8 JSON object; use instead of arguments",
+            },
           },
-          required: ["id", "arguments"],
+          required: ["id"],
         },
         route: route("__catalog_execute"),
       },
