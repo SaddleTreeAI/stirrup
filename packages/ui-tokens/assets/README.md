@@ -13,3 +13,6 @@ mark's alpha silhouette. The desktop legacy export includes Dock margins.
 
 The existing animated character avatars remain available as a saved appearance
 option. They are independent of the Stirrup application icon.
+
+`character/orange-bot.png` retains the original character artwork as the visual
+reference for existing animated avatars. It is not an application icon export.

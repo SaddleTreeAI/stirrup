@@ -735,10 +735,7 @@ test("directional vector rim follows the source edge falloff without whitening t
   page,
 }) => {
   const original = await readFile(
-    new URL(
-      "../../../packages/ui-tokens/assets/Stirrup.icon/Assets/orange-bot.png",
-      import.meta.url,
-    ),
+    new URL("../../../packages/ui-tokens/assets/character/orange-bot.png", import.meta.url),
   );
   await page.goto("/e2e/fixtures/logo-avatars.html?compare=1&theme=light");
   const art = await page
