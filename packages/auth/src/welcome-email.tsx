@@ -26,15 +26,13 @@ export function welcomeEmail(
     say("Welcome to Stirrup"),
     <>
       <Text>{greeting(say, user.name)}</Text>
-      <Text>
-        {say("Welcome to Stirrup. The people who get the most out of it do three things:")}
-      </Text>
+      <Text>{say("Welcome to Stirrup")}</Text>
       <Text style={stepStyle}>
-        <strong>1. {say("Get the apps")}</strong>
+        <strong>{say("Get the apps")}</strong>
       </Text>
       <Text style={{ marginTop: 0 }}>
         {withNodes(
-          say("Stirrup runs on {platforms}, so your bots can reach you wherever you are."),
+          say("Stirrup runs on {platforms}, so your stirrups can reach you wherever you are."),
           {
             // The language's own list ("A, B, and C", "A, B y C"), with each app a link.
             platforms: new Intl.ListFormat(locale, { type: "conjunction" })
@@ -51,39 +49,12 @@ export function welcomeEmail(
           },
         )}
       </Text>
-      <Text style={stepStyle}>
-        <strong>2. {say("Join the community")}</strong>
+      <Text>
+        <Link href="https://saddletree.ai/contact" style={linkStyle}>
+          SaddleTree AI
+        </Link>
       </Text>
-      <Text style={{ marginTop: 0 }}>
-        {withNodes(
-          say(
-            "See what others are building, get help fast, and tell us what to build next on {discord}.",
-          ),
-          {
-            discord: (
-              <Link href="https://discord.gg/RWwKa2Sn7h" style={linkStyle}>
-                Discord
-              </Link>
-            ),
-          },
-        )}
-      </Text>
-      <Text style={stepStyle}>
-        <strong>3. {say("Star us on GitHub")}</strong>
-      </Text>
-      <Text style={{ marginTop: 0 }}>
-        {withNodes(say("Stirrup is open source. {star} helps more people find it."), {
-          star: (
-            <Link href="https://github.com/SaddleTreeAI/stirrup" style={linkStyle}>
-              {say("A star on GitHub")}
-            </Link>
-          ),
-        })}
-      </Text>
-      <Text style={{ marginTop: "28px" }}>{say("Questions? Just reply. I read every one.")}</Text>
-      <Text>Elie</Text>
     </>,
     unsubscribeUrl,
-    { src: "https://stirrup.saddletree.ai/email/welcome.jpg", alt: "Stirrup" },
   );
 }

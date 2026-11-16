@@ -27,7 +27,7 @@ export const TR_MESSAGES: Record<string, string> = {
   "Welcome to Stirrup. The people who get the most out of it do three things:":
     "Stirrup'ya hoş geldiniz. Stirrup'dan en çok verimi alanlar üç şey yapıyor:",
   "Get the apps": "Uygulamaları indirin",
-  "Stirrup runs on {platforms}, so your bots can reach you wherever you are.":
+  "Stirrup runs on {platforms}, so your stirrups can reach you wherever you are.":
     "Stirrup {platforms} üzerinde çalışır; böylece botlarınız size her yerde ulaşabilir.",
   "Join the community": "Topluluğa katılın",
   "See what others are building, get help fast, and tell us what to build next on {discord}.":

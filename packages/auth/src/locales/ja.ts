@@ -28,7 +28,7 @@ export const JA_MESSAGES: Record<string, string> = {
   "Welcome to Stirrup. The people who get the most out of it do three things:":
     "Stirrup へようこそ。Stirrup を最大限に活用している人は、次の 3 つをしています。",
   "Get the apps": "アプリを入手する",
-  "Stirrup runs on {platforms}, so your bots can reach you wherever you are.":
+  "Stirrup runs on {platforms}, so your stirrups can reach you wherever you are.":
     "Stirrup は {platforms} で使えるので、ボットはどこにいてもあなたに連絡できます。",
   "Join the community": "コミュニティに参加する",
   "See what others are building, get help fast, and tell us what to build next on {discord}.":
