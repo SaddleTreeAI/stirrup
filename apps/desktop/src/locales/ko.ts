@@ -40,7 +40,7 @@ export const KO_MESSAGES: Record<string, string> = {
   Later: "나중에",
   "Could not install the update.": "업데이트를 설치할 수 없습니다.",
   "Could not check for updates.": "업데이트를 확인할 수 없습니다.",
-  "Stirrup is up to date.": "Rakazo가 최신 버전입니다.",
+  "Stirrup is up to date.": "Stirrup이 최신 버전입니다.",
   "Version {version}": "버전 {version}",
   "Automatic updates are turned off for this install.":
     "이 설치에서는 자동 업데이트가 꺼져 있습니다.",
@@ -49,10 +49,10 @@ export const KO_MESSAGES: Record<string, string> = {
   "No desktop releases are published for this build yet.":
     "이 빌드용 데스크톱 릴리스가 아직 게시되지 않았습니다.",
   "Move Stirrup to Applications to install updates.":
-    "업데이트를 설치하려면 Rakazo를 응용 프로그램 폴더로 옮기세요.",
+    "업데이트를 설치하려면 Stirrup을 응용 프로그램 폴더로 옮기세요.",
   "Free up disk space to install updates.": "업데이트를 설치하려면 디스크 공간을 확보하세요.",
   "This update could not be verified. Reinstall Stirrup from a trusted download.":
-    "이 업데이트를 확인할 수 없습니다. 신뢰할 수 있는 다운로드에서 Rakazo를 다시 설치하세요.",
+    "이 업데이트를 확인할 수 없습니다. 신뢰할 수 있는 다운로드에서 Stirrup을 다시 설치하세요.",
   "The update could not be completed. Try again later.":
     "업데이트를 완료할 수 없습니다. 나중에 다시 시도하세요.",
   "Could not reach the update server.": "업데이트 서버에 연결할 수 없습니다.",
@@ -72,12 +72,12 @@ export const KO_MESSAGES: Record<string, string> = {
   "Could not open browser sign-in. Close other sign-in attempts and retry.":
     "브라우저 로그인을 열 수 없습니다. 다른 로그인 시도를 닫고 다시 시도하세요.",
   "Sign-in callback rejected. Return to Stirrup to retry.":
-    "로그인 응답이 거부되었습니다. Rakazo로 돌아가 다시 시도하세요.",
-  "You can close this tab and return to Stirrup.": "이 탭을 닫고 Rakazo로 돌아가세요.",
+    "로그인 응답이 거부되었습니다. Stirrup으로 돌아가 다시 시도하세요.",
+  "You can close this tab and return to Stirrup.": "이 탭을 닫고 Stirrup으로 돌아가세요.",
   "Set up Stirrup": "Stirrup 설정",
   "Quit Stirrup": "Stirrup 종료",
-  "Welcome to Stirrup": "Rakazo에 오신 것을 환영합니다",
-  "Choose where Stirrup runs.": "Rakazo를 실행할 위치를 선택하세요.",
+  "Welcome to Stirrup": "Stirrup에 오신 것을 환영합니다",
+  "Choose where Stirrup runs.": "Stirrup을 실행할 위치를 선택하세요.",
   Instance: "인스턴스",
   "This computer": "이 컴퓨터",
   "Existing instance": "기존 인스턴스",
@@ -93,11 +93,11 @@ export const KO_MESSAGES: Record<string, string> = {
   "Downloading Stirrup…": "Stirrup 다운로드 중…",
   "Starting Stirrup…": "Stirrup 시작 중…",
   "Almost ready…": "거의 완료…",
-  "Stirrup is ready.": "Rakazo가 준비되었습니다.",
+  "Stirrup is ready.": "Stirrup이 준비되었습니다.",
   "{size} downloaded": "{size} 다운로드됨",
   "Connecting…": "연결 중…",
   "Checking…": "확인 중…",
-  "Stirrup answered at {url}.": "Rakazo가 {url}에서 응답했습니다.",
+  "Stirrup answered at {url}.": "Stirrup이 {url}에서 응답했습니다.",
   "Enter a server address first.": "먼저 서버 주소를 입력하세요.",
   "Could not save that address.": "해당 주소를 저장할 수 없습니다.",
   "Could not save that address. Try again.": "해당 주소를 저장할 수 없습니다. 다시 시도하세요.",
@@ -107,7 +107,7 @@ export const KO_MESSAGES: Record<string, string> = {
   "Could not run the connection check. Try again.": "연결을 확인할 수 없습니다. 다시 시도하세요.",
   "Setup bridge unavailable.": "설정 브리지를 사용할 수 없습니다.",
   "Setup could not start. Quit Stirrup and try again.":
-    "설정을 시작할 수 없습니다. Rakazo를 종료하고 다시 시도하세요.",
+    "설정을 시작할 수 없습니다. Stirrup을 종료하고 다시 시도하세요.",
   "Enter a server address.": "서버 주소를 입력하세요.",
   "Enter a valid http:// or https:// address.": "올바른 http:// 또는 https:// 주소를 입력하세요.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
@@ -190,14 +190,14 @@ export const KO_MESSAGES: Record<string, string> = {
   Help: "도움말",
   "Keyboard Shortcuts": "키보드 단축키",
   "Downloading Stirrup failed. Check the internet connection, then retry.":
-    "Rakazo를 다운로드하지 못했습니다. 인터넷 연결을 확인한 다음 다시 시도하세요.",
+    "Stirrup을 다운로드하지 못했습니다. 인터넷 연결을 확인한 다음 다시 시도하세요.",
   "Could not move your data from Docker. Check the output below, then retry.":
     "Docker에서 데이터를 옮기지 못했습니다. 아래 출력을 확인한 다음 다시 시도하세요.",
   "The computer runtime already running is too old. Update or quit it, then retry.":
     "이미 실행 중인 컴퓨터 런타임이 너무 오래되었습니다. 업데이트하거나 종료한 다음 다시 시도하세요.",
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Stirrup 데이터가 다른 컴퓨터 런타임에 있습니다. 실행 중인 런타임을 종료한 다음 다시 시도하세요.",
-  "Run Stirrup without Docker?": "Docker 없이 Rakazo를 실행할까요?",
+  "Run Stirrup without Docker?": "Docker 없이 Stirrup을 실행할까요?",
   "Your stirrups and data move over. Docker is stopped, not removed.":
     "봇과 데이터가 함께 옮겨집니다. Docker는 삭제되지 않고 중지됩니다.",
   Move: "옮기기",
@@ -207,11 +207,11 @@ export const KO_MESSAGES: Record<string, string> = {
   "Connect to a server you or your team already run.":
     "나 또는 팀이 이미 운영 중인 서버에 연결합니다.",
   "Stirrup needs Docker Desktop to run on this computer.":
-    "이 컴퓨터에서 Rakazo를 실행하려면 Docker Desktop이 필요합니다.",
+    "이 컴퓨터에서 Stirrup을 실행하려면 Docker Desktop이 필요합니다.",
   "Stirrup needs Docker to run on this computer.":
-    "이 컴퓨터에서 Rakazo를 실행하려면 Docker가 필요합니다.",
+    "이 컴퓨터에서 Stirrup을 실행하려면 Docker가 필요합니다.",
   "Docker Desktop is a free app that runs Stirrup in the background. Install it and open it once.":
-    "Docker Desktop은 Rakazo를 백그라운드에서 실행하는 무료 앱입니다. 설치하고 한 번 여세요.",
+    "Docker Desktop은 Stirrup을 백그라운드에서 실행하는 무료 앱입니다. 설치하고 한 번 여세요.",
   "Install Docker Engine and start it.": "Docker Engine을 설치하고 시작하세요.",
   "Download Docker Desktop": "Docker Desktop 다운로드",
   "Install Docker": "Docker 설치",
