@@ -45,9 +45,9 @@ async function captureScreenshot(page: Page, testInfo: TestInfo, name: string) {
 async function openAnsweredOnboarding(page: Page) {
   await page.locator('.product-demo[data-product-demo-ready="true"]').waitFor();
   const demo = page.locator(".product-demo");
-  const showBots = demo.getByRole("button", { name: "Show bots", exact: true });
+  const showBots = demo.getByRole("button", { name: "Show stirrups", exact: true });
   if (await showBots.isVisible()) await showBots.click();
-  await demo.getByRole("button", { name: "New bot", exact: true }).click();
+  await demo.getByRole("button", { name: "New stirrup", exact: true }).click();
   await demo.getByRole("button", { name: "Close panel", exact: true }).click();
   await demo.getByRole("button", { name: "A Inbox & email", exact: true }).click();
   await demo.getByRole("button", { name: "B Warm and conversational", exact: true }).click();
