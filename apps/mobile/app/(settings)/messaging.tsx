@@ -250,7 +250,7 @@ export default function MessagingSettings() {
           {slackInstallations.length === 0 ? (
             <SettingsRow
               title={messagingProviderName("slack")}
-              detail={t`Chat with your bot from Slack.`}
+              detail={t`Chat with your stirrup from Slack.`}
               trailing={
                 <View style={styles.actions}>
                   {memberLink ? memberLinkButton : null}

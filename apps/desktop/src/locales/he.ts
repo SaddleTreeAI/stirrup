@@ -55,7 +55,7 @@ export const HE_MESSAGES: Record<string, string> = {
     "לא ניתן היה להשלים את העדכון. כדאי לנסות שוב מאוחר יותר.",
   "Could not reach the update server.": "לא ניתן היה להתחבר לשרת העדכונים.",
   "Allow local computer access?": "לאפשר גישה למחשב המקומי?",
-  "Allow bots to use this computer?": "לאפשר לבוטים להשתמש במחשב הזה?",
+  "Allow stirrups to use this computer?": "לאפשר לבוטים להשתמש במחשב הזה?",
   Cancel: "ביטול",
   Allow: "אישור",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -196,7 +196,7 @@ export const HE_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "הנתונים שלכם ב-Stirrup נמצאים בסביבת הרצה אחרת של המחשבים. סגרו את זו שפועלת ונסו שוב.",
   "Run Stirrup without Docker?": "להפעיל את Stirrup בלי Docker?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "הבוטים והנתונים שלכם יועברו. Docker ייעצר, לא יוסר.",
   Move: "העברה",
   "Keep Docker": "להשאיר את Docker",

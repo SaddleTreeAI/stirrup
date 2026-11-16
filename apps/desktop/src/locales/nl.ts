@@ -57,7 +57,7 @@ export const NL_MESSAGES: Record<string, string> = {
     "De update kon niet worden voltooid. Probeer het later opnieuw.",
   "Could not reach the update server.": "De updateserver is niet bereikbaar.",
   "Allow local computer access?": "Toegang tot de lokale computer toestaan?",
-  "Allow bots to use this computer?": "Bots toestaan deze computer te gebruiken?",
+  "Allow stirrups to use this computer?": "Bots toestaan deze computer te gebruiken?",
   Cancel: "Annuleer",
   Allow: "Sta toe",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -205,7 +205,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Je Stirrup-gegevens staan in een andere computerruntime. Sluit de runtime die draait af en probeer het opnieuw.",
   "Run Stirrup without Docker?": "Stirrup zonder Docker gebruiken?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "Je bots en gegevens gaan mee. Docker wordt gestopt, niet verwijderd.",
   Move: "Overzetten",
   "Keep Docker": "Docker houden",

@@ -53,7 +53,7 @@ export const ZH_TW_MESSAGES: Record<string, string> = {
   "The update could not be completed. Try again later.": "無法完成更新。請稍後再試一次。",
   "Could not reach the update server.": "無法連線到更新伺服器。",
   "Allow local computer access?": "要允許存取本機電腦嗎？",
-  "Allow bots to use this computer?": "要允許機器人使用這台電腦嗎？",
+  "Allow stirrups to use this computer?": "要允許機器人使用這台電腦嗎？",
   Cancel: "取消",
   Allow: "允許",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -188,7 +188,7 @@ export const ZH_TW_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "你的 Stirrup 資料位於另一個電腦執行環境中。請結束正在執行的那個，然後再試一次。",
   "Run Stirrup without Docker?": "不使用 Docker 執行 Stirrup？",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "你的機器人和資料會一併移轉。Docker 只會停止，不會移除。",
   Move: "移轉",
   "Keep Docker": "繼續使用 Docker",

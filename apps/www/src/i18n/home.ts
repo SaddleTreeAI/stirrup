@@ -899,37 +899,7 @@ const PL_ROSTER: RosterBot[] = [
   },
 ];
 
-const TESTIMONIALS: HomeCopy["testimonials"]["items"] = [
-  {
-    quote:
-      "landed here after a first experience with Grok Bot … then found this alternative, and i can confirm that your work rocks. it replaced totally grok bot for me. mobile app is very smooth too",
-    attribution: "@dilog1114",
-  },
-  {
-    quote:
-      "Im a co-founder and cto, loving rakazo, we have it running against private on qwen 3.8 with strong hw/gpus - all private.",
-    attribution: "@bc101101",
-  },
-  {
-    quote:
-      "I use it to find cheap servers and computer parts on ebay and all other marketplaces and send me everything he decided is a good deal.",
-    attribution: "@michaelortnerit",
-  },
-  {
-    quote:
-      "Hermes is good but more complicated setup. Stirrup has better multi agent workflow and simpler to setup",
-    attribution: "@notabot_92732",
-  },
-  {
-    quote: "ive been using rakazo for 1 month in claude oauth no problems yet",
-    attribution: "@hey_cabron",
-  },
-  {
-    quote:
-      "I set up the mobile app today with expo, first time using expo but was easy with rakazo walking me through",
-    attribution: "@mithril0x",
-  },
-];
+const TESTIMONIALS: HomeCopy["testimonials"]["items"] = [];
 
 const HOME_COPY: Record<Locale, HomeCopy> = {
   pl: {
@@ -1117,8 +1087,8 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     },
     hero: {
       eyebrow: "Open source",
-      heading: "The open source Grok Bot alternative you actually own",
-      lead: "Give your bots a job. Check in from any device.",
+      heading: "AI teammates that get to work.",
+      lead: "Give your stirrups a job. Check in from any device.",
       getStarted: "Get started",
       download: {
         mac: "Download for macOS",
@@ -1138,7 +1108,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       worksWith: "Works with",
       mock: { weekdays: "Weekdays at 9:00", approval: "Approval required", approve: "Approve", deny: "Deny" },
       features: [
-        { title: "Your model", body: "Choose a different model for each bot." },
+        { title: "Your model", body: "Choose a different model for each stirrup." },
         { title: "Work on a schedule", body: "Keeps working while your computer is off." },
         { title: "You set the limits", body: "Decide which actions need your approval." },
       ],

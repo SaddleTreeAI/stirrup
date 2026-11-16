@@ -57,7 +57,7 @@ export const PT_BR_MESSAGES: Record<string, string> = {
     "Não foi possível concluir a atualização. Tente novamente mais tarde.",
   "Could not reach the update server.": "Não foi possível acessar o servidor de atualizações.",
   "Allow local computer access?": "Permitir acesso ao computador local?",
-  "Allow bots to use this computer?": "Permitir que os bots usem este computador?",
+  "Allow stirrups to use this computer?": "Permitir que os bots usem este computador?",
   Cancel: "Cancelar",
   Allow: "Permitir",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -202,7 +202,7 @@ export const PT_BR_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Seus dados do Stirrup estão em outro runtime de computadores. Encerre o que está em execução e tente novamente.",
   "Run Stirrup without Docker?": "Usar o Stirrup sem Docker?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "Seus bots e dados vêm junto. O Docker é parado, não removido.",
   Move: "Mover",
   "Keep Docker": "Manter o Docker",

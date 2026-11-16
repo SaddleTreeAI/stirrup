@@ -58,7 +58,7 @@ export const JA_MESSAGES: Record<string, string> = {
     "アップデートを完了できませんでした。しばらくしてからもう一度お試しください。",
   "Could not reach the update server.": "アップデートサーバに接続できませんでした。",
   "Allow local computer access?": "ローカルコンピュータへのアクセスを許可しますか？",
-  "Allow bots to use this computer?": "ボットにこのコンピュータの使用を許可しますか？",
+  "Allow stirrups to use this computer?": "ボットにこのコンピュータの使用を許可しますか？",
   Cancel: "キャンセル",
   Allow: "許可",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -204,7 +204,7 @@ export const JA_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Rakazoのデータは別のコンピューターランタイムにあります。実行中のものを終了してから、もう一度お試しください。",
   "Run Stirrup without Docker?": "DockerなしでRakazoを実行しますか？",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "ボットとデータは引き継がれます。Dockerは停止されますが、削除はされません。",
   Move: "移行",
   "Keep Docker": "Dockerを使い続ける",

@@ -246,7 +246,7 @@ async function offerDockerMove(userStackDir: string): Promise<StackChoice> {
   const { response } = await dialog.showMessageBox({
     type: "question",
     message: t("Run Stirrup without Docker?"),
-    detail: t("Your bots and data move over. Docker is stopped, not removed."),
+    detail: t("Your stirrups and data move over. Docker is stopped, not removed."),
     buttons: [t("Move"), t("Keep Docker")],
     defaultId: 0,
     cancelId: 1,
@@ -417,7 +417,7 @@ async function confirmComputerAccess(detail: string) {
   const options: Electron.MessageBoxOptions = {
     type: "warning",
     title: t("Allow local computer access?"),
-    message: t("Allow bots to use this computer?"),
+    message: t("Allow stirrups to use this computer?"),
     detail,
     buttons: [t("Cancel"), t("Allow")],
     defaultId: 0,

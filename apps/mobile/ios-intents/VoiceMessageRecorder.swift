@@ -4,14 +4,14 @@ import AppIntents
 import Speech
 import UIKit
 
-/// Press to start talking, press again (or pause) to send it to the bot you talked to last. The
+/// Press to start talking, press again (or pause) to send it to the stirrup you talked to last. The
 /// speech is transcribed on the device when it supports that; only the text is sent. It is a plain
 /// intent so the app's shortcut list (which the Action button reads) can hold it while the app
 /// supports iOS 16; the recording conformance below needs iOS 18.
 struct RecordVoiceMessageIntent: AppIntent {
   static let title: LocalizedStringResource = "Record Message"
   static let description = IntentDescription(
-    "Talk, then pause or press again to send it to the bot you talked to last.")
+    "Talk, then pause or press again to send it to the stirrup you talked to last.")
   // The session it sends with can be read only while the iPhone is unlocked.
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 

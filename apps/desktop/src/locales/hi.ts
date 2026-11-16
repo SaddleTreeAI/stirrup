@@ -56,7 +56,7 @@ export const HI_MESSAGES: Record<string, string> = {
     "अपडेट पूरा नहीं हो सका। बाद में फिर से कोशिश करें।",
   "Could not reach the update server.": "अपडेट सर्वर तक नहीं पहुँच सके।",
   "Allow local computer access?": "लोकल कंप्यूटर एक्सेस की अनुमति दें?",
-  "Allow bots to use this computer?": "बॉट को इस कंप्यूटर का इस्तेमाल करने दें?",
+  "Allow stirrups to use this computer?": "बॉट को इस कंप्यूटर का इस्तेमाल करने दें?",
   Cancel: "रद्द करें",
   Allow: "अनुमति दें",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -196,7 +196,7 @@ export const HI_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "आपका Stirrup डेटा किसी दूसरे कंप्यूटर रनटाइम में है। चल रहे रनटाइम को बंद करें, फिर दोबारा कोशिश करें।",
   "Run Stirrup without Docker?": "Stirrup को Docker के बिना चलाएँ?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "आपके बॉट और डेटा साथ आ जाएँगे। Docker रोका जाएगा, हटाया नहीं जाएगा।",
   Move: "ले जाएँ",
   "Keep Docker": "Docker रखें",

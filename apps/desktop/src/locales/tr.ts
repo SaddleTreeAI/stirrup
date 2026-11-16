@@ -57,7 +57,7 @@ export const TR_MESSAGES: Record<string, string> = {
     "Güncelleme tamamlanamadı. Daha sonra yeniden deneyin.",
   "Could not reach the update server.": "Güncelleme sunucusuna ulaşılamadı.",
   "Allow local computer access?": "Yerel bilgisayara erişime izin verilsin mi?",
-  "Allow bots to use this computer?": "Botların bu bilgisayarı kullanmasına izin verilsin mi?",
+  "Allow stirrups to use this computer?": "Botların bu bilgisayarı kullanmasına izin verilsin mi?",
   Cancel: "Vazgeç",
   Allow: "İzin Ver",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -197,7 +197,7 @@ export const TR_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Stirrup verileriniz farklı bir bilgisayar çalışma ortamında. Çalışanı kapatın, ardından yeniden deneyin.",
   "Run Stirrup without Docker?": "Stirrup Docker olmadan çalıştırılsın mı?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "Botlarınız ve verileriniz taşınır. Docker durdurulur, kaldırılmaz.",
   Move: "Taşı",
   "Keep Docker": "Docker'ı koru",

@@ -320,7 +320,7 @@ export function MessagingSettingsPanel() {
                 <>
                   <p>{providerLabel("slack")}</p>
                   <p className="mt-0.5 text-body-sm text-muted-foreground">
-                    <Trans>Chat with your bot from Slack.</Trans>
+                    <Trans>Chat with your stirrup from Slack.</Trans>
                   </p>
                 </>
               }

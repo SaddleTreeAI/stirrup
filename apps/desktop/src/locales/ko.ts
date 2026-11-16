@@ -57,7 +57,7 @@ export const KO_MESSAGES: Record<string, string> = {
     "업데이트를 완료할 수 없습니다. 나중에 다시 시도하세요.",
   "Could not reach the update server.": "업데이트 서버에 연결할 수 없습니다.",
   "Allow local computer access?": "로컬 컴퓨터 접근을 허용할까요?",
-  "Allow bots to use this computer?": "봇이 이 컴퓨터를 사용하도록 허용할까요?",
+  "Allow stirrups to use this computer?": "봇이 이 컴퓨터를 사용하도록 허용할까요?",
   Cancel: "취소",
   Allow: "허용",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -198,7 +198,7 @@ export const KO_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Stirrup 데이터가 다른 컴퓨터 런타임에 있습니다. 실행 중인 런타임을 종료한 다음 다시 시도하세요.",
   "Run Stirrup without Docker?": "Docker 없이 Rakazo를 실행할까요?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "봇과 데이터가 함께 옮겨집니다. Docker는 삭제되지 않고 중지됩니다.",
   Move: "옮기기",
   "Keep Docker": "Docker 유지",

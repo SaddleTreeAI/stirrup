@@ -58,7 +58,7 @@ export const FR_MESSAGES: Record<string, string> = {
     "Impossible de terminer la mise à jour. Réessayez plus tard.",
   "Could not reach the update server.": "Impossible de joindre le serveur de mises à jour.",
   "Allow local computer access?": "Autoriser l’accès à l’ordinateur local ?",
-  "Allow bots to use this computer?": "Autoriser les bots à utiliser cet ordinateur ?",
+  "Allow stirrups to use this computer?": "Autoriser les bots à utiliser cet ordinateur ?",
   Cancel: "Annuler",
   Allow: "Autoriser",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -202,7 +202,7 @@ export const FR_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Vos données Stirrup se trouvent dans un autre environnement d’exécution des ordinateurs. Quittez celui qui est lancé, puis réessayez.",
   "Run Stirrup without Docker?": "Utiliser Stirrup sans Docker ?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "Vos bots et vos données sont transférés. Docker est arrêté, pas supprimé.",
   Move: "Transférer",
   "Keep Docker": "Garder Docker",

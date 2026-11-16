@@ -54,10 +54,6 @@ ${HOME_CHANNELS.map((channel) => `- ${channel.name}${channel.selfHosted ? ` (${h
 
 ${HOME_FEATURE_KINDS.map((kind) => `- **${home.features.items[kind].title}:** ${home.features.items[kind].body}`).join("\n")}
 
-## ${home.testimonials.heading}
-
-${home.testimonials.items.map((item) => `> ${item.quote}\n>\n> — ${item.attribution}`).join("\n\n")}
-
 ## ${home.selfHost.heading}
 
 ${home.selfHost.copy}

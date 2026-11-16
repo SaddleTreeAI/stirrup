@@ -63,7 +63,7 @@ export const ES_MESSAGES: Record<string, string> = {
 
   // Computer access
   "Allow local computer access?": "¿Permitir el acceso a la computadora local?",
-  "Allow bots to use this computer?": "¿Permitir que los bots usen esta computadora?",
+  "Allow stirrups to use this computer?": "¿Permitir que los bots usen esta computadora?",
   Cancel: "Cancelar",
   Allow: "Permitir",
   "Bots on {host} can run commands, read and change files, and launch apps with your account’s permissions. You can revoke access in Settings.":
@@ -217,7 +217,7 @@ export const ES_MESSAGES: Record<string, string> = {
   "Your Stirrup data is in a different computer runtime. Quit the one running, then retry.":
     "Tus datos de Stirrup están en otro entorno de ejecución de computadoras. Cierra el que está en marcha y vuelve a intentarlo.",
   "Run Stirrup without Docker?": "¿Usar Stirrup sin Docker?",
-  "Your bots and data move over. Docker is stopped, not removed.":
+  "Your stirrups and data move over. Docker is stopped, not removed.":
     "Tus bots y datos se trasladan. Docker se detiene, no se elimina.",
   Move: "Mover",
   "Keep Docker": "Mantener Docker",
