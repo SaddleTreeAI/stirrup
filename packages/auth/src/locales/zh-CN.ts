@@ -25,7 +25,7 @@ export const ZH_CN_MESSAGES: Record<string, string> = {
   "Welcome to Stirrup. The people who get the most out of it do three things:":
     "欢迎使用 Stirrup。用得最好的人都会做三件事：",
   "Get the apps": "下载应用",
-  "Stirrup runs on {platforms}, so your bots can reach you wherever you are.":
+  "Stirrup runs on {platforms}, so your stirrups can reach you wherever you are.":
     "Stirrup 支持 {platforms}，让你的机器人随时随地都能联系到你。",
   "Join the community": "加入社区",
   "See what others are building, get help fast, and tell us what to build next on {discord}.":

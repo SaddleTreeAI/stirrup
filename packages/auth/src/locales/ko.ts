@@ -27,7 +27,7 @@ export const KO_MESSAGES: Record<string, string> = {
   "Welcome to Stirrup. The people who get the most out of it do three things:":
     "Rakazo에 오신 것을 환영합니다. Rakazo를 가장 잘 활용하는 사람들은 세 가지를 합니다.",
   "Get the apps": "앱 받기",
-  "Stirrup runs on {platforms}, so your bots can reach you wherever you are.":
+  "Stirrup runs on {platforms}, so your stirrups can reach you wherever you are.":
     "Rakazo는 {platforms}에서 실행되므로 봇이 어디서든 연락할 수 있습니다.",
   "Join the community": "커뮤니티 참여하기",
   "See what others are building, get help fast, and tell us what to build next on {discord}.":

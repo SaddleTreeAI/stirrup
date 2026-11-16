@@ -27,7 +27,7 @@ export const PT_BR_MESSAGES: Record<string, string> = {
   "Welcome to Stirrup. The people who get the most out of it do three things:":
     "Boas-vindas ao Stirrup. Quem aproveita o Stirrup ao máximo faz três coisas:",
   "Get the apps": "Baixe os apps",
-  "Stirrup runs on {platforms}, so your bots can reach you wherever you are.":
+  "Stirrup runs on {platforms}, so your stirrups can reach you wherever you are.":
     "O Stirrup funciona no {platforms}, para que seus bots falem com você onde você estiver.",
   "Join the community": "Entre na comunidade",
   "See what others are building, get help fast, and tell us what to build next on {discord}.":

@@ -27,7 +27,7 @@ export const RU_MESSAGES: Record<string, string> = {
   "Welcome to Stirrup. The people who get the most out of it do three things:":
     "Добро пожаловать в Stirrup. Те, кто получает от него больше всего, делают три вещи:",
   "Get the apps": "Установите приложения",
-  "Stirrup runs on {platforms}, so your bots can reach you wherever you are.":
+  "Stirrup runs on {platforms}, so your stirrups can reach you wherever you are.":
     "Stirrup работает на {platforms}, поэтому ваши боты могут связаться с вами где угодно.",
   "Join the community": "Присоединяйтесь к сообществу",
   "See what others are building, get help fast, and tell us what to build next on {discord}.":
