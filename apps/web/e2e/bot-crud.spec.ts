@@ -58,7 +58,7 @@ test("stirrup creation, editing, and deletion persist", async ({ page }, testInf
   await expect(page.getByPlaceholder("Message New Stirrup")).toBeVisible();
   await expect.poll(() => failedPostCreateRefresh).toBe(true);
   await page.unroute("**/rpc/spaces/list");
-  await expect(botList.getByRole("button", { name: /^New Bot/ })).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^New Stirrup/ })).toBeVisible();
   await page.waitForURL(/\/app\/[^/]+$/);
   const deletedBotPath = new URL(page.url()).pathname;
   // A focus refresh that no longer knows the current bot redirects away from it; wait for

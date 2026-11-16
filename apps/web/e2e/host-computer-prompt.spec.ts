@@ -50,7 +50,7 @@ for (const platform of ["darwin", "linux"]) {
     const dialog = page.getByRole("dialog", { name: "Where should stirrups run?" });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAccessibleDescription(
-      /Local access lets bots run commands without asking\. Avoid it on shared or public servers\./,
+      /Local access lets stirrups run commands without asking\. Avoid it on shared or public servers\./,
     );
     const configuredProfile = page.waitForResponse(/\/rpc\/me$/);
     await page.evaluate(() => window.dispatchEvent(new Event("test-computer-configure")));

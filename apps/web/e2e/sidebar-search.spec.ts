@@ -99,7 +99,7 @@ test("a stirrup found by search can be pinned from its result", async ({ page },
   const search = sidebar.getByRole("textbox", { name: "Search", exact: true });
   await search.fill("Chief");
 
-  const result = sidebar.getByRole("button", { name: /^Chief.*Bot/ }).first();
+  const result = sidebar.getByRole("button", { name: /^Chief.*Stirrup/ }).first();
   await result.click({ button: "right" });
   const pin = page.getByRole("menuitem", { name: "Pin", exact: true });
   await expect(pin).toBeVisible();
