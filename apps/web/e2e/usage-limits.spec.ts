@@ -88,6 +88,8 @@ test("account menu shows the usage hint and Usage shows allowances and credits o
   await captureScreenshot(page, testInfo, "usage-limits-account-menu");
 
   await usage.click();
+  await expect(page.getByTestId("usage-menu")).toBeVisible();
+  await page.getByRole("button", { name: "View usage", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toHaveAttribute("data-settings-section", "usage");
   const cards = settings.getByTestId("plan-limits");
