@@ -4,15 +4,20 @@
 default; Private Computers are optional. See [computer runtime and isolation](./computer-runtime.md)
 for the sharing and persistence contract.
 
+Set `COMPUTER_DEFAULT_MODE=dedicated` on the API and worker to give each new bot a Private
+Computer when its request does not choose one. An explicit choice still wins, and existing bots
+keep their computer. Private Computers count toward `SANDBOX_MAX_COMPUTERS_PER_USER`.
+
 ## Quick pick
 
-| Goal                                                    | Set                                                         | Also need                                                                                                                             |
-| ------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Local Docker computers                                  | `SANDBOX_PROVIDER=docker`                                   | `SANDBOX_SUPERVISOR_TOKEN`, computer image, Docker socket for supervisor                                                              |
-| UI only, no computers                                   | `SANDBOX_PROVIDER=none`                                     | No provider credential; published-images Compose still requires `SANDBOX_SUPERVISOR_TOKEN`                                            |
-| Managed remote desktop                                  | `e2b` / `novita` / `daytona` / `createos` / `boat` / `boxd` | `SANDBOX_SUPERVISOR_TOKEN` (published-images Compose), matching API key (and optional URL knobs for Daytona/CreateOS/Boat)            |
-| One pod per computer on your own cluster                | `SANDBOX_PROVIDER=kubernetes`                               | API and worker running in the cluster, a namespace and a Role that can create, read, delete and exec into pods                        |
-| One app container per computer on your own Incus server | `SANDBOX_PROVIDER=incus`                                    | Incus API address, a client certificate restricted to one project, and a route from the API, worker and web to the computers' network |
+| Goal                                                    | Set                                                                      | Also need                                                                                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Local Docker computers                                  | `SANDBOX_PROVIDER=docker`                                                | `SANDBOX_SUPERVISOR_TOKEN`, computer image, Docker socket for supervisor                                                              |
+| UI only, no computers                                   | `SANDBOX_PROVIDER=none`                                                  | No provider credential; published-images Compose still requires `SANDBOX_SUPERVISOR_TOKEN`                                            |
+| Managed remote desktop                                  | `e2b` / `novita` / `daytona` / `createos` / `boat` / `boxd` / `instabox` | `SANDBOX_SUPERVISOR_TOKEN` (published-images Compose), matching API key (and optional URL knobs for Daytona/CreateOS/Boat)            |
+| One pod per computer on your own cluster                | `SANDBOX_PROVIDER=kubernetes`                                            | API and worker running in the cluster, a namespace and a Role that can create, read, delete and exec into pods                        |
+| One app container per computer on your own Incus server | `SANDBOX_PROVIDER=incus`                                                 | Incus API address, a client certificate restricted to one project, and a route from the API, worker and web to the computers' network |
+| One VM per computer on an Apple silicon Mac             | `SANDBOX_PROVIDER=local-vm`                                              | macOS 26 or newer and Apple's `container` runtime with its system service started                                                     |
 
 Published-images [Compose](../infra/compose/docker-compose.images.yml) defaults to **`docker`**.
 It always starts the supervisor and requires `SANDBOX_SUPERVISOR_TOKEN`, including for `none`
@@ -130,6 +135,9 @@ Browser identity is only one input to bot-check challenges; the host's IP reputa
 matters more.
 
 ## `kubernetes`
+
+For a staged single-node installation with storage, scoped permissions and network policies,
+see [Kubernetes / k3s installation](./self-host-kubernetes.md) ([한국어](./ko-KR/self-host-kubernetes.md)).
 
 Each computer is one pod in a namespace you choose, created from the published computer image.
 The API and worker talk to the Kubernetes API with their own service account (or the kubeconfig in
@@ -373,6 +381,33 @@ allowed by Incus before any ACL rule. The IP filtering options stop
 a computer from spoofing addresses or sending router advertisements to the host. Set
 `INCUS_SANDBOX_PROJECT=rakazo` and the certificate and key from `rakazo.crt` and `rakazo.key`.
 
+## `local-vm`
+
+Each computer is one lightweight Linux VM on the Mac running Rakazo, started from the published
+computer image by Apple's [`container`](https://github.com/apple/container) runtime
+(Virtualization.framework). It needs Apple silicon and macOS 26 or newer, with the `container`
+system service started; no Docker, supervisor or socket is involved.
+
+| Variable                  | Default                                | Notes                                        |
+| ------------------------- | -------------------------------------- | -------------------------------------------- |
+| `LOCAL_VM_CLI`            | `container`                            | Path to the `container` CLI                  |
+| `LOCAL_VM_COMPUTER_IMAGE` | `ghcr.io/elie222/rakazo/computer:edge` | Must include `nft`; older images are refused |
+| `LOCAL_VM_CPUS`           | `2`                                    | CPUs of each VM                              |
+| `LOCAL_VM_MEMORY`         | `2g`                                   | Memory of each VM                            |
+
+Each start creates a VM and a network of its own, both named `rakazo-<uuid>`, labelled
+`rakazo.bot-id=<bot id>`; one carrying another bot's id is never reused or removed. The image's
+start command and every command run as uid 1000 with no capabilities and no privilege escalation.
+As with Incus, VMs are removed when they stop: the saved workspace is copied in when a computer
+starts and saved back when it stops. The API, worker and web reach the screen on the VM's address.
+
+Before a computer is used, Rakazo loads an nftables firewall into the VM as root and checks it is
+in place; if that fails, the VM is removed and the start fails. The firewall allows the public
+internet and DNS to the VM's gateway, and rejects everything else to the Mac, the LAN,
+link-local and cloud-metadata, CGNAT, multicast and other private addresses (the same list as the
+Incus ACL above). Incoming connections are dropped except from the Mac to the screen ports. The
+bot's uid 1000 cannot change it.
+
 ## `wuying`
 
 Bot computers run on one existing Wuying (无影) cloud computer. An admin can also set this up in
@@ -426,6 +461,7 @@ Set `SANDBOX_PROVIDER` to exactly one of:
 | `daytona`  | `DAYTONA_API_KEY`                                | Optional `DAYTONA_API_URL`, `DAYTONA_TARGET`, `DAYTONA_SNAPSHOT`                                                                                                                                                                                          |
 | `boat`     | `BOAT_API_KEY`                                   | Optional `BOAT_API_URL` (see `.env.example`)                                                                                                                                                                                                              |
 | `boxd`     | `BOXD_API_KEY`                                   | Optional `BOXD_ORG` to create computers in a boxd organization                                                                                                                                                                                            |
+| `instabox` | `INSTABOX_API_KEY`                               | Computers start in the key's organization; see [instabox computers](#instabox-computers)                                                                                                                                                                  |
 | `createos` | `CREATEOS_SANDBOX_API_KEY`                       | Optional `CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_SHAPE`, `CREATEOS_SANDBOX_ROOTFS`                                                                                                                                                                 |
 | `railway`  | `RAILWAY_API_TOKEN` and `RAILWAY_ENVIRONMENT_ID` | Optional `RAILWAY_SANDBOX_REGION`; `RAILWAY_MAX_WORKSPACE_FILE_BYTES` (default 64 MiB) caps each workspace file Rakazo reads or saves. Railway supplies the environment ID when Rakazo runs there; see the [Railway template](../infra/railway/README.md) |
 | `wuying`   | `WUYING_*` (below)                               | One existing Wuying cloud computer (Windows)                                                                                                                                                                                                              |
@@ -436,7 +472,7 @@ the web UI. They require egress to the provider. For air-gapped hosts prefer
 
 A run starts its computer only when it first uses a computer tool. With idle sleep on,
 a computer suspends after `SANDBOX_IDLE_MS` idle. On providers that bill while running
-(E2B, Daytona, Boat, boxd, CreateOS, Railway), it also suspends after `COMPUTER_MAX_ACTIVE_MS`
+(E2B, Daytona, Boat, boxd, instabox, CreateOS, Railway), it also suspends after `COMPUTER_MAX_ACTIVE_MS`
 (default 2 hours) up in one stretch, even with background work or an open screen, unless
 a run is executing on it, a user is in control of its screen, or a coding agent CLI (Codex,
 Claude Code, OpenCode) wrote its session within the last `SANDBOX_IDLE_MS`. An agent waiting
@@ -588,6 +624,24 @@ The desktop is served on the machine's own public HTTPS address; every screen an
 still needs its own token, which the desktop gateway checks. Stopping a computer suspends it
 with its memory, so programs it was running continue when it resumes.
 
+### instabox computers
+
+instabox computers start from instabox's own desktop image, which already has Chromium; the
+first start installs the rest of the desktop tools in a few seconds. They are created without
+the instabox account's vault, so secrets saved on that account never reach a bot's computer.
+
+The desktop is served on the computer's public HTTPS address; every screen and terminal still
+needs its own token, which the desktop gateway checks. Stopping a computer suspends it with its
+memory. instabox also pauses a computer after 30 idle minutes, later than the default
+`SANDBOX_IDLE_MS`, so Rakazo normally stops it first. One key's computers share its account's
+limits on requests at once (API calls, and connections to screens and terminals), so a
+deployment with many active computers at the same time can see them slow down.
+
+New computers start at the computer size of the space's plan. Standard is instabox's default.
+Large and xlarge need an instabox plan that offers that size; otherwise the computer starts at
+the size it can have. A stopped computer moves to its plan's size when it next starts, which
+restarts it, so its running programs end. A running computer keeps its size.
+
 ## Verify a provider change
 
 After changing provider or keys (from the published-images drop directory that
@@ -598,7 +652,26 @@ docker compose --env-file .env -f docker-compose.images.yml up -d
 curl -fsS http://127.0.0.1:3100/internal/health
 ```
 
-Confirm `sandbox` equals the intended provider (`e2b`, `novita`, `daytona`, `boat`, or `boxd`).
+Confirm `sandbox` equals the intended provider (`e2b`, `novita`, `daytona`, `boat`, `boxd`, or `instabox`).
 HTTP 200 alone does not verify a remote provider: a missing API key falls back to `sandbox: "none"`.
 A present but invalid key still reports the selected provider. Open a bot's computer to verify
 provisioning and desktop access.
+
+## Browser proxy on Railway computers
+
+Set `RAKAZO_COMPUTER_PROXY` on the API and worker to send the browser on every Railway computer
+through an upstream proxy, for example `http://user:pass@proxy.example.com:8080` or
+`socks5://user:pass@proxy.example.com:1080`. Chrome cannot send proxy credentials from policy, so
+when a computer is prepared Rakazo installs `tinyproxy`, writes its config (credentials included)
+to a root-only file, starts it on `127.0.0.1:18080`, and adds a managed Chrome policy that points
+the browser there. Loopback stays direct so the bot's page tools still reach the browser.
+
+The credentials are not secret from the people using your bots. Bot commands run as root on the
+computer, so a user can ask a bot to read the config, and any program on the computer can send
+traffic through the loopback proxy. Set it only when you trust everyone who can use a bot on this
+deployment, and give Rakazo its own proxy login with a usage cap so a leak is limited and easy to
+revoke.
+
+The setting applies to every bot. It covers the browser only: terminal commands go direct. The
+username cannot contain spaces, control characters, `:`, `@`, `"` or `#`, and the password cannot
+contain spaces, control characters, `@`, `"` or `#`. Changing or clearing the variable takes effect the next time each computer starts.

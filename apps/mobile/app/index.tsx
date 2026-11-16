@@ -46,14 +46,14 @@ import { forgetAppBadge, syncInboxAppBadge, unreadChatCount } from "../lib/app-b
 import { mobileTokens, resolveMobileAppearance } from "../lib/appearance";
 import { explicitSignInRoute } from "../lib/auth-routing";
 import { AvatarViewportScope, createAvatarViewport } from "../lib/avatar-life";
+import { useContentBottomInset } from "../lib/content-bottom-inset";
 import type { CreateAction } from "../lib/create-chooser";
 import { useHeaderHeightIfAny } from "../lib/floating-header";
-import { useForegroundPoll } from "../lib/foreground-poll";
 import { hapticImpact, hapticSelection } from "../lib/haptics";
 import { useUiLocale } from "../lib/i18n";
 import { onInboxChanged, onOpenChatFromInbox } from "../lib/inbox-changes";
 import { retainInboxValue } from "../lib/inbox-retention";
-import type { InboxItem, InboxSpace } from "../lib/inbox-spaces";
+import type { InboxItem, InboxSpace, PinnedChat } from "../lib/inbox-spaces";
 import {
   canDeleteInboxSpace,
   deleteSpaceTitle,
@@ -61,7 +61,6 @@ import {
   inboxItemKey,
   inboxNeedsCreateHint,
   inboxSignal,
-  pinnedInboxItems,
   removeInboxSpace,
   retryInboxSpaceFallback,
   selectInboxSpace,
@@ -81,9 +80,9 @@ import {
 import type { OrganizeTarget } from "../lib/organize-target";
 import { findOrganizeTarget } from "../lib/organize-target";
 import { offerPasskeyOnce } from "../lib/passkey";
-import { INBOX_POLL_INTERVAL_MS } from "../lib/poll-cadence";
 import { registerPushToken } from "../lib/push";
 import { hasSignedInBefore, rememberSignedIn } from "../lib/returning-user";
+import { useRosterSignals } from "../lib/roster-signals";
 import { loadSavedInbox } from "../lib/saved-chats";
 import {
   currentReadySessionGeneration,
@@ -268,9 +267,10 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
     };
   }, [hasSession]);
 
-  // The embedded pane is visible beside the chat, so it keeps polling even when
+  // The embedded pane is visible beside the chat, so it keeps following changes even when
   // the chat route owns focus.
-  useForegroundPoll(loadBots, INBOX_POLL_INTERVAL_MS, hasSession && (embedded || isFocused));
+  const inboxShown = hasSession && (embedded || isFocused);
+  useRosterSignals(loadBots, inboxShown);
   useEffect(() => onInboxChanged(() => void refreshBots().catch(() => undefined)), [refreshBots]);
 
   const archivedCount = useArchivedCount(me?.spaceId, hasSession);
@@ -286,7 +286,13 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
     editSectionFromMenu,
     deleteSection,
     snoozeChat,
-  } = useInboxChatActions({ loadBots, setBots, setGroups, setSpaces });
+  } = useInboxChatActions({
+    confirmationActive: inboxShown,
+    loadBots,
+    setBots,
+    setGroups,
+    setSpaces,
+  });
 
   const { activity, activityStatus, clearActivity, activityRequestId, loadActivity } =
     useSpaceActivity({
@@ -362,8 +368,37 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
         undefined,
         snoozeNow,
       );
-    return pinnedInboxItems(inboxSpaces, collapsed, me?.spaceId, snoozeNow);
-  }, [inboxSpaces, collapsed, me?.spaceId, onShareSelect, snoozeNow]);
+    // Android pins sit above the list; iOS keeps rows with native swipe and context menus.
+    const otherSpaces = shownSpaces.filter((space) => space.id !== me?.spaceId);
+    const pinned: PinnedChat[] = [
+      ...[...visible, ...otherSpaces.flatMap((space) => space.bots)]
+        .filter((bot) => bot.pinned && !chatSnoozed(bot, snoozeNow))
+        .map((bot) => ({ kind: "bot" as const, bot })),
+      ...[...visibleGroups, ...otherSpaces.flatMap((space) => space.groups)]
+        .filter((group) => group.pinned && !chatSnoozed(group, snoozeNow))
+        .map((group) => ({ kind: "group" as const, group })),
+    ];
+    // A snoozed pin waits under Snoozed rather than in the tiles.
+    const sidebarSpaces = inboxSpaces.map((space) => ({
+      ...space,
+      bots: space.bots.filter((bot) => SWIPE_ROWS || !bot.pinned || chatSnoozed(bot, snoozeNow)),
+      groups: space.groups.filter(
+        (group) => SWIPE_ROWS || !group.pinned || chatSnoozed(group, snoozeNow),
+      ),
+    }));
+    const items: InboxItem[] = spaceInboxItems(sidebarSpaces, collapsed, me?.spaceId, snoozeNow);
+    return !SWIPE_ROWS && pinned.length > 0 ? [{ type: "pinned", chats: pinned }, ...items] : items;
+  }, [
+    inboxSpaces,
+    collapsed,
+    me?.spaceId,
+    shownSpaces,
+    visible,
+    visibleGroups,
+    locale,
+    onShareSelect,
+    snoozeNow,
+  ]);
   // Snoozed chats stay off the icon until they wake.
   const badgeCount = me
     ? unreadChatCount(
@@ -390,6 +425,7 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
         organizeTarget.chat)
     : null;
   const insets = useSafeAreaInsets();
+  const contentBottomInset = useContentBottomInset();
   // An unfolded or tablet window keeps the inbox in a centred column.
   const windowWidth = useWindowDimensions().width;
   const { inboxWidth } = useSplitView();
@@ -429,7 +465,7 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
     listRef,
     // The Liquid Glass header floats over the list; the older header sits above it.
     topInset: nativeHeader ? headerHeight : 0,
-    bottomInset: insets.bottom,
+    bottomInset: contentBottomInset,
   });
   const router = useRouter();
   const pathname = usePathname();
@@ -792,6 +828,7 @@ function Home({ embedded, onSelectSpace, onShareSelect }: InboxPaneProps & { emb
     <View style={styles.screen}>
       {nativeHeader || onShareSelect ? null : (
         <InboxHeader
+          embedded={embedded}
           initials={initials}
           activityMode={activityMode}
           toggleActivityMode={toggleActivityMode}

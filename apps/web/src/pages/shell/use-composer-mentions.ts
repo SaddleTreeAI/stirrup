@@ -1,12 +1,13 @@
 import { useLingui } from "@lingui/react/macro";
-import type { Bot, Group, Routine } from "@rakazo/contracts";
+import type { Bot, Connection, ConnectionCatalogItem, Group, Routine } from "@rakazo/contracts";
 import {
   buildComposerMentionOptions,
   createRoutineMentionBatcher,
   mentionConnectorsFrom,
 } from "@rakazo/core";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { connectedAppMarks } from "../../lib/connected-apps";
 import { cronLabels } from "../../lib/cron";
 import type { SpaceQueries } from "../../lib/query";
 import { queryClient } from "../../lib/query";
@@ -16,7 +17,13 @@ function routineListData(results: Array<{ data?: Routine[] }>) {
   return results.map((result) => result.data);
 }
 
-/** What the composer can @mention. */
+function connectedAppMarksOf(
+  data: { catalog: ConnectionCatalogItem[] | null; connections: Connection[] | null } | undefined,
+) {
+  return data?.catalog && data.connections ? connectedAppMarks(data.catalog, data.connections) : [];
+}
+
+/** What the composer can @mention, and the connected apps the sidebar footer shows. */
 export function useComposerMentions({
   rpc,
   queries,
@@ -89,6 +96,14 @@ export function useComposerMentions({
     connectionsRoster.current = mentionBotsKey;
     if (previous !== null && previous !== mentionBotsKey) void composerConnections.refetch();
   }, [initialBotsLoaded, mentionBotsKey]);
+  const [footerLogos, setFooterLogos] = useState(() =>
+    connectedAppMarksOf(composerConnections.data),
+  );
+  useEffect(() => {
+    if (composerConnections.data?.catalog && composerConnections.data.connections) {
+      setFooterLogos(connectedAppMarksOf(composerConnections.data));
+    }
+  }, [composerConnections.data]);
   const mentionConnectors = useMemo(() => {
     const { catalog, connections } = composerConnections.data ?? {};
     return bots.length === 0 ? [] : mentionConnectorsFrom(connections ?? [], catalog ?? []);
@@ -99,6 +114,9 @@ export function useComposerMentions({
         query: "",
         includeEveryone: inGroup,
         currentGroupId: groupId,
+        groupMemberNames: groups
+          .find((group) => group.id === groupId)
+          ?.members.map((member) => member.name),
         bots: bots.map((bot) => ({
           id: bot.id,
           name: bot.name,
@@ -118,5 +136,5 @@ export function useComposerMentions({
       }),
     [bots, groupId, groups, i18n.locale, inGroup, mentionConnectors, mentionRoutines],
   );
-  return { composerMentionTargets };
+  return { composerMentionTargets, footerLogos, setFooterLogos };
 }

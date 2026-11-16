@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { AgentUsage, BillingCreditPurchase } from "@rakazo/adapter-kit";
-import { MODEL_CREDITS_EXHAUSTED_ERROR } from "@rakazo/core";
+import { MODEL_CREDITS_EXHAUSTED_ERROR, MODEL_UNPRICED_FOR_CREDITS_ERROR } from "@rakazo/core";
 import type { PrismaClient } from "./client.js";
 import type { Prisma } from "./generated/prisma/client.js";
 import { enforceModelCreditCap } from "./model-credit-cap.js";
-import type { CreditAllocation } from "./model-credit-lots.js";
 import {
   allocateCreditLots,
   allocatedMicros,
@@ -12,6 +11,7 @@ import {
   prepareCreditLots,
   resizeCreditLot,
   returnCreditLots,
+  storedCreditAllocations,
   syncLotBalance,
 } from "./model-credit-lots.js";
 import { isUniqueViolation } from "./prisma-errors.js";
@@ -34,6 +34,36 @@ export async function creditAccount(prisma: PrismaClient, organizationId: string
   }
 }
 
+/**
+ * Reads never lock the wallet. Lapsed credits the reconciler has not expired yet are left out,
+ * after the lot sync that expiry runs first, which spends the soonest-expiring lots.
+ */
+export async function unexpiredCreditAccount(
+  prisma: PrismaClient,
+  organizationId: string,
+  now = new Date(),
+) {
+  await creditAccount(prisma, organizationId);
+  const live = { organizationId, availableMicros: { gt: 0n } };
+  // One snapshot, so an expiry committing between the reads cannot be counted twice or missed.
+  const [account, lots, lapsed] = await prisma.$transaction(
+    (tx) =>
+      Promise.all([
+        tx.modelCreditAccount.findUniqueOrThrow({ where: { organizationId } }),
+        tx.modelCreditLot.aggregate({ where: live, _sum: { availableMicros: true } }),
+        tx.modelCreditLot.aggregate({
+          where: { ...live, expiresAt: { lte: now } },
+          _sum: { availableMicros: true },
+        }),
+      ]),
+    { isolationLevel: "RepeatableRead" },
+  );
+  const funded = account.balanceMicros > 0n ? account.balanceMicros : 0n;
+  const unsynced = (lots._sum.availableMicros ?? 0n) - funded;
+  const expiring = (lapsed._sum.availableMicros ?? 0n) - (unsynced > 0n ? unsynced : 0n);
+  return { ...account, balanceMicros: account.balanceMicros - (expiring > 0n ? expiring : 0n) };
+}
+
 /** Payment replay and refunds reconcile one durable grant; refunds can never be re-credited. */
 export async function reconcileCreditPurchase(
   prisma: PrismaClient,
@@ -46,7 +76,7 @@ export async function reconcileCreditPurchase(
   await creditAccount(prisma, organizationId);
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "organizationId" FROM model_credit_accounts WHERE "organizationId" = ${organizationId} FOR UPDATE`;
-    await prepareCreditLots(tx, organizationId, now);
+    const withheldMicros = await prepareCreditLots(tx, organizationId, now);
     await expireCreditLots(tx, organizationId, now);
     const source = `purchase:${purchase.id}`;
     const existing = await tx.modelCreditEntry.findUnique({ where: { source } });
@@ -91,7 +121,7 @@ export async function reconcileCreditPurchase(
       update: {},
     });
     await resizeCreditLot(tx, entry.id, amountMicros, expiresAt);
-    await syncLotBalance(tx, organizationId);
+    await syncLotBalance(tx, organizationId, withheldMicros);
     await expireCreditLots(tx, organizationId, now);
     return Number(delta);
   });
@@ -113,7 +143,7 @@ export async function reserveModelCredits(
   now = new Date(),
 ) {
   if (!Number.isFinite(maxCostUsd) || maxCostUsd <= 0 || maxCostUsd > 10_000)
-    throw new Error("This model has no reliable price. Connect your own API key to use it.");
+    throw new Error(MODEL_UNPRICED_FOR_CREDITS_ERROR);
   const amountMicros = BigInt(Math.ceil(maxCostUsd * MICROS_PER_DOLLAR));
   const callId = attribution?.callId ?? randomUUID();
   const source = `call:${callId}`;
@@ -131,10 +161,10 @@ export async function reserveModelCredits(
     }
     if (attribution?.userId && account?.modelCreditCapMicros != null)
       await enforceModelCreditCap(tx, attribution.userId, amountMicros);
-    await prepareCreditLots(tx, organizationId, now);
+    const withheldMicros = await prepareCreditLots(tx, organizationId, now);
     await expireCreditLots(tx, organizationId, now);
     const reserved = await tx.modelCreditAccount.updateMany({
-      where: { organizationId, balanceMicros: { gte: amountMicros } },
+      where: { organizationId, balanceMicros: { gte: amountMicros + withheldMicros } },
       data: { balanceMicros: { decrement: amountMicros } },
     });
     if (reserved.count !== 1) throw new Error(MODEL_CREDITS_EXHAUSTED_ERROR);
@@ -173,13 +203,13 @@ export async function settleModelCreditsTx(
   if (!scope) return;
   await tx.$queryRaw`SELECT "organizationId" FROM model_credit_accounts WHERE "organizationId"=${scope.organizationId} FOR UPDATE`;
   await tx.$queryRaw`SELECT id FROM model_credit_entries WHERE id=${reservationId} FOR UPDATE`;
-  await prepareCreditLots(tx, scope.organizationId, now);
+  const withheldMicros = await prepareCreditLots(tx, scope.organizationId, now);
   await expireCreditLots(tx, scope.organizationId, now);
   const entry = await tx.modelCreditEntry.findUnique({ where: { id: reservationId } });
   if (!entry || (!entry.pending && !reconcile)) return;
   const amountMicros = -BigInt(Math.ceil(costUsd * MICROS_PER_DOLLAR));
   if (!entry.pending && amountMicros === entry.amountMicros) return;
-  let allocations = (entry.allocations ?? []) as CreditAllocation[];
+  let allocations = storedCreditAllocations(entry);
   const difference = amountMicros - entry.amountMicros;
   if (difference > 0n) {
     const funded = allocatedMicros(allocations);
@@ -197,7 +227,7 @@ export async function settleModelCreditsTx(
     where: { organizationId: entry.organizationId },
     data: { balanceMicros: { increment: amountMicros - entry.amountMicros } },
   });
-  await syncLotBalance(tx, entry.organizationId);
+  await syncLotBalance(tx, entry.organizationId, withheldMicros);
 }
 
 /** Unknown usage leaves a visible hold; no timeout can invent a zero-cost result. */
@@ -252,7 +282,7 @@ export async function recordModelCreditReceipt(
     });
 }
 
-/** Also called by billing reads and the background reconciler when no new invoice arrives. */
+/** The background reconciler calls this when no new invoice arrives. */
 export async function expireModelCredits(
   prisma: PrismaClient,
   organizationId: string,

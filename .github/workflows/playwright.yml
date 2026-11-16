@@ -47,7 +47,7 @@ jobs:
   # instead of inside the Playwright step via Testcontainers.
   shard:
     name: Web E2E (${{ matrix.shard }}/6)
-    runs-on: ${{ vars.CI_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -101,36 +101,59 @@ jobs:
         # Skip --with-deps: GitHub ubuntu-latest already has Chromium's OS libraries,
         # and apt-get against azure.archive.ubuntu.com can stall until the job timeout.
         run: pnpm --filter @rakazo/web exec playwright install chromium
-      - name: Resolve CJK font package
+      # Chinese, Japanese, and Korean pages render as boxes in screenshots without these fonts. The
+      # .deb is cached so a hit needs no network; no assertion depends on the glyphs, so a failed
+      # download only warns instead of failing the shard.
+      - name: CJK fonts cache key
         if: steps.areas.outputs.e2e != 'false'
-        id: cjk-fonts
-        timeout-minutes: 2
-        # Chromium needs CJK fallback fonts; the runner's Azure mirror can stall on this package.
-        run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
-          sudo timeout 90s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
-          version=$(apt-cache policy fonts-noto-cjk | awk '/Candidate:/ {print $2}')
-          test -n "$version" && test "$version" != '(none)'
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          . /etc/os-release
-          echo "release=$VERSION_ID" >> "$GITHUB_OUTPUT"
-          mkdir -p "$RUNNER_TEMP/cjk-font-archives/partial"
-      - name: Cache CJK font package
+        id: cjk-key
+        # The package is frozen within an Ubuntu release, so the release alone names it.
+        run: echo "key=fonts-noto-cjk-$(. /etc/os-release && echo "$VERSION_CODENAME")-$(dpkg --print-architecture)" >> "$GITHUB_OUTPUT"
+      - name: Restore CJK fonts cache
         if: steps.areas.outputs.e2e != 'false'
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cjk-cache
+        continue-on-error: true
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: ${{ runner.temp }}/cjk-font-archives/*.deb
-          key: cjk-fonts-${{ runner.os }}-${{ runner.arch }}-${{ steps.cjk-fonts.outputs.release }}-${{ steps.cjk-fonts.outputs.version }}-v1
+          path: ${{ runner.temp }}/fonts-noto-cjk
+          key: ${{ steps.cjk-key.outputs.key }}
       - name: Install CJK fonts
         if: steps.areas.outputs.e2e != 'false'
-        timeout-minutes: 13
-        # Keep APT's signed-index and package integrity checks on cache hits too.
+        id: cjk-fonts
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          DEB_DIR: ${{ runner.temp }}/fonts-noto-cjk
+          CACHE_HIT: ${{ steps.cjk-cache.outputs.cache-hit }}
+        # The runner's Azure mirror can stall on this 61 MB package, so a miss uses the main archive.
         run: |
-          sudo timeout 720s apt-get \
-            -o Dir::Cache::archives="$RUNNER_TEMP/cjk-font-archives" \
-            -o APT::Keep-Downloaded-Packages=true \
-            -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 \
-            install -y --no-install-recommends "fonts-noto-cjk=${{ steps.cjk-fonts.outputs.version }}"
+          if [ "$CACHE_HIT" != "true" ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+            rm -rf "$DEB_DIR" && mkdir -p "$DEB_DIR" && cd "$DEB_DIR"
+            apt_opts=(-o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+            for attempt in 1 2; do
+              if sudo timeout 60s apt-get "${apt_opts[@]}" update &&
+                timeout 150s apt-get "${apt_opts[@]}" download fonts-noto-cjk; then
+                break
+              fi
+              rm -f ./*.deb
+              if [ "$attempt" = 2 ]; then
+                echo "::warning::Could not download fonts-noto-cjk; screenshots will show CJK text as boxes."
+                exit 1
+              fi
+            done
+          fi
+          if ! sudo dpkg -i "$DEB_DIR"/*.deb; then
+            echo "::warning::Could not install fonts-noto-cjk; screenshots will show CJK text as boxes."
+            exit 1
+          fi
+      - name: Save CJK fonts cache
+        if: steps.areas.outputs.e2e != 'false' && steps.cjk-cache.outputs.cache-hit != 'true' && steps.cjk-fonts.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/fonts-noto-cjk
+          key: ${{ steps.cjk-key.outputs.key }}
       - name: Wait for Postgres
         if: steps.areas.outputs.e2e != 'false'
         run: |
@@ -167,7 +190,7 @@ jobs:
   # page-browser keeps one worker: its helper launches a second Chromium and flakes under peer load.
   heavy:
     name: Web E2E (${{ matrix.spec }})
-    runs-on: ${{ vars.CI_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -260,7 +283,7 @@ jobs:
   # slowest shard no longer waits on them after its own tests finish.
   www-screenshots:
     name: Marketing homepage screenshots
-    runs-on: ${{ vars.CI_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       e2e: ${{ steps.areas.outputs.e2e }}
@@ -297,7 +320,7 @@ jobs:
     name: Web E2E
     needs: [shard, heavy, www-screenshots]
     if: ${{ !cancelled() && (needs.shard.outputs.e2e != 'false' || needs.heavy.outputs.e2e != 'false' || needs.www-screenshots.outputs.e2e != 'false') }}
-    runs-on: ${{ vars.CI_LINUX_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
       group: ${{ inputs.publish_report && 'playwright-publication' || format('playwright-{0}', github.run_id) }}

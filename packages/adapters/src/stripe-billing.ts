@@ -5,6 +5,7 @@ import type {
   BillingCheckoutRequest,
   BillingCreditCheckoutRequest,
   BillingCreditPurchase,
+  BillingPlanPayment,
   BillingPrice,
   BillingProvider,
   BillingSubscriptionSnapshot,
@@ -278,7 +279,7 @@ export class StripeBillingProvider implements BillingProvider {
       metadata: { rakazo_credit_cents: String(amountCents) },
       proration_behavior: upgrading ? "always_invoice" : "none",
       payment_behavior: "error_if_incomplete",
-    });
+    }).catch(rethrowUncharged);
   }
 
   async createByokCheckout(input: BillingByokCheckoutRequest) {
@@ -604,6 +605,85 @@ export class StripeBillingProvider implements BillingProvider {
     return purchases;
   }
 
+  async listPlanPayments(customerId: string, since: Date): Promise<BillingPlanPayment[]> {
+    const customer = encodeURIComponent(customerId);
+    const created = Math.floor(since.getTime() / 1000);
+    const [invoices, charges] = await Promise.all([
+      this.listPages(
+        `/v1/invoices?customer=${customer}&status=paid&created[gte]=${created}`,
+        z.object({
+          id: z.string(),
+          currency: z.string(),
+          amount_paid: z.number().int(),
+          created: z.number().int(),
+          total_taxes: z.array(z.object({ amount: z.number().int() })).nullish(),
+          parent: z
+            .object({
+              subscription_details: z
+                .object({ metadata: z.record(z.string(), z.string()).nullish() })
+                .nullish(),
+            })
+            .nullish(),
+        }),
+      ),
+      this.listPages(
+        `/v1/charges?customer=${customer}&created[gte]=${created}`,
+        z.object({
+          payment_intent: z.string().nullable(),
+          disputed: z.boolean(),
+          refunded: z.boolean(),
+        }),
+      ),
+    ]);
+    // A dispute counts once lost: one the business wins keeps the payment, and the program
+    // cannot take back a withdrawal.
+    const lostDisputeIntents = new Set<string>();
+    for (const intent of new Set(
+      charges.filter((charge) => charge.disputed).map((charge) => charge.payment_intent),
+    )) {
+      if (!intent) continue;
+      const disputes = await this.listPages(
+        `/v1/disputes?payment_intent=${encodeURIComponent(intent)}`,
+        z.object({ status: z.string() }),
+      );
+      if (disputes.some((dispute) => dispute.status === "lost")) lostDisputeIntents.add(intent);
+    }
+    const reversedIntents = new Set(
+      charges
+        .filter(
+          (charge) =>
+            charge.payment_intent &&
+            (charge.refunded || lostDisputeIntents.has(charge.payment_intent)),
+        )
+        .map((charge) => charge.payment_intent),
+    );
+    const payments: BillingPlanPayment[] = [];
+    for (const invoice of invoices) {
+      if (
+        invoice.amount_paid <= 0 ||
+        invoice.parent?.subscription_details?.metadata?.[BYOK_PLAN_METADATA] !== "byok"
+      )
+        continue;
+      const tax = (invoice.total_taxes ?? []).reduce((sum, item) => sum + item.amount, 0);
+      const intents = reversedIntents.size
+        ? await this.listPages(
+            `/v1/invoice_payments?invoice=${encodeURIComponent(invoice.id)}&status=paid`,
+            z.object({ payment: z.object({ payment_intent: z.string().optional() }) }),
+          )
+        : [];
+      payments.push({
+        invoiceId: invoice.id,
+        amountCents: Math.max(0, invoice.amount_paid - tax),
+        currency: invoice.currency,
+        createdAt: fromSeconds(invoice.created)!,
+        reversed:
+          intents.length > 0 &&
+          intents.every((paid) => reversedIntents.has(paid.payment.payment_intent ?? null)),
+      });
+    }
+    return payments;
+  }
+
   private async listPages<T>(path: string, schema: z.ZodType<T>): Promise<T[]> {
     const rows: T[] = [];
     let after: string | undefined;
@@ -670,11 +750,7 @@ export class StripeBillingProvider implements BillingProvider {
     await this.request("POST", `/v1/subscriptions/${encodeURIComponent(chosen.subscription.id)}`, {
       trial_end: "now",
       payment_behavior: "error_if_incomplete",
-    }).catch((error: unknown) => {
-      if (error instanceof StripeRequestError && error.status === 402)
-        throw new BillingPaymentNotCompletedError({ cause: error });
-      throw error;
-    });
+    }).catch(rethrowUncharged);
   }
 
   async cancelCustomerSubscriptions(customerId: string) {
@@ -714,6 +790,13 @@ export class StripeBillingProvider implements BillingProvider {
       },
       `rakazo-balance-${referenceId}`,
     );
+  }
+
+  async customerForPayment(paymentId: string): Promise<string | null> {
+    const charge = z
+      .object({ customer: z.union([z.string(), z.object({ id: z.string() })]).nullable() })
+      .parse(await this.request("GET", `/v1/charges/${encodeURIComponent(paymentId)}`));
+    return typeof charge.customer === "string" ? charge.customer : (charge.customer?.id ?? null);
   }
 
   parseWebhook(rawBody: string, headers: Headers) {
@@ -987,7 +1070,7 @@ export function parseStripeWebhook(
   rawBody: string,
   headers: Headers,
   nowMs: number,
-): { customerId: string } | "ignored" | null {
+): { customerId: string } | { paymentId: string } | "ignored" | null {
   const parts = (headers.get("stripe-signature") ?? "").split(",").map((part) => part.split("="));
   const timestamp = Number(parts.find(([key]) => key === "t")?.[1]);
   if (!Number.isFinite(timestamp)) return null;
@@ -1018,7 +1101,11 @@ export function parseStripeWebhook(
       : typeof (customer as { id?: unknown } | undefined)?.id === "string"
         ? (customer as { id: string }).id
         : undefined;
-  return customerId ? { customerId } : "ignored";
+  if (customerId) return { customerId };
+  // A dispute names only its charge.
+  return object?.object === "dispute" && typeof object.charge === "string"
+    ? { paymentId: object.charge }
+    : "ignored";
 }
 
 export function stripeBillingConfigFromEnv(env: {
@@ -1065,4 +1152,11 @@ function isByokPlan(subscription: StripeSubscription) {
 function creditAmount(value: string | undefined): number | undefined {
   const parsed = HeldCreditAmountSchema.safeParse(Number(value));
   return parsed.success ? parsed.data : undefined;
+}
+
+/** Stripe answers 402 when `error_if_incomplete` leaves a declined or unconfirmed card uncharged. */
+function rethrowUncharged(error: unknown): never {
+  if (error instanceof StripeRequestError && error.status === 402)
+    throw new BillingPaymentNotCompletedError({ cause: error });
+  throw error;
 }

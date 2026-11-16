@@ -31,6 +31,7 @@ type Props = {
   name: string;
   initials: string | null;
   image?: string | null;
+  logos?: Array<{ name: string; logo?: string | null }>;
   email?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
