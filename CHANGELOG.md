@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
-- Model connection credentials are redacted from API failures, logs, and user-visible errors, including nested and unusually formatted provider responses. Payment-card redaction also covers printed American Express and Diners Club numbers.
+- Model connection credentials are redacted from API failures, logs, and user-visible errors, including nested and unusually formatted provider responses. Unexpected model and voice failures return safe client errors. Payment-card redaction also covers printed American Express and Diners Club numbers.
 - Team-chat labels and delegated memory are treated as outside content rather than instructions. Imported email owner instructions require verified sender information; routine messages retain their outside-content boundaries.
 - Cloud-agent assignments enforce tool permissions, while short approval replies apply only to the preceding request and voice refusals remain refusals.
 - Remote schema and OpenAPI imports have bounded responses; imported Page hook matching avoids pathological processing time.
@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Model connections expose context, output, vision, and reasoning settings; cloud connections can select a project and region. An optional Claude Code CLI provider supports a locally configured account.
 - Optional Google and Apple sign-in, a Labs ticket board, cloud-agent MCP sign-in, and mobile controls for revoking or using paired computers.
 - Self-hosted deployments can use Azure Blob storage and GPU-enabled Docker computers.
+- Optional backend affiliate attribution links referred signups to paid own-key plans and reconciles full refunds and lost disputes. Credit purchases are excluded; no affiliate program is advertised by this fork.
 
 ### Changed
 
@@ -40,7 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Workers recover more reliably after database outages, interrupted claimed runs, computer startup failures, and delivery retries.
+- Workers recover more reliably after database outages, interrupted claimed runs, computer startup failures, and delivery retries. Failed setup attempts retain a bounded, redacted reason through `run.setup_failed`.
+- Production workers can finish active turns during rolling deployment. Permanently failed background jobs emit `job.gave_up` and remain available for investigation for seven days after their final attempt.
 - Model streaming, tool response retries, and repeated-call handling avoid lost responses and retry loops.
 - Telegram and WhatsApp preserve long-message formatting; scheduled routines handle daylight-saving changes.
 - Navigation, search, save-and-refresh behavior, and compact reply previews are more reliable. Reply previews preserve complete grapheme clusters.
@@ -51,6 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Review the current Compose files before updating a customized deployment. Defaults now use `ghcr.io/saddletreeai/stirrup`; existing `RAKAZO_*` environment names and internal storage identifiers remain supported.
 - Run the normal database migration command before replacing application containers, and drain old workers after the replacements are healthy. Deferred migrations preserve the rolling-upgrade sequence; do not run extra migration passes to force them early.
+- `RUN_DRAIN_ENABLED` defaults to `true` in production Compose and permits up to five additional minutes for active turns. Start replacements first and preserve more than five minutes of shutdown grace; leave draining off for short-lived desktop stacks.
+- Affiliate reporting requires optional `DUB_API_KEY`; enabling it sends referred signup and payment details to the configured program. Its ledger survives account deletion for later reversals; partial refunds do not reverse commissions, and paid-out commissions require manual recovery. Marketing affiliate capture and the parent’s program link are not enabled in this fork.
 - Do not enable bot SMTP until old workers have drained. Do not edit the new per-model settings while old processes can still refresh those connections.
 - Ordinary rolling migrations do not convert existing vault values to wrapped keys. Explicit content-encryption migration requires stopping older APIs and workers first; consult the encryption documentation before running it.
 - The local Claude Code provider requires a compatible CLI (2.1.280 or newer) and locally configured credentials; official images do not bundle those credentials.
