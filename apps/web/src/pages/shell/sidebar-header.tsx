@@ -47,9 +47,7 @@ export function SidebarHeader({
       className={`app-drag flex items-center ${mini ? `flex-col gap-2 px-0 pb-2 ${hasWindowChrome ? "pt-4" : "pt-2"}` : "justify-between px-[18px] pb-3 pt-4"}`}
     >
       {!mini || hasWindowChrome ? <WindowChrome /> : null}
-      <div
-        className={`group/tools relative flex items-center ${mini ? "flex-col gap-0.5" : "gap-1"}`}
-      >
+      <div className={`relative flex items-center ${mini ? "flex-col gap-0.5" : "gap-1"}`}>
         {onSearch ? (
           <IconTooltip label={t`Search`}>
             <Button
@@ -65,41 +63,6 @@ export function SidebarHeader({
             </Button>
           </IconTooltip>
         ) : null}
-        <IconTooltip label={t`Activity`}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t`Activity`}
-            aria-pressed={activityMode}
-            data-activity-mode={activityMode ? "on" : "off"}
-            onClick={toggleActivityMode}
-            className={`app-no-drag ${activityMode ? "bg-accent text-foreground" : "text-muted-foreground"} ${mini || activityMode ? "" : "md:opacity-0 md:group-hover/tools:opacity-100 md:group-focus-within/tools:opacity-100"}`}
-          >
-            {/* A filled bell marks Activity on, so on and hovered never look alike. */}
-            <Bell
-              size={15}
-              strokeWidth={1.8}
-              fill={activityMode ? "currentColor" : "none"}
-              aria-hidden="true"
-            />
-          </Button>
-        </IconTooltip>
-        <IconTooltip label={toggleLabel}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className={`app-no-drag hidden text-muted-foreground md:inline-flex ${mini ? "" : "md:opacity-0 md:group-hover/tools:opacity-100 md:group-focus-within/tools:opacity-100"}`}
-            aria-label={toggleLabel}
-            data-testid={mini ? "restore-bots-sidebar" : "minimize-bots-sidebar"}
-            onClick={() => setBotsSidebarCollapsedPref(!mini)}
-          >
-            {mini ? (
-              <PanelLeftOpen size={15} strokeWidth={1.8} aria-hidden="true" />
-            ) : (
-              <PanelLeftClose size={15} strokeWidth={1.8} aria-hidden="true" />
-            )}
-          </Button>
-        </IconTooltip>
         <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
           <IconTooltip label={t`Create`}>
             <PopoverTrigger
@@ -148,6 +111,41 @@ export function SidebarHeader({
             </PopoverContent>
           ) : null}
         </Popover>
+        <IconTooltip label={t`Activity`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t`Activity`}
+            aria-pressed={activityMode}
+            data-activity-mode={activityMode ? "on" : "off"}
+            onClick={toggleActivityMode}
+            className={`app-no-drag ${activityMode ? "bg-accent text-foreground" : "text-muted-foreground"}`}
+          >
+            {/* A filled bell marks Activity on, so on and hovered never look alike. */}
+            <Bell
+              size={15}
+              strokeWidth={1.8}
+              fill={activityMode ? "currentColor" : "none"}
+              aria-hidden="true"
+            />
+          </Button>
+        </IconTooltip>
+        <IconTooltip label={toggleLabel}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="app-no-drag hidden text-muted-foreground md:inline-flex"
+            aria-label={toggleLabel}
+            data-testid={mini ? "restore-bots-sidebar" : "minimize-bots-sidebar"}
+            onClick={() => setBotsSidebarCollapsedPref(!mini)}
+          >
+            {mini ? (
+              <PanelLeftOpen size={15} strokeWidth={1.8} aria-hidden="true" />
+            ) : (
+              <PanelLeftClose size={15} strokeWidth={1.8} aria-hidden="true" />
+            )}
+          </Button>
+        </IconTooltip>
       </div>
     </div>
   );

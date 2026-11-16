@@ -182,7 +182,7 @@ const EN_ROSTER: RosterBot[] = [
     name: "Chief of Staff",
     color: "#8B93A8",
     slug: "rakazo/chief-of-staff",
-    desc: "Prepare briefings and coordinate your bots.",
+    desc: "Prepare briefings and coordinate your stirrups.",
   },
 ];
 
@@ -952,7 +952,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       },
       features: [
         { title: "Twój model", body: "Wybierz inny model dla każdego bota." },
-        { title: "Praca według harmonogramu", body: "Działa także wtedy, gdy Twój komputer jest wyłączony." },
+        { title: "Praca według harmonogramu", body: "Uruchamiaj procedury na serwerze, który pozostaje online." },
         { title: "Ty ustalasz granice", body: "Zdecyduj, które działania wymagają Twojej zgody." },
       ],
     },
@@ -1013,11 +1013,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "Czy mogę uruchomić model lokalnie?",
           answer:
             "Tak. Połącz bota z lokalnym serwerem zgodnym z OpenAI, np. Ollama lub LM Studio. Każdy bot może korzystać z innego modelu.",
-        },
-        {
-          question: "Co obejmuje plan w chmurze?",
-          answer:
-            "Komputer w chmurze i miesięczny limit godzin pracy, który rośnie wraz z planem. Jednocześnie może działać do 5 komputerów. Nie ma opłat za przekroczenie limitu.",
         },
       ],
     },
@@ -1111,7 +1106,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "Weekdays at 9:00", approval: "Approval required", approve: "Approve", deny: "Deny" },
       features: [
         { title: "Your model", body: "Choose a different model for each stirrup." },
-        { title: "Work on a schedule", body: "Keeps working while your computer is off." },
+        { title: "Work on a schedule", body: "Run routines on a server that stays online." },
         { title: "You set the limits", body: "Decide which actions need your approval." },
       ],
     },
@@ -1122,24 +1117,24 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mobile: "Mobile",
     },
     roster: {
-      eyebrow: "Your bot team",
-      heading: "Give each bot a job",
+      eyebrow: "Your stirrup team",
+      heading: "Give each stirrup a job",
       copy: "Start with a template. Make it yours.",
       bots: EN_ROSTER,
     },
     channels: {
       heading: "Message them anywhere",
-      copy: "Mention a bot in Slack or text it from your phone.",
+      copy: "Mention a stirrup in Slack or text it from your phone.",
       mock: { ask: "who needs a follow-up today?", reply: "Three leads went quiet this week. Drafts are in the thread." },
     },
     features: {
       heading: "More than chat",
       items: {
-        call: { title: "It calls you", body: "When something needs you, your bot calls you in the app. Talk it through." },
+        call: { title: "It calls you", body: "When something needs you, your stirrup calls you in the app. Talk it through." },
         apps: { title: "Works in your apps", body: "Connect Gmail, GitHub, Notion, and any MCP server." },
-        memory: { title: "Remembers", body: "Bots keep what they learn and share it with the team." },
+        memory: { title: "Remembers", body: "Stirrups keep what they learn and share it with the team." },
         triggers: { title: "Wakes up on its own", body: "On a schedule, a webhook, a GitHub event, or a change it watches." },
-        team: { title: "Hands off work", body: "Bots delegate to each other and work together in groups." },
+        team: { title: "Hands off work", body: "Stirrups delegate to each other and work together in groups." },
         teach: { title: "Learns by watching", body: "Show a task once on its computer. It saves the steps as a skill." },
       },
       mock: {
@@ -1164,12 +1159,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         {
           question: "Can I run a local model?",
           answer:
-            "Yes. Point a bot at a local OpenAI-compatible server such as Ollama or LM Studio. Each bot can use a different model.",
-        },
-        {
-          question: "What does the hosted plan include?",
-          answer:
-            "A cloud computer and a monthly allowance of computer hours that grows with your plan, with up to 5 computers running at once. There are no overage charges.",
+            "Yes. Point a stirrup at a local OpenAI-compatible server such as Ollama or LM Studio. Each stirrup can use a different model.",
         },
       ],
     },
@@ -1182,7 +1172,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       cloudBadge: "Beta",
     },
     cta: {
-      heading: "Meet your first bot",
+      heading: "Meet your first stirrup",
       copy: "Hand over your next task.",
       openSourceValue: "Open source",
       selfHostValue: "Self-host",
@@ -1264,7 +1254,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "Mo–Fr um 9:00", approval: "Freigabe erforderlich", approve: "Genehmigen", deny: "Ablehnen" },
       features: [
         { title: "Dein Modell", body: "Wähle für jeden Bot ein anderes Modell." },
-        { title: "Arbeitet nach Zeitplan", body: "Arbeitet weiter, auch wenn dein Computer aus ist." },
+        { title: "Arbeitet nach Zeitplan", body: "Führe Routinen auf einem Server aus, der online bleibt." },
         { title: "Du setzt die Grenzen", body: "Bestimme, welche Aktionen deine Freigabe brauchen." },
       ],
     },
@@ -1322,11 +1312,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "Kann ich ein lokales Modell nutzen?",
           answer:
             "Ja. Richte einen Bot auf einen lokalen OpenAI-kompatiblen Server wie Ollama oder LM Studio. Jeder Bot kann ein anderes Modell nutzen.",
-        },
-        {
-          question: "Was ist im gehosteten Plan enthalten?",
-          answer:
-            "Ein Cloud-Computer und ein monatliches Kontingent an Computerstunden, das mit deinem Tarif wächst, mit bis zu 5 gleichzeitig laufenden Computern. Es gibt keine Zusatzkosten.",
         },
       ],
     },
@@ -1420,7 +1405,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "평일 9:00", approval: "승인 필요", approve: "승인", deny: "거부" },
       features: [
         { title: "원하는 모델", body: "봇마다 다른 모델을 선택하세요." },
-        { title: "예약한 시간에 실행", body: "컴퓨터가 꺼져 있어도 계속 일합니다." },
+        { title: "예약한 시간에 실행", body: "온라인 상태를 유지하는 서버에서 루틴을 실행하세요." },
         { title: "내가 정하는 권한", body: "승인이 필요한 작업을 정하세요." },
       ],
     },
@@ -1478,11 +1463,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "로컬 모델을 쓸 수 있나요?",
           answer:
             "네. Ollama나 LM Studio 같은 로컬 OpenAI 호환 서버에 봇을 연결하세요. 봇마다 다른 모델을 쓸 수 있습니다.",
-        },
-        {
-          question: "호스팅 플랜에는 무엇이 포함되나요?",
-          answer:
-            "클라우드 컴퓨터와 플랜에 따라 늘어나는 월 컴퓨터 시간이 포함되며, 컴퓨터는 최대 5대까지 동시에 실행할 수 있습니다. 초과 요금은 없습니다.",
         },
       ],
     },
@@ -1576,7 +1556,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "工作日 9:00", approval: "需要审批", approve: "批准", deny: "拒绝" },
       features: [
         { title: "自选模型", body: "为每个 Bot 选择不同的模型。" },
-        { title: "按时自动执行", body: "电脑关机时也照常工作。" },
+        { title: "按时自动执行", body: "在保持在线的服务器上运行例行任务。" },
         { title: "由你设定权限", body: "决定哪些操作需要你批准。" },
       ],
     },
@@ -1634,11 +1614,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "可以用本地模型吗？",
           answer:
             "可以。把 Bot 指向 Ollama 或 LM Studio 这类本地 OpenAI 兼容服务。每个 Bot 可以使用不同的模型。",
-        },
-        {
-          question: "托管套餐包含什么？",
-          answer:
-            "一台云计算机，以及随套餐增加的每月计算机小时，最多同时运行 5 台计算机。没有超额费用。",
         },
       ],
     },
@@ -1733,7 +1708,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "平日 9:00", approval: "承認が必要", approve: "承認", deny: "拒否" },
       features: [
         { title: "好きなモデルで", body: "ボットごとに別のモデルを選べます。" },
-        { title: "スケジュールどおりに実行", body: "コンピューターの電源が切れていても動き続けます。" },
+        { title: "スケジュールどおりに実行", body: "オンラインを維持するサーバーでルーチンを実行できます。" },
         { title: "制限はあなたが決める", body: "どの操作に承認が必要かを決められます。" },
       ],
     },
@@ -1791,11 +1766,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "ローカルモデルを使えますか？",
           answer:
             "はい。Ollama や LM Studio などのローカルの OpenAI 互換サーバーにボットを接続できます。ボットごとに別のモデルを使えます。",
-        },
-        {
-          question: "ホスト型プランには何が含まれますか？",
-          answer:
-            "クラウドコンピューターと、プランに応じて増える毎月のコンピューター時間が含まれ、同時に 5 台までコンピューターを使えます。超過料金はありません。",
         },
       ],
     },
@@ -1890,7 +1860,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "Días laborables a las 9:00", approval: "Requiere aprobación", approve: "Aprobar", deny: "Denegar" },
       features: [
         { title: "Tu modelo", body: "Elige un modelo distinto para cada bot." },
-        { title: "Trabaja según un horario", body: "Sigue trabajando con tu computadora apagada." },
+        { title: "Trabaja según un horario", body: "Ejecuta rutinas en un servidor que permanece conectado." },
         { title: "Tú pones los límites", body: "Decide qué acciones necesitan tu aprobación." },
       ],
     },
@@ -1948,11 +1918,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "¿Puedo usar un modelo local?",
           answer:
             "Sí. Conecta un bot a un servidor local compatible con OpenAI, como Ollama o LM Studio. Cada bot puede usar un modelo distinto.",
-        },
-        {
-          question: "¿Qué incluye el plan alojado?",
-          answer:
-            "Una computadora en la nube y una asignación mensual de horas de computadora que crece con tu plan, con hasta 5 computadoras funcionando a la vez. No hay cargos por exceso.",
         },
       ],
     },
@@ -2047,7 +2012,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "Jours ouvrés à 9:00", approval: "Approbation requise", approve: "Approuver", deny: "Refuser" },
       features: [
         { title: "Votre modèle", body: "Choisissez un modèle différent pour chaque bot." },
-        { title: "Travaille selon un planning", body: "Continue de travailler, même ordinateur éteint." },
+        { title: "Travaille selon un planning", body: "Exécutez des routines sur un serveur qui reste en ligne." },
         { title: "Vous fixez les limites", body: "Décidez quelles actions nécessitent votre approbation." },
       ],
     },
@@ -2105,11 +2070,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "Puis-je utiliser un modèle local ?",
           answer:
             "Oui. Reliez un bot à un serveur local compatible OpenAI comme Ollama ou LM Studio. Chaque bot peut utiliser un modèle différent.",
-        },
-        {
-          question: "Que comprend l’offre hébergée ?",
-          answer:
-            "Un ordinateur cloud et un forfait mensuel d’heures-ordinateur qui augmente avec votre offre, avec jusqu’à 5 ordinateurs en même temps. Il n’y a aucun frais de dépassement.",
         },
       ],
     },
@@ -2204,7 +2164,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "Dias úteis às 9:00", approval: "Aprovação necessária", approve: "Aprovar", deny: "Negar" },
       features: [
         { title: "Seu modelo", body: "Escolha um modelo diferente para cada bot." },
-        { title: "Trabalha com agendamento", body: "Continua trabalhando com seu computador desligado." },
+        { title: "Trabalha com agendamento", body: "Execute rotinas em um servidor que permanece online." },
         { title: "Você define os limites", body: "Decida quais ações precisam da sua aprovação." },
       ],
     },
@@ -2262,11 +2222,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "Posso usar um modelo local?",
           answer:
             "Sim. Aponte um bot para um servidor local compatível com OpenAI, como Ollama ou LM Studio. Cada bot pode usar um modelo diferente.",
-        },
-        {
-          question: "O que o plano hospedado inclui?",
-          answer:
-            "Um computador na nuvem e uma cota mensal de horas de computador que cresce com o seu plano, com até 5 computadores rodando ao mesmo tempo. Não há cobrança por excedente.",
         },
       ],
     },
@@ -2361,7 +2316,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "Werkdagen om 9:00", approval: "Goedkeuring vereist", approve: "Goedkeuren", deny: "Weigeren" },
       features: [
         { title: "Jouw model", body: "Kies voor elke bot een ander model." },
-        { title: "Werkt volgens schema", body: "Blijft werken, ook als je computer uit staat." },
+        { title: "Werkt volgens schema", body: "Voer routines uit op een server die online blijft." },
         { title: "Jij bepaalt de grenzen", body: "Bepaal welke acties jouw goedkeuring nodig hebben." },
       ],
     },
@@ -2419,11 +2374,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "Kan ik een lokaal model draaien?",
           answer:
             "Ja. Laat een bot naar een lokale OpenAI-compatibele server wijzen, zoals Ollama of LM Studio. Elke bot kan een ander model gebruiken.",
-        },
-        {
-          question: "Wat zit er in het gehoste abonnement?",
-          answer:
-            "Een cloudcomputer en een maandelijks tegoed aan computeruren dat meegroeit met je abonnement, met tot 5 computers tegelijk. Er zijn geen extra kosten bij overschrijding.",
         },
       ],
     },
@@ -2518,7 +2468,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "По будням в 9:00", approval: "Требуется одобрение", approve: "Утвердить", deny: "Запретить" },
       features: [
         { title: "Ваша модель", body: "Выберите свою модель для каждого бота." },
-        { title: "Работа по расписанию", body: "Работает, даже когда компьютер выключен." },
+        { title: "Работа по расписанию", body: "Запускайте задачи на сервере, который остаётся в сети." },
         { title: "Границы задаёте вы", body: "Решайте, какие действия требуют вашего одобрения." },
       ],
     },
@@ -2576,11 +2526,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "Можно ли запустить локальную модель?",
           answer:
             "Да. Направьте бота на локальный OpenAI-совместимый сервер, например Ollama или LM Studio. Каждый бот может использовать свою модель.",
-        },
-        {
-          question: "Что входит в облачный тариф?",
-          answer:
-            "Облачный компьютер и месячный запас компьютеро-часов, который растёт вместе с тарифом, и до 5 компьютеров одновременно. Платы за превышение нет.",
         },
       ],
     },
@@ -2675,7 +2620,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "Hafta içi 9:00'da", approval: "Onay gerekli", approve: "Onayla", deny: "Reddet" },
       features: [
         { title: "Sizin modeliniz", body: "Her bot için farklı bir model seçin." },
-        { title: "Zamanlanmış çalışma", body: "Bilgisayarınız kapalıyken bile çalışır." },
+        { title: "Zamanlanmış çalışma", body: "Çevrimiçi kalan bir sunucuda rutinleri çalıştırın." },
         { title: "Sınırları siz belirlersiniz", body: "Hangi işlemlerin onayınızı gerektirdiğine karar verin." },
       ],
     },
@@ -2733,11 +2678,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "Yerel bir model çalıştırabilir miyim?",
           answer:
             "Evet. Bir botu Ollama veya LM Studio gibi yerel bir OpenAI uyumlu sunucuya yönlendirin. Her bot farklı bir model kullanabilir.",
-        },
-        {
-          question: "Barındırılan plana neler dahil?",
-          answer:
-            "Bir bulut bilgisayar ve planınızla birlikte artan aylık bilgisayar saati hakkı; aynı anda en fazla 5 bilgisayar çalışabilir. Aşım ücreti yok.",
         },
       ],
     },
@@ -2832,7 +2772,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "שני עד שישי ב-9:00", approval: "נדרש אישור", approve: "אישור", deny: "דחייה" },
       features: [
         { title: "המודל שלך", body: "אפשר לבחור מודל אחר לכל בוט." },
-        { title: "עבודה לפי לוח זמנים", body: "ממשיך לעבוד גם כשהמחשב שלך כבוי." },
+        { title: "עבודה לפי לוח זמנים", body: "הפעילו שגרות בשרת שנשאר מקוון." },
         { title: "הגבולות בידיים שלך", body: "קובעים אילו פעולות דורשות את האישור שלך." },
       ],
     },
@@ -2890,11 +2830,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "אפשר להריץ מודל מקומי?",
           answer:
             "כן. מכוונים בוט לשרת מקומי תואם OpenAI כמו Ollama או LM Studio. כל בוט יכול להשתמש במודל אחר.",
-        },
-        {
-          question: "מה כולל המסלול המנוהל?",
-          answer:
-            "מחשב ענן ומכסה חודשית של שעות מחשב שגדלה עם המסלול שלך, עם עד 5 מחשבים שרצים במקביל. אין חיובים על חריגה.",
         },
       ],
     },
@@ -2989,7 +2924,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "कार्यदिवस, 9:00 बजे", approval: "अनुमोदन ज़रूरी", approve: "अनुमोदित करें", deny: "अस्वीकार करें" },
       features: [
         { title: "आपका मॉडल", body: "हर बॉट के लिए अलग मॉडल चुनें।" },
-        { title: "शेड्यूल पर काम", body: "आपका कंप्यूटर बंद होने पर भी काम चलता रहता है।" },
+        { title: "शेड्यूल पर काम", body: "ऑनलाइन रहने वाले सर्वर पर रूटीन चलाएँ।" },
         { title: "सीमाएं आप तय करें", body: "तय करें कि किन कार्रवाइयों के लिए आपका अनुमोदन चाहिए।" },
       ],
     },
@@ -3047,11 +2982,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "क्या लोकल मॉडल चलाया जा सकता है?",
           answer:
             "हाँ। बॉट को Ollama या LM Studio जैसे किसी लोकल OpenAI-संगत सर्वर से जोड़ें। हर बॉट अलग मॉडल इस्तेमाल कर सकता है।",
-        },
-        {
-          question: "होस्टेड प्लान में क्या शामिल है?",
-          answer:
-            "एक क्लाउड कंप्यूटर और हर महीने कंप्यूटर-घंटों का कोटा, जो आपके प्लान के साथ बढ़ता है, और एक साथ 5 कंप्यूटर तक चल सकते हैं। कोई ओवरेज शुल्क नहीं है।",
         },
       ],
     },
@@ -3145,7 +3075,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       mock: { weekdays: "工作日 9:00", approval: "需要核准", approve: "核准", deny: "拒絕" },
       features: [
         { title: "自選模型", body: "為每個機器人選擇不同的模型。" },
-        { title: "依排程執行", body: "電腦關機時也照常工作。" },
+        { title: "依排程執行", body: "在保持連線的伺服器上執行例行任務。" },
         { title: "由你設定界線", body: "決定哪些動作需要你核准。" },
       ],
     },
@@ -3203,11 +3133,6 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
           question: "可以執行本機模型嗎？",
           answer:
             "可以。將機器人指向 Ollama 或 LM Studio 等本機 OpenAI 相容伺服器。每個機器人都可以使用不同的模型。",
-        },
-        {
-          question: "託管方案包含哪些內容？",
-          answer:
-            "一台雲端電腦，以及隨方案增加的每月電腦小時，最多同時執行 5 台電腦。沒有超額費用。",
         },
       ],
     },

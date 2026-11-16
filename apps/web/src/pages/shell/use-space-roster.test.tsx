@@ -3,7 +3,16 @@
 import type { AppBootstrap, Bot, Group } from "@rakazo/contracts";
 import { deferred } from "@rakazo/core/test-async";
 import type { ComponentType } from "react";
-import { act, lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
+import {
+  act,
+  Fragment,
+  lazy,
+  StrictMode,
+  Suspense,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import type { NavigateFunction } from "react-router-dom";
@@ -204,21 +213,24 @@ function stillLoading(Page: ComponentType) {
  */
 async function openApp(
   path: string,
-  { Onboarding = OnboardingPage, Artifacts = ArtifactsPage } = {},
+  { Onboarding = OnboardingPage, Artifacts = ArtifactsPage, strict = false } = {},
 ) {
   window.history.replaceState({ idx: 0 }, "", path);
+  const Mode = strict ? StrictMode : Fragment;
   await act(async () =>
     root.render(
-      <BrowserRouter useTransitions={false}>
-        <Suspense fallback={null}>
-          <Routes>
-            <Route path="/app" element={<ShellPage />} />
-            <Route path="/app/:botId" element={<ShellPage />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/app/artifacts" element={<Artifacts />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>,
+      <Mode>
+        <BrowserRouter useTransitions={false}>
+          <Suspense fallback={null}>
+            <Routes>
+              <Route path="/app" element={<ShellPage />} />
+              <Route path="/app/:botId" element={<ShellPage />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/app/artifacts" element={<Artifacts />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </Mode>,
     ),
   );
 }
@@ -300,6 +312,26 @@ afterEach(() => {
 });
 
 describe("a roster re-read while the shell opens a chat in another space", () => {
+  it("keeps a cancelled StrictMode load from releasing roster signals early", async () => {
+    const discarded = deferred<AppBootstrap>();
+    const current = deferred<AppBootstrap>();
+    state.take.mockReturnValueOnce(discarded.promise).mockReturnValueOnce(current.promise);
+    await openApp("/app/sales", { strict: true });
+    await rosterSignal();
+    await act(async () => {
+      discarded.resolve(bootstrapOf("personal", "sales"));
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(window.location.pathname).toBe("/app/sales");
+    await act(async () => {
+      current.resolve(bootstrapOf("personal", "sales"));
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    await finishLoadingSpace();
+    expect(state.space).toBe("work");
+    expect(window.location.pathname).toBe("/app/sales");
+  });
+
   it.each([
     ["the signal", rosterSignal],
     ["the window's focus", windowFocus],
