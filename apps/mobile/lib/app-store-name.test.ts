@@ -26,7 +26,7 @@ describe("existing App Store name", () => {
         data: {
           type: "appInfoLocalizations",
           id: "draft-en",
-          attributes: { name: "Stirrup" },
+          attributes: { name: "Stirrup", privacyPolicyUrl: "https://saddletree.ai/privacy" },
         },
       });
       return Response.json({ data: {} });
@@ -44,7 +44,12 @@ describe("existing App Store name", () => {
       Response.json({
         data: String(input).includes("/apps/")
           ? [{ id: "draft", attributes: { appStoreState: "PREPARE_FOR_SUBMISSION" } }]
-          : [{ id: "en", attributes: { name: "Stirrup" } }],
+          : [
+              {
+                id: "en",
+                attributes: { name: "Stirrup", privacyPolicyUrl: "https://saddletree.ai/privacy" },
+              },
+            ],
       }),
     );
     await expect(
@@ -58,5 +63,28 @@ describe("existing App Store name", () => {
     await expect(
       updateAppStoreName({ appId: "123", name: "Stirrup", token: "fake", fetchImpl }),
     ).rejects.toThrow("App Store metadata request failed (403).");
+  });
+
+  it("updates an old privacy link even when the listing is already named Stirrup", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      if (options?.method === "PATCH") return Response.json({ data: {} });
+      return Response.json({
+        data: String(input).includes("/apps/")
+          ? [{ id: "draft", attributes: { appStoreState: "PREPARE_FOR_SUBMISSION" } }]
+          : [
+              {
+                id: "en",
+                attributes: { name: "Stirrup", privacyPolicyUrl: "https://old.example" },
+              },
+            ],
+      });
+    });
+    await expect(
+      updateAppStoreName({ appId: "123", name: "Stirrup", token: "fake", fetchImpl }),
+    ).resolves.toEqual({ changed: 1, current: 0 });
+    const patch = fetchImpl.mock.calls.find(([, options]) => options?.method === "PATCH");
+    expect(JSON.parse(String(patch?.[1]?.body)).data.attributes.privacyPolicyUrl).toBe(
+      "https://saddletree.ai/privacy",
+    );
   });
 });

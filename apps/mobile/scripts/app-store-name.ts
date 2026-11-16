@@ -1,7 +1,9 @@
 import { createPrivateKey, sign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-/** Rename the existing listing; never create an app or submit it for public review. */
+const PRIVACY_POLICY_URL = "https://saddletree.ai/privacy";
+
+/** Update the existing listing's brand; never create an app or submit it for public review. */
 export async function updateAppStoreName({
   appId,
   name,
@@ -35,23 +37,30 @@ export async function updateAppStoreName({
     "DEVELOPER_REJECTED",
   ]);
   for (const info of infos.data) {
-    const localizations = await request<{ data: { id: string; attributes: { name: string } }[] }>(
-      `appInfos/${encodeURIComponent(info.id)}/appInfoLocalizations?limit=200`,
-    );
+    const localizations = await request<{
+      data: { id: string; attributes: { name: string; privacyPolicyUrl?: string | null } }[];
+    }>(`appInfos/${encodeURIComponent(info.id)}/appInfoLocalizations?limit=200`);
     for (const locale of localizations.data) {
-      if (locale.attributes.name === name) {
+      if (
+        locale.attributes.name === name &&
+        locale.attributes.privacyPolicyUrl === PRIVACY_POLICY_URL
+      ) {
         current++;
         continue;
       }
       if (!editable.has(info.attributes.appStoreState)) continue;
       await request(`appInfoLocalizations/${encodeURIComponent(locale.id)}`, {
-        data: { type: "appInfoLocalizations", id: locale.id, attributes: { name } },
+        data: {
+          type: "appInfoLocalizations",
+          id: locale.id,
+          attributes: { name, privacyPolicyUrl: PRIVACY_POLICY_URL },
+        },
       });
       changed++;
     }
   }
   if (!changed && !current)
-    throw new Error("The app name is not editable in its current App Store state.");
+    throw new Error("The app metadata is not editable in its current App Store state.");
   return { changed, current };
 }
 
