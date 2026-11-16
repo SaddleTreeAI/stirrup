@@ -63,7 +63,21 @@ jobs:
       - name: Build the configured fork
         if: ${{ !inputs.metadata_only }}
         working-directory: apps/mobile
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          EXPO_ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
+          EXPO_APPLE_TEAM_ID: ${{ secrets.MOBILE_APPLE_TEAM_ID }}
         run: |
+          export EXPO_ASC_API_KEY_PATH="$RUNNER_TEMP/mobile-signing-key.p8"
+          trap 'rm -f "$EXPO_ASC_API_KEY_PATH"' EXIT
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          const pem = process.env.APPLE_API_KEY_P8;
+          if (!pem || !process.env.EXPO_APPLE_TEAM_ID) throw new Error('Mobile signing credentials are incomplete.');
+          writeFileSync(process.env.EXPO_ASC_API_KEY_PATH, pem.includes('BEGIN PRIVATE KEY') ? pem : Buffer.from(pem, 'base64'), { mode: 0o600 });
+          JS
+          unset APPLE_API_KEY_P8
           if ! eas build --platform ios --profile fork-testflight --non-interactive --wait --json > "$RUNNER_TEMP/fork-build.json" 2> "$RUNNER_TEMP/fork-build.log"; then
             echo 'Mobile build failed. Review the build service dashboard.' >&2
             exit 1
