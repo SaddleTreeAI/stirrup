@@ -55,12 +55,12 @@ jobs:
             const exact = ids.filter(b=>b.attributes.identifier === config.bundleIdentifier);
             if (exact.length !== 1) throw new Error();
             const id = exact[0].id;
-            const caps = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities?limit=200`, 'capabilities');
+            const caps = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities`, 'capabilities');
             if (!caps.some(c => c.attributes.capabilityType === 'APPLE_ID_AUTH')) {
               await read('bundleIdCapabilities', 'enableAppleSignIn', {data:{type:'bundleIdCapabilities',attributes:{capabilityType:'APPLE_ID_AUTH',settings:[{key:'TIBURON_APP_CONSENT',options:[{key:'PRIMARY_APP_CONSENT',enabled:true}]}]},relationships:{bundleId:{data:{type:'bundleIds',id}}}}});
               console.log('Enabled Sign in with Apple for the verified existing app.');
             } else console.log('Sign in with Apple was already enabled.');
-            const verified = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities?limit=200`, 'verifyCapability');
+            const verified = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities`, 'verifyCapability');
             if (!verified.some(c => c.attributes.capabilityType === 'APPLE_ID_AUTH')) throw new Error();
             console.log('Required capability verified.');
           } catch {
