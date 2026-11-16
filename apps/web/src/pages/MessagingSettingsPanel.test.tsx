@@ -279,7 +279,7 @@ it("connects Slack to the default bot through workspace authorization", async ()
   try {
     await renderOverlay();
     const buttons = [...container.querySelectorAll("button")];
-    expect(container.textContent).toContain("Chat with your bot from Slack.");
+    expect(container.textContent).toContain("Chat with your stirrup from Slack.");
     expect(buttons.filter((button) => button.textContent === "Connect")).toHaveLength(1);
     expect(
       buttons.some((button) =>
