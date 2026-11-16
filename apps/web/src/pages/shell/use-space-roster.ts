@@ -453,7 +453,10 @@ export function useSpaceBootstrap({
           if (!cancelled) setInitialLoadFailed(true);
         });
       })
-      .finally(() => rosterSignals.firstLoadSettled());
+      .finally(() => {
+        // A discarded StrictMode load must not release signals ahead of the current load.
+        if (!cancelled) rosterSignals.firstLoadSettled();
+      });
     let refreshTimer: number | undefined;
     const refreshVisibleBots = () => {
       if (document.visibilityState !== "visible" && !callsEnabledRef.current) return;
