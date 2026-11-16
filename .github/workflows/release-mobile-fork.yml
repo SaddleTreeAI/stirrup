@@ -50,10 +50,11 @@ jobs:
             }
             const app = await read(`apps/${encodeURIComponent(appId)}`, 'existingApp');
             if (app.attributes.bundleId !== config.bundleIdentifier) throw new Error();
-            const ids = await read(`bundleIds?filter[identifier]=${encodeURIComponent(config.bundleIdentifier)}&limit=2`, 'existingBundle');
+            const ids = await read(`bundleIds?filter[identifier]=${encodeURIComponent(config.bundleIdentifier)}&limit=200`, 'existingBundle');
             console.log(JSON.stringify({resource:'existingBundle',count:ids.length,exactMatches:ids.filter(b=>b.attributes.identifier===config.bundleIdentifier).length}));
-            if (ids.length !== 1 || ids[0].attributes.identifier !== config.bundleIdentifier) throw new Error();
-            const id = ids[0].id;
+            const exact = ids.filter(b=>b.attributes.identifier === config.bundleIdentifier);
+            if (exact.length !== 1) throw new Error();
+            const id = exact[0].id;
             const caps = await read(`bundleIds/${encodeURIComponent(id)}/bundleIdCapabilities?limit=200`, 'capabilities');
             if (!caps.some(c => c.attributes.capabilityType === 'APPLE_ID_AUTH')) {
               await read('bundleIdCapabilities', 'enableAppleSignIn', {data:{type:'bundleIdCapabilities',attributes:{capabilityType:'APPLE_ID_AUTH',settings:[{key:'TIBURON_APP_CONSENT',options:[{key:'PRIMARY_APP_CONSENT',enabled:true}]}]},relationships:{bundleId:{data:{type:'bundleIds',id}}}}});
