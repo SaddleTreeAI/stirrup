@@ -50,8 +50,8 @@ test("desktop account menu shows separate accounts on the same host", async ({
   await page.getByTestId("user-menu-trigger").click();
   const profiles = page.getByTestId("desktop-account-profiles");
   await expect(profiles).toBeVisible();
-  const personal = profiles.getByRole("button", { name: /Personal account/ });
-  const pokebedrock = profiles.getByRole("button", { name: /PokéBedrock account/ });
+  const personal = profiles.getByRole("button", { name: /^Personal account https:/ });
+  const pokebedrock = profiles.getByRole("button", { name: /^PokéBedrock account https:/ });
   await expect(personal).toHaveAttribute("aria-current", "true");
   await expect(pokebedrock).not.toHaveAttribute("aria-current", "true");
   await expect(profiles.getByText("https://stirrup.example.test", { exact: true })).toHaveCount(2);
