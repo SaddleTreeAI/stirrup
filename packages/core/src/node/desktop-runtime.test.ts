@@ -122,6 +122,18 @@ function fixture() {
   return { root, run, ensure, release };
 }
 
+describe("shellQuote", () => {
+  it("keeps shell syntax inside one literal argument", () => {
+    const value = `value with 'quotes'; printf injected >&2; $(printf command-substitution)`;
+    const result = spawnSync("bash", ["-c", `printf '%s' ${shellQuote(value)}`], {
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(value);
+    expect(result.stderr).toBe("");
+  });
+});
+
 describe("shared Linux desktop lifecycle", () => {
   it("runs work on the matching assignment without changing its lease and preserves stdin", () => {
     const f = fixture();

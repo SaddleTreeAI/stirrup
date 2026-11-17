@@ -1409,12 +1409,13 @@ export async function newVaultItemName(
   base: string,
   kind: string,
 ): Promise<string> {
-  const slug = base
+  let slug = base
     .normalize("NFKD")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^[^a-z]+|-+$/g, "")
-    .slice(0, 56);
+    .replace(/[^a-z0-9]+/g, "-");
+  slug = slug.replace(/^[^a-z]+/, "");
+  if (slug.endsWith("-")) slug = slug.slice(0, -1);
+  slug = slug.slice(0, 56);
   const stem = slug || kind;
   const taken = new Set(
     (

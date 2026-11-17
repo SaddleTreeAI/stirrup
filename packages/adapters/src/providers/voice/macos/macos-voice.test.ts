@@ -43,6 +43,10 @@ describe("parseSayVoices", () => {
       { id: "Eddy (English (US))", label: "Eddy (English (US))", description: "en_US" },
     ]);
   });
+
+  it("ignores a long malformed row without backtracking through repeated whitespace", () => {
+    expect(parseSayVoices(`a${"\t".repeat(50_000)}`)).toEqual([]);
+  });
 });
 
 describe("MacOsVoiceProvider", () => {

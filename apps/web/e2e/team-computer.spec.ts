@@ -23,7 +23,7 @@ test("opening and releasing the computer keep a view-only stream; a failed relea
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
   const chrome = page.getByTestId("computer-chrome");
-  const screen = page.getByTitle("Bot screen").last();
+  const screen = page.getByTitle("Stirrup screen").last();
   const take = chrome.getByRole("button", { name: "Take control", exact: true });
   const release = chrome.getByRole("button", { name: "Hand back control", exact: true });
   // The overlay covers the conversation header, which drags the desktop window.

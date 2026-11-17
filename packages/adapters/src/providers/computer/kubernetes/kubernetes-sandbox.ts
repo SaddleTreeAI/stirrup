@@ -705,13 +705,14 @@ function loadKubernetes(): Promise<typeof KubernetesClient> {
 }
 
 function podNameForBot(botId: string): string {
-  const normalized = botId
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9-]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "")
-    .slice(0, 40);
+  const normalized = botId.toLowerCase().replaceAll(/[^a-z0-9-]+/g, "-");
+  let start = 0;
+  let end = normalized.length;
+  while (start < end && normalized[start] === "-") start++;
+  while (end > start && normalized[end - 1] === "-") end--;
+  const slug = normalized.slice(start, end).slice(0, 40);
   const hash = createHash("sha256").update(botId).digest("hex").slice(0, 12);
-  return `rakazo-${normalized || "bot"}-${hash}`;
+  return `rakazo-${slug || "bot"}-${hash}`;
 }
 
 /** The data directory holds `homes/<bot id>`; a bot id must name exactly one folder. */

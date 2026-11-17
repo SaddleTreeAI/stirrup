@@ -118,7 +118,19 @@ export function PluginRow({
 
 function sourceHref(source: string, sha: string | undefined) {
   const [repo, subdir] = source.split("#");
-  return subdir ? `${repo}/tree/${sha ?? "HEAD"}/${subdir}` : repo;
+  if (!repo) return undefined;
+  let url: URL;
+  try {
+    url = new URL(repo);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "https:" || url.username || url.password) return undefined;
+  if (subdir) {
+    const path = subdir.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}/tree/${encodeURIComponent(sha ?? "HEAD")}/${path}`;
+  }
+  return url.href;
 }
 
 const SKILLS_SHOWN = 5;
@@ -188,6 +200,7 @@ export function PluginDetail({
   const parsed = install ? PluginPreviewSchema.safeParse(install.config) : null;
   const detail = parsed?.success ? parsed.data : preview;
   const installed = Boolean(install);
+  const sourceUrl = sourceHref(selection.installedSource, detail?.resolvedSha);
 
   useEffect(() => {
     if (installed) return;
@@ -407,16 +420,18 @@ export function PluginDetail({
           <h2 className="truncate text-heading2 font-semibold text-foreground">
             {managed?.name ?? selection.name}
           </h2>
-          <a
-            href={sourceHref(selection.installedSource, detail?.resolvedSha)}
-            target="_blank"
-            rel="noreferrer"
-            title={detail ? `${selection.installedSource}@${detail.resolvedSha}` : undefined}
-            className="inline-flex items-center gap-1 text-body text-muted-foreground hover:text-foreground"
-          >
-            <Trans>View source</Trans>
-            <ArrowUpRight size={14} />
-          </a>
+          {sourceUrl ? (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={detail ? `${selection.installedSource}@${detail.resolvedSha}` : undefined}
+              className="inline-flex items-center gap-1 text-body text-muted-foreground hover:text-foreground"
+            >
+              <Trans>View source</Trans>
+              <ArrowUpRight size={14} />
+            </a>
+          ) : null}
         </div>
         <div className="flex shrink-0 gap-2 pt-2">{headerAction()}</div>
       </div>

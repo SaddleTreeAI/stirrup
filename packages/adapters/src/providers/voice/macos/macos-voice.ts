@@ -48,10 +48,17 @@ export function macOsSayAvailable(): boolean {
 export function parseSayVoices(output: string): VoiceInfo[] {
   const voices: VoiceInfo[] = [];
   for (const line of output.split("\n")) {
-    const match = /^(.+?)\s+([a-z]{2,3}[_-][A-Za-z0-9_-]+)\s+#/.exec(line);
-    const name = match?.[1]?.trim();
-    if (!name || !match?.[2]) continue;
-    voices.push({ id: name, label: name, description: match[2] });
+    const hash = line.indexOf("#");
+    if (hash < 0) continue;
+    let localeEnd = hash;
+    while (localeEnd > 0 && /\s/.test(line[localeEnd - 1] ?? "")) localeEnd--;
+    let localeStart = localeEnd;
+    while (localeStart > 0 && !/\s/.test(line[localeStart - 1] ?? "")) localeStart--;
+    const locale = line.slice(localeStart, localeEnd);
+    if (!/^[a-z]{2,3}[_-][A-Za-z0-9_-]+$/.test(locale)) continue;
+    const name = line.slice(0, localeStart).trim();
+    if (!name) continue;
+    voices.push({ id: name, label: name, description: locale });
   }
   const rank = (voice: VoiceInfo) => (/\((?:Premium|Enhanced)\)$/.test(voice.id) ? 0 : 1);
   return voices.sort((left, right) => rank(left) - rank(right));

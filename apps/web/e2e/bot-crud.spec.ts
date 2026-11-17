@@ -34,7 +34,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   });
   await openNewBot(page);
   const dialog = page.getByTestId("create-bot-dialog");
-  await dialog.getByPlaceholder("Name your Stirrup").fill("New Bot");
+  await dialog.getByPlaceholder("Name your Stirrup").fill("New Stirrup");
   await dialog.getByRole("button", { name: "Create", exact: true }).click();
   await createAborted;
   await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
@@ -56,10 +56,10 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
     await route.abort("failed");
   });
   await createBotFromPicker(page);
-  await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
+  await expect(page.getByPlaceholder("Message New Stirrup")).toBeVisible();
   await expect.poll(() => failedPostCreateRefresh).toBe(true);
   await page.unroute("**/rpc/spaces/list");
-  await expect(botList.getByRole("button", { name: /^New Bot/ })).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^New Stirrup/ })).toBeVisible();
   await page.waitForURL(/\/app\/[^/]+$/);
   const deletedBotPath = new URL(page.url()).pathname;
   // A focus refresh that no longer knows the current bot redirects away from it; wait for
@@ -129,7 +129,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
     await input.press("Enter");
   }
   const descriptionInput = page.getByRole("textbox", {
-    name: "How other bots see it",
+    name: "How other stirrups see it",
     exact: true,
   });
   await editName("Researcher");
@@ -180,8 +180,8 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   for (const name of [
     "Read replies aloud",
     "Daily check-ins on unfinished work",
-    "Allow cross-space bot communication",
-    "Manage other bots",
+    "Allow cross-space stirrup communication",
+    "Manage other stirrups",
   ])
     await expect(settings.getByRole("switch", { name, exact: true })).toHaveCount(0);
   await expect(settings.getByLabel("Disable a tool")).toHaveCount(0);

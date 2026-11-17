@@ -745,7 +745,7 @@ export function BotSettings({
               {changed.crossSpaceCommunication ? (
                 <SwitchRow
                   id={`${ids}-cross-space`}
-                  label={<Trans>Allow cross-space bot communication</Trans>}
+                  label={<Trans>Allow cross-space stirrup communication</Trans>}
                   checked={crossSpaceCommunication}
                   disabled={saving}
                   onChange={(checked) => {
@@ -757,7 +757,7 @@ export function BotSettings({
               {changed.fleetManagement ? (
                 <SwitchRow
                   id={`${ids}-fleet-management`}
-                  label={<Trans>Manage other bots</Trans>}
+                  label={<Trans>Manage other stirrups</Trans>}
                   checked={fleetManagement}
                   disabled={saving}
                   onChange={(checked) => {
