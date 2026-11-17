@@ -281,6 +281,13 @@ export async function replaceBillingCustomer(
   });
 }
 
+/** Whether a bounded PostgreSQL lock wait expired. */
+export function isLockTimeout(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const meta = error.meta as { driverAdapterError?: { cause?: { originalCode?: string } } };
+  return meta?.driverAdapterError?.cause?.originalCode === "55P03";
+}
+
 /** The subscription exists but has no access until the owner settles it in the billing portal. */
 export function needsBillingPortal(status: string | null): boolean {
   return status === "unpaid" || status === "paused";

@@ -43,6 +43,7 @@ import {
   extendByokTrialCheckout,
   hasBillingAccess,
   hasModelAccess,
+  isLockTimeout,
   LeaseHeldError,
   LeaseLostError,
   MICROS_PER_DOLLAR,
@@ -457,10 +458,17 @@ export function createBillingService(deps: {
         { ttlMs: CHECKOUT_LEASE_MS },
         async (lease) => {
           const underLease: UnderLease = (write) =>
-            prisma.$transaction(async (tx) => {
-              await assertLeaseHeld(tx, lease);
-              return write(tx);
-            });
+            prisma
+              .$transaction(async (tx) => {
+                await tx.$executeRaw`SET LOCAL lock_timeout = '2s'`;
+                await assertLeaseHeld(tx, lease);
+                return write(tx);
+              })
+              .catch((error: unknown) => {
+                if (isLockTimeout(error) || error instanceof LeaseLostError)
+                  throw new BillingBusyError({ cause: error });
+                throw error;
+              });
           const result = await work(underLease);
           await prisma.$transaction((tx) => assertLeaseHeld(tx, lease));
           return result;
