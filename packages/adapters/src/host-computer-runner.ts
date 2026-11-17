@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import type { AdapterContext, ComputerRef } from "@rakazo/adapter-kit";
 import { SandboxFileTooLargeError } from "@rakazo/adapter-kit";
-import { DesktopSandboxProvider } from "./desktop-sandbox.js";
+import { WorkspacePathError } from "./computer-support.js";
 import type { HostComputerFrame, HostComputerRequest } from "./host-computer-protocol.js";
 import {
   HOST_COMPUTER_MAX_FILE_BYTES,
@@ -13,6 +13,7 @@ import {
 } from "./host-computer-protocol.js";
 import type { HostScreen } from "./host-screen.js";
 import { HostScreenError } from "./host-screen.js";
+import { DesktopSandboxProvider } from "./providers/computer/desktop/desktop-sandbox.js";
 
 /** Where one request's frames go. A write may wait for the transport to drain. */
 export interface HostComputerSink {
@@ -237,9 +238,7 @@ function hostComputerErrorMessage(error: unknown) {
   if (error instanceof HostScreenError) return error.message;
   if (error instanceof SandboxFileTooLargeError)
     return hostComputerFileTooLargeMessage(error.maxBytes);
-  if (error instanceof Error && error.message === "Path escapes the computer workspace") {
-    return error.message;
-  }
+  if (error instanceof WorkspacePathError) return error.message;
   if (error && typeof error === "object" && "code" in error && error.code === "ENOENT")
     return "computer file not found";
   return "Local computer operation failed";

@@ -30,7 +30,7 @@ export function SidebarHeader({
   activityMode: boolean;
   toggleActivityMode: () => void;
   searchOpen?: boolean;
-  onSearch?: () => void;
+  onSearch: () => void;
   setBotsSidebarCollapsedPref: (collapsed: boolean) => void;
   bots: Bot[];
   setMobileSidebarOpen: (open: boolean) => void;
@@ -48,21 +48,19 @@ export function SidebarHeader({
     >
       {!mini || hasWindowChrome ? <WindowChrome /> : null}
       <div className={`relative flex items-center ${mini ? "flex-col gap-0.5" : "gap-1"}`}>
-        {onSearch ? (
-          <IconTooltip label={t`Search`}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t`Search`}
-              aria-pressed={searchOpen}
-              data-testid="sidebar-search-trigger"
-              onClick={onSearch}
-              className="app-no-drag size-8 rounded-full border border-border bg-card text-foreground hover:bg-accent"
-            >
-              <Search size={15} strokeWidth={1.8} aria-hidden="true" />
-            </Button>
-          </IconTooltip>
-        ) : null}
+        <IconTooltip label={t`Search`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t`Search`}
+            aria-pressed={searchOpen}
+            data-testid="sidebar-search-trigger"
+            onClick={onSearch}
+            className="app-no-drag size-8 rounded-full border border-border bg-card text-foreground hover:bg-accent"
+          >
+            <Search size={15} strokeWidth={1.8} aria-hidden="true" />
+          </Button>
+        </IconTooltip>
         <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
           <IconTooltip label={t`Create`}>
             <PopoverTrigger
@@ -111,11 +109,11 @@ export function SidebarHeader({
             </PopoverContent>
           ) : null}
         </Popover>
-        <IconTooltip label={t`Activity`}>
+        <IconTooltip label={t`Notifications`}>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={t`Activity`}
+            aria-label={t`Notifications`}
             aria-pressed={activityMode}
             data-activity-mode={activityMode ? "on" : "off"}
             onClick={toggleActivityMode}

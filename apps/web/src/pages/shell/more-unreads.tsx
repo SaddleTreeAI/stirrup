@@ -30,13 +30,14 @@ export function MoreUnreads({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(0);
+  const measure = () => {
+    const root = scrollRef.current;
+    if (root) setCount(countUnreadsAbove(root.getBoundingClientRect().top, unreadBottoms(root)));
+  };
   useEffect(() => {
     const root = scrollRef.current;
     if (!root) return;
-    const measure = () =>
-      setCount(countUnreadsAbove(root.getBoundingClientRect().top, unreadBottoms(root)));
     measure();
-    root.addEventListener("scroll", measure, { passive: true });
     const mutations = new MutationObserver(measure);
     mutations.observe(root, {
       childList: true,
@@ -47,7 +48,6 @@ export function MoreUnreads({
     const resize = new ResizeObserver(measure);
     resize.observe(root);
     return () => {
-      root.removeEventListener("scroll", measure);
       mutations.disconnect();
       resize.disconnect();
     };
@@ -68,7 +68,14 @@ export function MoreUnreads({
           <Trans>More unreads</Trans>
         </button>
       ) : null}
-      <div ref={scrollRef} className={className} onScroll={onScroll}>
+      <div
+        ref={scrollRef}
+        className={className}
+        onScroll={(event) => {
+          measure();
+          onScroll?.(event);
+        }}
+      >
         {children}
       </div>
     </div>

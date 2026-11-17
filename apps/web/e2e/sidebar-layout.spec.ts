@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openBotPanelTab, rpc, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openBotPanel, rpc, signup } from "./helpers";
 
 test("sidebar tools stay visible in visual and keyboard order", async ({ page }, testInfo) => {
   await page.emulateMedia({ colorScheme: "dark" });
@@ -10,7 +10,7 @@ test("sidebar tools stay visible in visual and keyboard order", async ({ page },
   const tools = [
     sidebar.getByTestId("sidebar-search-trigger"),
     sidebar.getByTestId("create-menu-trigger"),
-    sidebar.getByRole("button", { name: "Activity", exact: true }),
+    sidebar.getByRole("button", { name: "Notifications", exact: true }),
     sidebar.getByTestId("minimize-bots-sidebar"),
   ];
   await page.mouse.move(700, 450);
@@ -44,7 +44,7 @@ test("open work wraps long titles and notes inside a narrow panel", async ({ pag
     title,
     notes,
   });
-  await openBotPanelTab(page, "Advanced");
+  await openBotPanel(page);
   const panel = page.getByTestId("side-panel");
   const separator = page.getByRole("separator", { name: "Resize panel" });
   await separator.focus();

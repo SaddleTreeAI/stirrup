@@ -20,6 +20,7 @@ import {
 import type { PrismaClient, SecurityEventType } from "@rakazo/db";
 import {
   bootstrapUserSpace,
+  OwnedOrganizationHasMembersError,
   personalOrganizationIds,
   recordSecurityEvent,
   SpaceDeletionInProgressError,
@@ -79,6 +80,10 @@ export {
 export type { HomeDeletionReason } from "./home-deletion-email.js";
 export { homeDeletionEmail } from "./home-deletion-email.js";
 export type { OidcConfig } from "./oidc.js";
+export {
+  organizationInvitationEmail,
+  spaceInvitationEmail,
+} from "./organization-invitation-email.js";
 export { passkeyRelyingParty } from "./passkey.js";
 export {
   integrationClaimConfirmEmail,
@@ -114,6 +119,8 @@ export interface AuthEnv {
   logger?: BetterAuthOptions["logger"];
   onEmailError?: (error: unknown) => void;
   beforeDeleteUser?: (userId: string) => Promise<void>;
+  /** Runs once the account is gone. */
+  afterDeleteUser?: (userId: string) => Promise<void>;
   /** Runs when a session row is deleted. Delivery also drops a token whose session is missing or expired. */
   afterDeleteSession?: (session: AuthSession) => Promise<void>;
   /** Runs when a password change replaces the caller's own session instead of ending it. */
@@ -233,7 +240,7 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('rakazo:single-account'))`;
       if (await hasAdmittedAccount(tx, userId)) return false;
       // Committed before the lock is released, so the next signup sees it.
-      await bootstrapUserSpace(prisma, { id: userId }, env);
+      await bootstrapUserSpace(prisma, { id: userId });
       return true;
     });
   /** The directory provisioned this account, so it is admitted whatever the signup policy. */
@@ -481,7 +488,10 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
           try {
             await env.beforeDeleteUser?.(user.id);
           } catch (error) {
-            if (error instanceof SpaceDeletionInProgressError)
+            if (
+              error instanceof SpaceDeletionInProgressError ||
+              error instanceof OwnedOrganizationHasMembersError
+            )
               throw new APIError("CONFLICT", { message: error.message });
             throw error;
           }
@@ -501,6 +511,7 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
         },
         afterDelete: async (user) => {
           await recordSecurityEvent({ type: "auth.account.deleted", userId: user.id });
+          await env.afterDeleteUser?.(user.id);
         },
       },
     },
@@ -826,7 +837,7 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                   message: "Registration is closed",
                 });
               }
-              if (!env.singleAccount) await bootstrapUserSpace(prisma, user, env);
+              if (!env.singleAccount) await bootstrapUserSpace(prisma, user);
               else if (!(await admitSoleAccount(user.id)))
                 throw new APIError("FORBIDDEN", {
                   code: "REGISTRATION_CLOSED",

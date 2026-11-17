@@ -15,7 +15,7 @@ name: Compose
 - tapOn: "Cancel"
 - openLink: "rakazo:///new-bot"
 - extendedWaitUntil:
-    visible: "Name your Bot"
+    visible: "Name your Stirrup"
     timeout: 15000
 - waitForAnimationToEnd:
     timeout: 3000

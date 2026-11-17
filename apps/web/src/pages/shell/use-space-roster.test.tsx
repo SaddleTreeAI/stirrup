@@ -3,16 +3,7 @@
 import type { AppBootstrap, Bot, Group } from "@rakazo/contracts";
 import { deferred } from "@rakazo/core/test-async";
 import type { ComponentType } from "react";
-import {
-  act,
-  Fragment,
-  lazy,
-  StrictMode,
-  Suspense,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { act, lazy, StrictMode, Suspense, useLayoutEffect, useRef, useState } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import type { NavigateFunction } from "react-router-dom";
@@ -181,6 +172,20 @@ async function open(path: string) {
   );
 }
 
+/** Opens `path` as development does: the shell's effects run, are torn down, and run again. */
+async function openStrict(path: string) {
+  window.history.replaceState({ idx: 0 }, "", path);
+  await act(async () =>
+    root.render(
+      <StrictMode>
+        <BrowserRouter useTransitions={false}>
+          <ShellPage />
+        </BrowserRouter>
+      </StrictMode>,
+    ),
+  );
+}
+
 function page(name: string): ComponentType {
   return function Page() {
     useLayoutEffect(() => {
@@ -213,24 +218,21 @@ function stillLoading(Page: ComponentType) {
  */
 async function openApp(
   path: string,
-  { Onboarding = OnboardingPage, Artifacts = ArtifactsPage, strict = false } = {},
+  { Onboarding = OnboardingPage, Artifacts = ArtifactsPage } = {},
 ) {
   window.history.replaceState({ idx: 0 }, "", path);
-  const Mode = strict ? StrictMode : Fragment;
   await act(async () =>
     root.render(
-      <Mode>
-        <BrowserRouter useTransitions={false}>
-          <Suspense fallback={null}>
-            <Routes>
-              <Route path="/app" element={<ShellPage />} />
-              <Route path="/app/:botId" element={<ShellPage />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/app/artifacts" element={<Artifacts />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </Mode>,
+      <BrowserRouter useTransitions={false}>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/app" element={<ShellPage />} />
+            <Route path="/app/:botId" element={<ShellPage />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/app/artifacts" element={<Artifacts />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>,
     ),
   );
 }
@@ -316,7 +318,7 @@ describe("a roster re-read while the shell opens a chat in another space", () =>
     const discarded = deferred<AppBootstrap>();
     const current = deferred<AppBootstrap>();
     state.take.mockReturnValueOnce(discarded.promise).mockReturnValueOnce(current.promise);
-    await openApp("/app/sales", { strict: true });
+    await openStrict("/app/sales");
     await rosterSignal();
     await act(async () => {
       discarded.resolve(bootstrapOf("personal", "sales"));
@@ -574,9 +576,9 @@ describe("a re-read that answers as the user opens another chat", () => {
 describe("a first load that answers after the user moved on", () => {
   it.each([
     ["a group", "/app/g/standup"],
-    ["a stirrup", "/app/sales"],
+    ["a bot", "/app/sales"],
     ["a group that is gone", "/app/g/retired"],
-    ["a stirrup that is gone", "/app/retired"],
+    ["a bot that is gone", "/app/retired"],
   ])("stays on the chat opened while a link to %s was loading", async (_, link) => {
     const answerFirstLoad = await openHoldingFirstLoad(link);
     act(() => void shell.navigate("/app/errands"));
@@ -590,7 +592,7 @@ describe("a first load that answers after the user moved on", () => {
 
   it.each([
     ["a group", "/app/g/standup"],
-    ["a stirrup", "/app/sales"],
+    ["a bot", "/app/sales"],
   ])("opens a link to %s that the user came back to", async (_, link) => {
     const answerFirstLoad = await openHoldingFirstLoad(link);
     act(() => void shell.navigate("/app/errands"));
@@ -603,9 +605,9 @@ describe("a first load that answers after the user moved on", () => {
 
   it.each([
     ["a group in another space", "/app/g/standup"],
-    ["a stirrup in another space", "/app/sales"],
+    ["a bot in another space", "/app/sales"],
     ["a group that is gone", "/app/g/retired"],
-    ["a stirrup that is gone", "/app/retired"],
+    ["a bot that is gone", "/app/retired"],
   ])("keeps a switch the user started while a link to %s was loading", async (_, link) => {
     server.club = { bots: ["chess"], groups: [] };
     const answerFirstLoad = await openHoldingFirstLoad(link);
@@ -639,6 +641,26 @@ describe("a link to a group chat in another space", () => {
       await vi.advanceTimersByTimeAsync(50);
     });
     expect(window.location.pathname).toBe("/app/g/standup");
+    await finishLoadingSpace();
+    expect(state.space).toBe("work");
+    expect(window.location.pathname).toBe("/app/g/standup");
+  });
+
+  it("opens the group in its space when a discarded first load answers before the kept one", async () => {
+    const kept = deferred<AppBootstrap>();
+    state.take
+      .mockImplementationOnce(async (botId?: string, groupId?: string) =>
+        bootstrapOf("personal", botId, groupId),
+      )
+      .mockReturnValueOnce(kept.promise);
+    await openStrict("/app/g/standup");
+    expect(state.take).toHaveBeenCalledTimes(2);
+    await rosterSignal();
+    expect(window.location.pathname).toBe("/app/g/standup");
+    await act(async () => {
+      kept.resolve(bootstrapOf("personal", undefined, "standup"));
+      await vi.advanceTimersByTimeAsync(50);
+    });
     await finishLoadingSpace();
     expect(state.space).toBe("work");
     expect(window.location.pathname).toBe("/app/g/standup");

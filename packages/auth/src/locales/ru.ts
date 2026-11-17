@@ -73,4 +73,16 @@ export const RU_MESSAGES: Record<string, string> = {
     "Сохранённые файлы вашего компьютера будут удалены {date}, если вы не продлите подписку.",
   "Your saved computer files will be deleted on {date} unless you choose a plan.":
     "Сохранённые файлы вашего компьютера будут удалены {date}, если вы не выберете тариф.",
+  "{inviter} invited you to {organization} on Stirrup":
+    "{inviter} приглашает вас в {organization} в Stirrup",
+  "{inviter} invited you to join {organization} on Stirrup.":
+    "{inviter} приглашает вас присоединиться к {organization} в Stirrup.",
+  "Join {organization}": "Присоединиться к {organization}",
+  "This invitation expires in 7 days. Sign in with this email address to accept it.":
+    "Приглашение действует 7 дней. Чтобы принять его, войдите с этим адресом электронной почты.",
+  "{inviter} invited you to {space} on Stirrup": "{inviter} приглашает вас в {space} в Stirrup",
+  "{inviter} invited you to join {space} on Stirrup.":
+    "{inviter} приглашает вас присоединиться к {space} в Stirrup.",
+  "Join {space}": "Присоединиться к {space}",
+  "This invitation expires in 7 days.": "Приглашение действует 7 дней.",
 };

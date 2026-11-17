@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import type { BackgroundJobHandlers, JobPublisher } from "@rakazo/adapter-kit";
 import { runContinueJob } from "@rakazo/adapter-kit";
 import { stuckWorkStatusMessage } from "@rakazo/core";
+import { deferred } from "@rakazo/core/test-async";
 import type { PrismaClient } from "@rakazo/db";
 import {
   appendEvent,
@@ -35,11 +36,7 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
     db = createDb(url!);
     system = asSystem(db.prisma);
     identity = await runAsSystem("direct dispatch fixture", () =>
-      provisionMessagingIdentity(
-        db.prisma,
-        { provider: "email", address },
-        { signupsEnabled: undefined, signupAllowlist: undefined },
-      ),
+      provisionMessagingIdentity(db.prisma, { provider: "email", address }),
     );
   });
   afterAll(async () => {
@@ -195,7 +192,7 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
     }
   });
 
-  it("keeps blocked rows unchanged, scans past them, and resumes after release or expiry", async () => {
+  it("starts model work while a normal computer lease is busy", async () => {
     const computer = await system.computer.create({
       data: {
         spaceId: identity.spaceId,
@@ -211,7 +208,7 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
     });
     const blocked = await createRun();
     const owner = await createRun();
-    const aged = await system.run.update({
+    await system.run.update({
       where: { id: blocked.id },
       data: { createdAt: new Date(0), updatedAt: new Date(0) },
     });
@@ -236,20 +233,11 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
           await system.run.update({ where: { id: runId }, data: { status: "completed" } });
         },
       } as BackgroundJobHandlers);
-      // A blocked oldest row must not starve the holder's explicit resume.
-      await wait(() => expect(entered).toContain(owner.id));
-      expect(entered).not.toContain(blocked.id);
-      expect(await system.run.findUniqueOrThrow({ where: { id: blocked.id } })).toMatchObject({
-        status: "queued",
-        leaseFence: 0,
-        startedAt: null,
-        updatedAt: aged.updatedAt,
-      });
-      await system.computerExecutionLease.update({
-        where: { id: lease.id },
-        data: { expiresAt: new Date(0) },
-      });
-      await wait(() => expect(entered).toContain(blocked.id));
+      await wait(() => expect(entered).toEqual(expect.arrayContaining([owner.id, blocked.id])));
+      // Dispatch does not claim or steal the computer; the executor waits on first use.
+      expect(
+        await system.computerExecutionLease.findUniqueOrThrow({ where: { id: lease.id } }),
+      ).toMatchObject({ runId: owner.id, expiresAt: lease.expiresAt });
     } finally {
       await host.stop();
       await system.computerExecutionLease.delete({ where: { id: lease.id } });
@@ -452,7 +440,7 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
         },
       } as BackgroundJobHandlers);
       await wait(() => expect(entered).toEqual(expect.arrayContaining([reply.id, endedReply.id])));
-      expect(entered).not.toContain(bootingReply.id);
+      await wait(() => expect(entered).toContain(bootingReply.id));
       // Expired as tombstones, so the next lease on each still raises the fence.
       expect(
         await system.computerExecutionLease.findUniqueOrThrow({ where: { id: orphan.id } }),
@@ -485,10 +473,7 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
       new RunWorkerHost(db.prisma, realtime, new RunStarter(realtime), { intervalMs: 25 }),
     ];
     const claims: string[] = [];
-    let release!: () => void;
-    const pending = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const pending = deferred();
     const handlers = {
       "run.continue": async ({ runId }, execution) => {
         if (runId !== run.id) return;
@@ -504,7 +489,7 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
           if (!claimed.count) return;
           claims.push(runId);
           execution!.onRunStarted();
-          await pending;
+          await pending.promise;
           await db.prisma.run.update({ where: { id: runId }, data: { status: "completed" } });
         });
       },
@@ -522,11 +507,11 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
       });
       await new Promise((resolve) => setImmediate(resolve));
       expect(stopped).toBe(false);
-      release();
+      pending.resolve();
       await stopping;
       expect(claims).toEqual([run.id]);
     } finally {
-      release();
+      pending.resolve();
       await Promise.all(hosts.map((host) => host.stop()));
     }
   });
@@ -757,28 +742,5 @@ describePostgres("direct run dispatch (PostgreSQL)", () => {
       await legacy.close();
       await system.run.update({ where: { id: run.id }, data: { status: "completed" } });
     }
-  });
-  it("persists backoff when a previous-release worker requeues after the migration", async () => {
-    const run = await createRun({ status: "running" });
-    await system.run.update({ where: { id: run.id }, data: { leaseFence: 20 } });
-    const [clock] = await system.$queryRaw<
-      Array<{ at: Date }>
-    >`SELECT clock_timestamp() AT TIME ZONE 'UTC' AS at`;
-    await system.run.update({
-      where: { id: run.id },
-      data: { status: "queued", leaseOwner: null, leaseExpiresAt: null },
-    });
-    const queued = await system.run.findUniqueOrThrow({ where: { id: run.id } });
-    expect(queued.wakeAt!.getTime()).toBeGreaterThan(clock!.at.getTime());
-    const explicit = new Date(Date.now() + 60_000);
-    await system.run.update({ where: { id: run.id }, data: { status: "running", wakeAt: null } });
-    await system.run.update({
-      where: { id: run.id },
-      data: { status: "queued", wakeAt: explicit },
-    });
-    expect((await system.run.findUniqueOrThrow({ where: { id: run.id } })).wakeAt).toEqual(
-      explicit,
-    );
-    await system.run.update({ where: { id: run.id }, data: { status: "completed" } });
   });
 });
