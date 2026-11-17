@@ -641,6 +641,7 @@ describe("authenticatorKey", () => {
     ["padding where none belongs", `${K}====`, undefined],
     ["padding of the wrong length", `${K}GEZDGNBVGY====`, undefined],
     ["a whole group of padding", `${K}========`, undefined],
+    ["a long malformed padding suffix", `${K}${"=".repeat(900)}`, undefined],
     ["a setup link without a secret", "otpauth://totp/Example:alice?issuer=Example", undefined],
     ["a counter-based setup link", `otpauth://hotp/x?secret=${K}`, undefined],
   ])("%s", (_, text, secret) => {

@@ -4,7 +4,7 @@ import type { ComposerMention, SLASH_ACTIONS, SlashActionId } from "@rakazo/core
 import { mentionChipKey, truncateSlashDescription } from "@rakazo/core";
 import { Button } from "@rakazo/ui-web";
 import { ArrowUp, AudioLines, Box, Paperclip, Settings, Square, X } from "lucide-react";
-import type { CSSProperties, RefObject } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import type { useHoldToTalk } from "../../components/composer/HoldToTalk";
 import { HoldToTalkControls } from "../../components/composer/HoldToTalk";
 import type { PendingAttachment } from "./chat-shared";
@@ -204,6 +204,7 @@ export function ComposerActions({
   sendDisabled,
   stopDisabled,
   sendColors,
+  modelPicker,
   onSend,
   onStop,
   showVoice,
@@ -221,6 +222,7 @@ export function ComposerActions({
   stopDisabled: boolean;
   /** The bot's color, as your messages to it wear it; the send button matches them. */
   sendColors?: { background: string; foreground: string };
+  modelPicker?: ReactNode;
   onSend: () => void;
   onStop: () => void;
   showVoice: boolean;
@@ -236,7 +238,7 @@ export function ComposerActions({
       } as CSSProperties)
     : undefined;
   // An empty draft keeps the quiet disabled look either way; the bot's color shows once it can go.
-  const sendClassName = `size-8 shrink-0 rounded-full transition-transform active:scale-95 disabled:bg-primary-disabled disabled:text-foreground/30 disabled:opacity-100 ${sendColors ? "bg-chat-user text-chat-user-foreground hover:bg-chat-user/90" : ""}`;
+  const sendClassName = `size-8 shrink-0 rounded-full bg-primary transition-transform hover:bg-primary-hover active:scale-95 disabled:bg-primary-disabled disabled:text-foreground/30 disabled:opacity-100 ${sendColors ? "bg-chat-user text-chat-user-foreground hover:bg-chat-user/90" : ""}`;
   return (
     <div
       ref={actionsRef}
@@ -244,6 +246,7 @@ export function ComposerActions({
         expanded ? "row-start-2" : ""
       }`}
     >
+      {talk.recording?.locked ? null : modelPicker}
       {talk.recording?.locked ? (
         <HoldToTalkControls talk={talk} />
       ) : running ? (

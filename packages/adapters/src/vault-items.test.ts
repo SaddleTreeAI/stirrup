@@ -206,6 +206,10 @@ describe("the owner's list", () => {
       "cafe-de-flore",
     );
     expect(await newVaultItemName(db.prisma, scope, "בית", "contact")).toBe("contact");
+    expect(await newVaultItemName(db.prisma, scope, "123Work---Card", "contact")).toBe("work-card");
+    expect(
+      await newVaultItemName(db.prisma, scope, `${"!".repeat(10_000)}${"A".repeat(70)}`, "contact"),
+    ).toBe("a".repeat(56));
     expect(defaultVaultItemTitle({ origin: "", auth: card }, encodeCardSecret(fakeCard))).toBe(
       "Visa ·· 4242",
     );

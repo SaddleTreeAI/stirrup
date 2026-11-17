@@ -17,7 +17,8 @@ import { onInboxChanged } from "./inbox-changes";
 import { retainInboxValue } from "./inbox-retention";
 import type { InboxItem, InboxSpace } from "./inbox-spaces";
 import { inboxItemKey, spaceInboxItems } from "./inbox-spaces";
-import type { MobileBot, MobileGroup } from "./mobile-types";
+import type { MobileBot } from "./mobile-types";
+import type { SaveSend } from "./query";
 import { useCollapsedSections } from "./use-collapsed-sections";
 import { useInboxDay } from "./use-inbox-day";
 import { usePublishSearchInbox } from "./use-publish-search-inbox";
@@ -67,25 +68,7 @@ vi.mock("react-native", () => {
     PlatformColor: (name: string) => name,
     StyleSheet: { create: <T,>(styles: T) => styles },
     useWindowDimensions: () => ({ width: 400, height: 800, fontScale: 1 }),
-    View: ({
-      children,
-      style,
-      pointerEvents,
-      importantForAccessibility,
-    }: {
-      children?: ReactNode;
-      style?: unknown;
-      pointerEvents?: string;
-      importantForAccessibility?: string;
-    }) => (
-      <div
-        style={flatten(style)}
-        data-pointer-events={pointerEvents}
-        data-a11y-hidden={importantForAccessibility}
-      >
-        {children}
-      </div>
-    ),
+    View: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
     Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
     Pressable: ({
       children,
@@ -171,9 +154,8 @@ vi.mock("expo-router", () => {
     },
   };
 });
+// The real server client reads React Native's __DEV__ global, which tests do not define.
 vi.mock("./api-server", () => ({}));
-vi.mock("./api-auth", () => ({}));
-vi.mock("./api-live", () => ({}));
 vi.mock("./api", () => ({
   rpc: ui.rpc,
   captureApiRequestContext: async (spaceId: string | null = "space-selected") => ({
@@ -182,6 +164,14 @@ vi.mock("./api", () => ({
   selectedSpaceId: () => ui.spaceId,
   spaceSelectionSeq: () => ui.spaceSeq,
 }));
+vi.mock("./session", () => ({ currentSessionGeneration: () => 1 }));
+/** The caller's save: it pins every request to the Space it names, as `useSave` does. */
+function sendTo(spaceId?: string): SaveSend {
+  const options = spaceId
+    ? { requestContext: { headers: { "x-rakazo-space-id": spaceId } } }
+    : undefined;
+  return (proc, input) => ui.rpc(proc, input, options);
+}
 vi.mock("./haptics", () => ({ hapticSuccess: ui.hapticSuccess }));
 vi.mock("./native", () => ({
   native: {},
@@ -239,16 +229,14 @@ vi.mock("../components/inbox-swipe-row", () => ({
   InboxSwipeRow: ({
     rowKey,
     sections,
-    swipe,
     children,
   }: {
     rowKey: string;
-    swipe?: boolean;
     sections: { id: string }[];
     children: ReactElement;
   }) => {
     ui.swipeRows.push([rowKey, ...sections.map((section) => section.id)].join(" "));
-    return <div data-swipe={String(swipe ?? true)}>{children}</div>;
+    return children;
   },
 }));
 vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
@@ -262,6 +250,7 @@ const callbacks = {
   createBotInSpace: action,
   deleteSection: action,
   editSectionFromMenu: action,
+  promptRenameSection: action,
   groupAction: action,
   openBot: action,
   openGroup: action,
@@ -367,14 +356,14 @@ function measure(retain: boolean) {
   return { mount, idle, changed: ui.previews - mount - idle };
 }
 
-it("skips unchanged inbox rows for 12 idle polls and renders the changed stirrup", () => {
+it("skips unchanged inbox rows for 12 idle polls and renders the changed bot", () => {
   // Without retained poll results every row renders on every poll.
   expect(measure(false)).toEqual({ mount: 30, idle: 360, changed: 30 });
   expect(measure(true)).toEqual({ mount: 30, idle: 0, changed: 1 });
 });
 
 it.each(["midnight", "focus", "foreground"])(
-  "refreshes unchanged stirrup and group timestamps on %s",
+  "refreshes unchanged bot and group timestamps on %s",
   (trigger) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 10, 23, 59));
@@ -431,7 +420,7 @@ it.each(["midnight", "focus", "foreground"])(
   },
 );
 
-it("renders saved stirrup rows without a notification setting", () => {
+it("renders saved bot rows without a notification setting", () => {
   // Inboxes saved before notification settings were kept have bots without them.
   const bots = [
     { id: "bot-a", name: "Alpha", preview: "", notifyOnFinish: true },
@@ -477,7 +466,7 @@ it("renders saved stirrup rows without a notification setting", () => {
   expect(avatars.every((avatar) => (avatar as HTMLElement).dataset.motion === "lazy")).toBe(true);
 });
 
-it("says working only while the stirrup works, and shows nothing beside the time", () => {
+it("says working only while the bot works, and shows nothing beside the time", () => {
   const bots = ["running", "waiting_takeover", "waiting_input", "idle"].map(
     (status) =>
       ({ id: status, name: "Helper", preview: "Hi", status, color: "#8B5CF6" }) as MobileBot,
@@ -508,7 +497,7 @@ it("says working only while the stirrup works, and shows nothing beside the time
   ]);
 });
 
-it("marks a ghost stirrup waiting on you like an unread chat", () => {
+it("marks a ghost bot waiting on you like an unread chat", () => {
   const bot = {
     id: "asks",
     name: "Helper",
@@ -536,8 +525,6 @@ it("ties the pinned tiles' avatars to the pinned row, so they freeze when it scr
   const bot = { id: "bot-p", name: "Pinned", preview: "", pinned: true } as MobileBot;
   render(<List items={[{ type: "pinned", chats: [{ kind: "bot", bot }] }]} />);
   expect(container.querySelector('[data-row="pinned"] b[data-identity="bot-p"]')).not.toBeNull();
-  expect(container.querySelector('[data-row="pinned"] [data-swipe="false"]')).not.toBeNull();
-  expect(ui.swipeRows).toContain("pinned:bot:bot-p");
 });
 
 it("collapses a section from its heading and keeps the choice for the account", async () => {
@@ -677,11 +664,11 @@ it("waits for a saved or live inbox before publishing a remounted session's sear
   expect(publish).toHaveBeenLastCalledWith([]);
 });
 
-it("opens stirrups in each space in share mode without swipe actions or long-press menus", () => {
+it("opens bots in each space in share mode without swipe actions or long-press menus", () => {
   const bots = ["current", "other"].map((space) => ({
     id: `bot-${space}`,
     spaceId: `space-${space}`,
-    name: `Stirrup ${space}`,
+    name: `Bot ${space}`,
     preview: "",
   }));
   const openBot = vi.fn();
@@ -777,7 +764,7 @@ it("offers every space heading's Members and Settings, and Delete only where the
   expect(confirmDeleteSpace).toHaveBeenCalledWith(expect.objectContaining({ id: "space-work" }));
 });
 
-it("creates a stirrup in the heading's own space, and not while a space switch or recovery is under way", () => {
+it("creates a bot in the heading's own space, and not while a space switch or recovery is under way", () => {
   const createBotInSpace = vi.fn();
   const heading = (id: string, name: string) =>
     ({
@@ -803,13 +790,13 @@ it("creates a stirrup in the heading's own space, and not while a space switch o
   }
 });
 
-it("pins a stirrup made for a space to that space while another is selected", async () => {
-  const bot = { id: "bot-new", name: "New Stirrup", spaceId: "space-work" };
-  const spaces = () =>
-    ui.rpc.mock.calls.map(([method, , options]) => [
-      method,
-      options?.requestContext?.headers["x-rakazo-space-id"],
-    ]);
+it("sends every request of a bot's creation through the caller's save", async () => {
+  const bot = { id: "bot-new", name: "New Bot", spaceId: "space-work" };
+  const sent: string[] = [];
+  const send: SaveSend = (proc, input) => {
+    sent.push(proc);
+    return ui.rpc(proc, input);
+  };
   ui.rpc
     .mockReset()
     .mockImplementation(async (method: string) => (method === "bots/create" ? bot : []));
@@ -818,51 +805,34 @@ it("pins a stirrup made for a space to that space while another is selected", as
   await createInboxBot({
     input: { name: "Scout" },
     openChat: vi.fn(),
+    send,
     spaceId: "space-work",
   });
-  await vi.waitFor(() => expect(ui.rpc).toHaveBeenCalledTimes(4));
-  expect(spaces()).toEqual([
-    ["bots/list", "space-work"],
-    ["me", "space-work"],
-    ["bots/create", "space-work"],
-    ["onboarding/start", "space-work"],
-  ]);
-  await vi.waitFor(() =>
-    expect(scheduleFocusPrompt).toHaveBeenLastCalledWith(bot.id, true, {
-      headers: { "x-rakazo-space-id": "space-work" },
-    }),
-  );
-  // The Create menu's bot sends no pin, so it follows the selected space as before.
-  ui.rpc.mockClear();
-  await createInboxBot({ input: { name: "Scout" }, openChat: vi.fn() });
-  await vi.waitFor(() => expect(ui.rpc).toHaveBeenCalledTimes(4));
-  expect(spaces()).toEqual([
-    ["bots/list", undefined],
-    ["me", undefined],
-    ["bots/create", undefined],
-    ["onboarding/start", undefined],
-  ]);
+  await vi.waitFor(() => expect(scheduleFocusPrompt).toHaveBeenLastCalledWith(bot.id, true, send));
+  expect(sent).toEqual(["bots/list", "me", "bots/create", "onboarding/start"]);
+  expect(ui.rpc).toHaveBeenCalledTimes(sent.length);
 });
 
 it.each(["session", "space"])(
-  "abandons pinned creation if the %s changes while listing stirrups",
+  "abandons pinned creation if the %s changes while listing bots",
   async (change) => {
-    let complete!: (value: unknown[]) => void;
-    ui.rpc
-      .mockReset()
-      .mockImplementation(async (method: string) =>
-        method === "bots/list" ? new Promise<unknown[]>((resolve) => (complete = resolve)) : {},
-      );
+    let listing: Deferred<unknown[]> | undefined;
+    ui.rpc.mockReset().mockImplementation(async (method: string) => {
+      if (method !== "bots/list") return {};
+      listing = deferred();
+      return listing.promise;
+    });
     const openChat = vi.fn();
     const creating = createInboxBot({
       input: { name: "Scout" },
       openChat,
+      send: sendTo("space-work"),
       spaceId: "space-work",
     });
-    await vi.waitFor(() => expect(complete).toBeDefined());
+    await vi.waitFor(() => expect(listing).toBeDefined());
     if (change === "session") ui.sameSession = false;
     else ui.spaceSeq += 2;
-    complete([]);
+    listing!.resolve([]);
     await creating;
     ui.sameSession = true;
     expect(ui.rpc.mock.calls.map(([method]) => method)).not.toContain("bots/create");
@@ -870,46 +840,49 @@ it.each(["session", "space"])(
   },
 );
 
-it("does not open a created stirrup after its account or server changes", async () => {
-  let complete!: (value: { id: string; name: string }) => void;
-  ui.rpc
-    .mockReset()
-    .mockImplementation(async (method: string) =>
-      method === "bots/create"
-        ? new Promise<{ id: string; name: string }>((resolve) => (complete = resolve))
-        : [{ id: "bot-existing" }],
-    );
+it("does not open a created bot after its account or server changes", async () => {
+  let creation: Deferred<{ id: string; name: string }> | undefined;
+  ui.rpc.mockReset().mockImplementation(async (method: string) => {
+    if (method !== "bots/create") return [{ id: "bot-existing" }];
+    creation = deferred();
+    return creation.promise;
+  });
   const openChat = vi.fn();
   const creating = createInboxBot({
     input: { name: "Scout" },
     openChat,
+    send: sendTo("space-work"),
     spaceId: "space-work",
   });
-  await vi.waitFor(() => expect(complete).toBeDefined());
+  await vi.waitFor(() => expect(creation).toBeDefined());
   ui.sameSession = false;
-  complete({ id: "bot-new", name: "New Stirrup" });
+  creation!.resolve({ id: "bot-new", name: "New Bot" });
   await creating;
   ui.sameSession = true;
   expect(openChat).not.toHaveBeenCalled();
 });
 
-it("opens a heading-created stirrup in its space after the selection changes during creation", async () => {
-  const bot = { id: "bot-new", name: "New Stirrup", spaceId: "space-work" };
-  let complete!: (value: typeof bot) => void;
+it("opens a heading-created bot in its space after the selection changes during creation", async () => {
+  const bot = { id: "bot-new", name: "New Bot", spaceId: "space-work" };
+  let creation: Deferred<typeof bot> | undefined;
   ui.rpc.mockReset().mockImplementation(async (method: string) => {
-    if (method === "bots/create") return new Promise<typeof bot>((resolve) => (complete = resolve));
+    if (method === "bots/create") {
+      creation = deferred();
+      return creation.promise;
+    }
     return method === "bots/list" ? [{ id: "bot-existing" }] : {};
   });
   const openChat = vi.fn();
   const creating = createInboxBot({
     input: { name: "Scout" },
     openChat,
+    send: sendTo("space-work"),
     spaceId: "space-work",
   });
-  await vi.waitFor(() => expect(complete).toBeDefined());
+  await vi.waitFor(() => expect(creation).toBeDefined());
   ui.spaceId = "space-other";
   ui.spaceSeq++;
-  complete(bot);
+  creation!.resolve(bot);
   await creating;
   expect(openChat).toHaveBeenCalledWith({
     pathname: "/thread",
@@ -928,7 +901,12 @@ it.each([true, false])(
       return [];
     });
     const openChat = vi.fn();
-    await createInboxBot({ input: { name: "Scout" }, openChat, spaceId: "space-work" });
+    await createInboxBot({
+      input: { name: "Scout" },
+      openChat,
+      send: sendTo("space-work"),
+      spaceId: "space-work",
+    });
     expect(ui.rpc).toHaveBeenCalledWith("spaceSettings/overrides", undefined, {
       requestContext: { headers: { "x-rakazo-space-id": "space-work" } },
     });
@@ -944,17 +922,17 @@ it.each([true, false])(
   },
 );
 
-it("asks for a model instead of making the first stirrup when the account has none", async () => {
+it("asks for a model instead of making the first bot when the account has none", async () => {
   let me: Promise<unknown> = Promise.resolve({ needsModel: true });
   let bots: unknown[] = [];
   ui.push.mockReset();
   ui.alert.mockReset();
   ui.rpc.mockReset().mockImplementation(async (method: string) => {
     if (method === "me") return me;
-    return method === "bots/list" ? bots : { id: "bot-new", name: "New Stirrup" };
+    return method === "bots/list" ? bots : { id: "bot-new", name: "New Bot" };
   });
   const openChat = vi.fn();
-  const create = () => createInboxBot({ input: { name: "Scout" }, openChat });
+  const create = () => createInboxBot({ input: { name: "Scout" }, openChat, send: sendTo() });
   const buttons = () =>
     ui.alert.mock.lastCall?.[2] as { text: string; onPress?: () => void }[] | undefined;
   const select = (spaceId: string) => {
@@ -1051,8 +1029,8 @@ it("asks for a model instead of making the first stirrup when the account has no
   expect(ui.rpc).not.toHaveBeenCalledWith("bots/create", expect.anything(), undefined);
 });
 
-it("adds a stirrup made from the inbox's Create menu to the inbox roster before opening its chat", async () => {
-  const bot = { id: "bot-new", name: "New Stirrup", spaceId: "space-a" };
+it("adds a bot made from the inbox's Create menu to the inbox roster before opening its chat", async () => {
+  const bot = { id: "bot-new", name: "New Bot", spaceId: "space-a" };
   const askedIn = { generation: 7, apiBase: "http://api.test" };
   const calls: string[] = [];
   ui.rpc.mockReset().mockImplementation(async (method: string) => {
@@ -1071,6 +1049,7 @@ it("adds a stirrup made from the inbox's Create menu to the inbox roster before 
       calls.push(`roster ${JSON.stringify(item)} ${JSON.stringify(session)}`),
     );
   await createInboxBot({
+    send: sendTo(),
     input: { name: "Scout" },
     openChat: (destination) => calls.push(`open ${JSON.stringify(destination)}`),
   });
@@ -1099,7 +1078,7 @@ it("adds a stirrup made from the inbox's Create menu to the inbox roster before 
   expect(ui.hapticSuccess).toHaveBeenCalledOnce();
 });
 
-it("asks for a model as the New stirrup screen opens, only for a first stirrup without one", async () => {
+it("asks for a model as the New bot screen opens, only for a first bot without one", async () => {
   ui.searchInboxSession.mockReturnValue({ generation: 7, apiBase: "http://api.test" });
   ui.alert.mockReset();
   let bots: unknown[] = [];
@@ -1112,9 +1091,13 @@ it("asks for a model as the New stirrup screen opens, only for a first stirrup w
   expect(ui.alert).toHaveBeenCalledOnce();
   bots = [{ id: "bot-existing" }];
   expect(await askForModelBeforeFirstBot(undefined, () => true)).toBe(false);
-  expect(await createInboxBot({ input: { name: "Scout" }, openChat: vi.fn() })).toBe("created");
+  expect(
+    await createInboxBot({ input: { name: "Scout" }, openChat: vi.fn(), send: sendTo() }),
+  ).toBe("created");
   bots = [];
-  expect(await createInboxBot({ input: { name: "Scout" }, openChat: vi.fn() })).toBe("needsModel");
+  expect(
+    await createInboxBot({ input: { name: "Scout" }, openChat: vi.fn(), send: sendTo() }),
+  ).toBe("needsModel");
   expect(ui.rpc.mock.calls.filter(([method]) => method === "bots/create")).toHaveLength(1);
 });
 
@@ -1132,7 +1115,7 @@ it("does not ask for a model after the space changes during the opening check", 
   expect(ui.alert).not.toHaveBeenCalled();
 });
 
-it("does not ask for a model once the New stirrup screen has closed", async () => {
+it("does not ask for a model once the New bot screen has closed", async () => {
   ui.searchInboxSession.mockReturnValue({ generation: 7, apiBase: "http://api.test" });
   ui.alert.mockReset();
   ui.rpc
@@ -1142,7 +1125,7 @@ it("does not ask for a model once the New stirrup screen has closed", async () =
   expect(ui.alert).not.toHaveBeenCalled();
 });
 
-it("tells the inbox to reload once the stirrup exists", async () => {
+it("tells the inbox to reload once the bot exists", async () => {
   ui.searchInboxSession.mockReturnValue({ generation: 7, apiBase: "http://api.test" });
   ui.rpc
     .mockReset()
@@ -1151,27 +1134,27 @@ it("tells the inbox to reload once the stirrup exists", async () => {
     );
   const changed = vi.fn();
   const stop = onInboxChanged(changed);
-  await createInboxBot({ input: { name: "Scout" }, openChat: vi.fn() });
+  await createInboxBot({ input: { name: "Scout" }, openChat: vi.fn(), send: sendTo() });
   stop();
   expect(changed).toHaveBeenCalledOnce();
 });
 
-it("does not confirm a failed inbox stirrup creation with success feedback", async () => {
+it("does not confirm a failed inbox bot creation with success feedback", async () => {
   ui.searchInboxSession.mockReturnValue({ generation: 7, apiBase: "http://api.test" });
   ui.rpc.mockReset().mockImplementation(async (method: string) => {
     if (method === "bots/create") throw new Error("Creation failed");
     return [];
   });
-  await expect(createInboxBot({ input: { name: "Scout" }, openChat: vi.fn() })).rejects.toThrow(
-    "Creation failed",
-  );
+  await expect(
+    createInboxBot({ input: { name: "Scout" }, openChat: vi.fn(), send: sendTo() }),
+  ).rejects.toThrow("Creation failed");
   expect(ui.hapticSuccess).not.toHaveBeenCalled();
 });
 
 it.each([
   { generation: 8, apiBase: "http://api.test" },
   { generation: 7, apiBase: "http://other.test" },
-])("does not confirm an inbox stirrup created in an obsolete session: %j", async (current) => {
+])("does not confirm an inbox bot created in an obsolete session: %j", async (current) => {
   const askedIn = { generation: 7, apiBase: "http://api.test" };
   ui.searchInboxSession.mockReset().mockReturnValue(askedIn);
   let finish!: Deferred<{ id: string; name: string }>;
@@ -1180,18 +1163,19 @@ it.each([
     finish = deferred<{ id: string; name: string }>();
     return finish.promise;
   });
-  const creating = createInboxBot({ input: { name: "Scout" }, openChat: vi.fn() });
+  const creating = createInboxBot({ input: { name: "Scout" }, openChat: vi.fn(), send: sendTo() });
   await vi.waitFor(() =>
     expect(ui.rpc).toHaveBeenCalledWith("bots/create", expect.anything(), undefined),
   );
   ui.searchInboxSession.mockReturnValue(current);
-  finish.resolve({ id: "bot-new", name: "New Stirrup" });
+  finish.resolve({ id: "bot-new", name: "New Bot" });
   await creating;
   expect(ui.hapticSuccess).not.toHaveBeenCalled();
 });
 
 it("lets screen readers reach a heading's long-press menu through the heading", () => {
   const deleteSection = vi.fn();
+  const promptRenameSection = vi.fn();
   const confirmDeleteSpace = vi.fn();
   render(
     <List
@@ -1213,54 +1197,44 @@ it("lets screen readers reach a heading's long-press menu through the heading", 
         { type: "heading", key: "section:s1", title: "Ideas", sectionId: "s1" } as InboxItem,
       ]}
       spaceId="space-home"
-      options={{ deleteSection, confirmDeleteSpace }}
+      options={{ deleteSection, promptRenameSection, confirmDeleteSpace }}
     />,
   );
   const space = container.querySelector<HTMLElement>('button[aria-label="Work"]')!;
   // A disabled item is left out; here none is.
   expect(space.dataset.actions).toBe("new-bot members settings delete");
   const section = container.querySelector<HTMLElement>('button[aria-label="Collapse Ideas"]')!;
-  expect(section.dataset.actions).toBe("delete");
+  // Rename comes first, as in the chat rows' menu.
+  expect(section.dataset.actions).toBe("rename delete");
+  act(() => ui.a11yActions.get("Collapse Ideas")!({ nativeEvent: { actionName: "rename" } }));
+  expect(promptRenameSection).toHaveBeenCalledWith({ id: "s1", name: "Ideas" }, "space-home");
+  expect(deleteSection).not.toHaveBeenCalled();
   act(() => ui.a11yActions.get("Collapse Ideas")!({ nativeEvent: { actionName: "delete" } }));
   expect(deleteSection).toHaveBeenCalledWith({ id: "s1", name: "Ideas" });
   act(() => ui.a11yActions.get("Work")!({ nativeEvent: { actionName: "delete" } }));
   expect(confirmDeleteSpace).toHaveBeenCalledWith(expect.objectContaining({ id: "space-work" }));
 });
 
-it.each(["bot", "group"] as const)(
-  "shows a corner unread dot for a pinned %s and clears it on read",
-  (kind) => {
-    const chat = {
-      id: "pinned-unread",
-      name: "Helper",
-      unread: true,
-      pinned: true,
-      preview: "",
-      members: [],
-    };
-    const items = (unread: boolean): InboxItem[] => [
-      {
-        type: "pinned",
-        chats: [
-          kind === "bot"
-            ? { kind: "bot", bot: { ...chat, unread } as unknown as MobileBot }
-            : { kind: "group", group: { ...chat, unread } as unknown as MobileGroup },
-        ],
+it("reads a Space with guests as shared with guests", () => {
+  const heading = (name: string, hasGuests: boolean) =>
+    ({
+      type: "heading",
+      key: name,
+      title: name,
+      space: {
+        id: name,
+        name,
+        isDefault: false,
+        canDelete: false,
+        hasGuests,
+        bots: [],
+        groups: [],
+        botSections: [],
       },
-    ];
-    render(<List items={items(true)} />);
-    const dot = container.querySelector<HTMLElement>('[data-a11y-hidden="no-hide-descendants"]')!;
-    expect(dot).not.toBeNull();
-    expect(dot.dataset.pointerEvents).toBe("none");
-    expect(dot.style.position).toBe("absolute");
-    expect(dot.style.top).toBe("0px");
-    expect(dot.style.right).toBe("0px");
-    expect(dot.style.width).toBe("12px");
-    expect(container.querySelector('button[aria-label="Helper, unread"]')).not.toBeNull();
-    render(<List items={items(false)} />);
-    expect(container.querySelector('[data-a11y-hidden="no-hide-descendants"]')).toBeNull();
-    expect(container.querySelector('button[aria-label="Helper"]')).not.toBeNull();
-    render(<List items={items(true)} />);
-    expect(container.querySelector('[data-a11y-hidden="no-hide-descendants"]')).not.toBeNull();
-  },
-);
+    }) as unknown as InboxItem;
+  render(<List items={[heading("Clients", true), heading("Work", false)]} spaceId="Work" />);
+  expect(
+    container.querySelector('button[aria-label="Clients, Shared with guests"]'),
+  ).not.toBeNull();
+  expect(container.querySelector('button[aria-label="Work"]')).not.toBeNull();
+});

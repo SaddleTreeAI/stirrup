@@ -293,6 +293,12 @@ describe("plugin detail", () => {
     expect(container.textContent).not.toContain("https://notes.example.test/mcp");
   });
 
+  it("does not make a source link from a non-HTTPS plugin source", async () => {
+    await render({ pasted: "javascript:alert(1)" });
+    expect(container.querySelector('a[href^="javascript:"]')).toBeNull();
+    expect(container.textContent).not.toContain("View source");
+  });
+
   it("opens an installed plugin skill's saved instructions", async () => {
     api.skills.mockResolvedValue([
       { id: "skill-db-1", name: "skill-1", source: "plugin", description: "", readOnly: true },

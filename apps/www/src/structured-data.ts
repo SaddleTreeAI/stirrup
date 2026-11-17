@@ -4,7 +4,6 @@ import { pageDate } from "./page-dates";
 import { PRICE_OFFERS } from "./pricing";
 import { COMPANY_URL, GITHUB_URL, SITE_NAME, SITE_URL } from "./site";
 
-
 export const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 /** Points at the home page's Organization, and names it for readers that see one page alone. */
 const ORGANIZATION = {
@@ -162,8 +161,11 @@ function usd(cents: number): string {
 /** Offers built from the plans the pricing page shows. */
 export function priceOffers() {
   return PRICE_OFFERS.map((offer) => ({
-    "@type": "Offer", name: offer.name, url: `${SITE_URL}/pricing/`,
-    price: usd(offer.monthlyCents), priceCurrency: "USD",
+    "@type": "Offer",
+    name: offer.name,
+    url: `${SITE_URL}/pricing/`,
+    price: usd(offer.monthlyCents),
+    priceCurrency: "USD",
   }));
 }
 
@@ -222,7 +224,7 @@ export function homeStructuredData(input: HomeStructuredDataInput) {
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer support",
-          url: `${SITE_URL}/support/`,
+        url: `${SITE_URL}/support/`,
         availableLanguage: input.availableLanguages,
       },
       sameAs: [GITHUB_URL, COMPANY_URL],

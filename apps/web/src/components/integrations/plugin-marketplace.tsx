@@ -8,7 +8,7 @@ import type {
   PluginPreview,
 } from "@rakazo/contracts";
 import { mcpServerConnection, mcpServerNeedsSignIn, PluginPreviewSchema } from "@rakazo/contracts";
-import { installedPluginParts } from "@rakazo/core";
+import { installedPluginParts, pluginSite } from "@rakazo/core";
 import { Button, Spinner } from "@rakazo/ui-web";
 import { ArrowUpRight, Check, ChevronLeft, FileText, Plug } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -37,19 +37,6 @@ export function pluginSelection(entry: PluginMarketplaceEntry): PluginSelection 
     logo: entry.logo,
     site: pluginSite(entry),
   };
-}
-
-/** GitHub homepages would give every plugin the same mark, so they never stand in for a site. */
-function pluginSite(entry: Pick<PluginMarketplaceEntry, "homepage" | "domains">): string | null {
-  const domain = entry.domains[0]?.replace(/^https?:\/\//, "");
-  if (domain) return `https://${domain}`;
-  try {
-    return entry.homepage && !new URL(entry.homepage).hostname.endsWith("github.com")
-      ? entry.homepage
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 export function PluginLogo({
@@ -131,7 +118,21 @@ export function PluginRow({
 
 function sourceHref(source: string, sha: string | undefined) {
   const [repo, subdir] = source.split("#");
-  return subdir ? `${repo}/tree/${sha ?? "HEAD"}/${subdir}` : repo;
+  if (!repo) return undefined;
+  let url: URL;
+  try {
+    url = new URL(repo);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "https:" || url.username || url.password) return undefined;
+  if (subdir) {
+    const path = subdir.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+    let end = url.pathname.length;
+    while (end > 0 && url.pathname[end - 1] === "/") end--;
+    url.pathname = `${url.pathname.slice(0, end)}/tree/${encodeURIComponent(sha ?? "HEAD")}/${path}`;
+  }
+  return url.href;
 }
 
 const SKILLS_SHOWN = 5;
@@ -201,6 +202,7 @@ export function PluginDetail({
   const parsed = install ? PluginPreviewSchema.safeParse(install.config) : null;
   const detail = parsed?.success ? parsed.data : preview;
   const installed = Boolean(install);
+  const sourceUrl = sourceHref(selection.installedSource, detail?.resolvedSha);
 
   useEffect(() => {
     if (installed) return;
@@ -420,16 +422,18 @@ export function PluginDetail({
           <h2 className="truncate text-heading2 font-semibold text-foreground">
             {managed?.name ?? selection.name}
           </h2>
-          <a
-            href={sourceHref(selection.installedSource, detail?.resolvedSha)}
-            target="_blank"
-            rel="noreferrer"
-            title={detail ? `${selection.installedSource}@${detail.resolvedSha}` : undefined}
-            className="inline-flex items-center gap-1 text-body text-muted-foreground hover:text-foreground"
-          >
-            <Trans>View source</Trans>
-            <ArrowUpRight size={14} />
-          </a>
+          {sourceUrl ? (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={detail ? `${selection.installedSource}@${detail.resolvedSha}` : undefined}
+              className="inline-flex items-center gap-1 text-body text-muted-foreground hover:text-foreground"
+            >
+              <Trans>View source</Trans>
+              <ArrowUpRight size={14} />
+            </a>
+          ) : null}
         </div>
         <div className="flex shrink-0 gap-2 pt-2">{headerAction()}</div>
       </div>

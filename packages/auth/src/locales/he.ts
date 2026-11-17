@@ -71,4 +71,16 @@ export const HE_MESSAGES: Record<string, string> = {
     "קבצי המחשב השמורים שלך יימחקו ב-{date} אלא אם תחדש את המינוי.",
   "Your saved computer files will be deleted on {date} unless you choose a plan.":
     "קבצי המחשב השמורים שלך יימחקו ב-{date} אלא אם תבחר תוכנית.",
+  "{inviter} invited you to {organization} on Stirrup":
+    "{inviter} הזמין/ה אותך ל-{organization} ב-Stirrup",
+  "{inviter} invited you to join {organization} on Stirrup.":
+    "{inviter} הזמין/ה אותך להצטרף ל-{organization} ב-Stirrup.",
+  "Join {organization}": "הצטרפות ל-{organization}",
+  "This invitation expires in 7 days. Sign in with this email address to accept it.":
+    "ההזמנה תפוג בעוד 7 ימים. כדי לקבל אותה, יש להתחבר עם כתובת האימייל הזו.",
+  "{inviter} invited you to {space} on Stirrup": "{inviter} הזמין/ה אותך ל-{space} ב-Stirrup",
+  "{inviter} invited you to join {space} on Stirrup.":
+    "{inviter} הזמין/ה אותך להצטרף ל-{space} ב-Stirrup.",
+  "Join {space}": "הצטרפות ל-{space}",
+  "This invitation expires in 7 days.": "ההזמנה תפוג בעוד 7 ימים.",
 };

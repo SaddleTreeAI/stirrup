@@ -11,6 +11,7 @@ const include = [
   "infra/updater/src/**/*.test.ts",
   "apps/desktop/src/**/*.test.ts",
   "apps/web/src/**/*.test.{ts,tsx}",
+  "apps/web/server/**/*.test.ts",
   "apps/mobile/lib/**/*.test.{ts,tsx}",
   "apps/mobile/plugins/**/*.test.js",
   "apps/api/src/**/*.test.ts",
@@ -65,7 +66,7 @@ export default defineConfig({
       // source; stub them out in tests (they never render anyway).
       ...["react-native-fit-image", "@react-native-vector-icons/material-design-icons"].map(
         (dep) => ({
-          find: new RegExp(`^${dep.replace(/[/]/g, "\\/")}$`),
+          find: new RegExp(`^${dep.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
           replacement: fileURLToPath(
             new URL("./packages/chat-ui/src/native-test-stubs.tsx", import.meta.url),
           ),

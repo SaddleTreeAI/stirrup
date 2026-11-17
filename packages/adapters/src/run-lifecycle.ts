@@ -12,7 +12,7 @@ import {
 } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { databaseOutage, retryWhileDatabaseUnavailable, spaceTakesWork } from "@rakazo/db";
-import { getLogger } from "@rakazo/logging";
+import { bestEffort, getLogger } from "@rakazo/logging";
 import { sanitizedError } from "@rakazo/logging/monitoring";
 import { returnHelperOutcome } from "./background-helpers.js";
 import { returnBotMessageOutcome } from "./bot-messages.js";
@@ -274,8 +274,7 @@ export async function writeComputerRunRequeue(
     leaseOwner: workerId,
     leaseFence: fence,
   };
-  // With no retry timer a queued run is due now. Set, so the legacy retry trigger does not
-  // stamp a delay that makes the release, which starts only due runs, pass over it.
+  // With no retry timer a queued run is due now.
   const queuedWakeAt = retryAt ?? new Date();
   const releasedHold = {
     status: "queued" as const,
@@ -332,7 +331,6 @@ export async function requeueInterruptedRun(
       error: null,
       leaseOwner: null,
       leaseExpiresAt: null,
-      // Set, so the legacy retry trigger does not hold it back as a failed setup.
       wakeAt,
     },
   });
@@ -435,7 +433,7 @@ export async function claimRun(
       leaseOwner: workerId,
       leaseFence: fence,
     },
-    data: { status: "running" },
+    data: { status: "running", computerUseStartedAt: null },
   });
   if (started.count !== 1) return undefined;
   return { fence, current };
@@ -587,7 +585,10 @@ export async function finishRunAttempt(
         .releaseScreen?.(computerUse.screenRelease.computer, releaseContext)
         .catch(() => undefined);
     }
-    await releaseComputerExecutionLease(deps.prisma, computerLease).catch(() => undefined);
+    await bestEffort(
+      "release computer execution lease",
+      releaseComputerExecutionLease(deps.prisma, computerLease),
+    );
     // A stopping process requeues this run instead, and a run handed back after a database
     // outage resumes here; either must keep its turn.
     if (!deps.shutdownSignal?.aborted && !lease.handedBack) {
