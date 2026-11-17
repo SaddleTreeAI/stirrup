@@ -15,6 +15,8 @@ const UNCOVERED: Record<string, string> = {
   "integration-setup": "redirects to Integrations",
   "model-settings": "opens only for a model the catalog cannot describe; the fixtures connect none",
   share: "Android only: iOS has no share extension yet",
+  "push-target":
+    "notification handoff validates a saved account then redirects without its own screen",
 };
 
 /** Route names under app/, without route groups, layouts, or Expo Router hooks. */

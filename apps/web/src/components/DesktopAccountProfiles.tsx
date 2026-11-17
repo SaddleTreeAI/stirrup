@@ -66,8 +66,8 @@ export function DesktopAccountProfiles() {
                 ).then(async () => setState(await bridge.profiles!.state()));
               }}
             >
-              <span className="truncate text-sm">{profile.label}</span>
-              <span className="truncate text-xs text-muted-foreground">{profile.serverUrl}</span>
+              <span className="truncate text-body">{profile.label}</span>
+              <span className="truncate text-label text-muted-foreground">{profile.serverUrl}</span>
             </button>
             <button
               type="button"
@@ -93,14 +93,14 @@ export function DesktopAccountProfiles() {
       })}
       <button
         type="button"
-        className="flex items-center gap-2 rounded-md px-2 py-2 text-start text-sm hover:bg-accent"
+        className="flex items-center gap-2 rounded-md px-2 py-2 text-start text-body hover:bg-accent"
         onClick={() => void bridge.server?.addProfile?.()}
       >
         <Plus size={15} aria-hidden="true" />
         <Trans>Add account</Trans>
       </button>
       {error ? (
-        <p role="status" className="px-2 text-xs text-destructive">
+        <p role="status" className="px-2 text-label text-destructive">
           {error}
         </p>
       ) : null}
