@@ -72,9 +72,10 @@ runs:
           node_modules
           apps/*/node_modules
           packages/*/node_modules
+          editions/*/node_modules
           infra/updater/node_modules
           infra/sandboxes/supervisor/node_modules
-        key: node-modules-v1-${{ runner.os }}-${{ runner.arch }}-node24-${{ steps.keys.outputs.pnpm }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'patches/**', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'infra/updater/package.json', 'infra/sandboxes/supervisor/package.json') }}
+        key: node-modules-v1-${{ runner.os }}-${{ runner.arch }}-node24-${{ steps.keys.outputs.pnpm }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'patches/**', 'package.json', 'apps/*/package.json', 'packages/*/package.json', 'editions/*/package.json', 'infra/updater/package.json', 'infra/sandboxes/supervisor/package.json') }}
 
     - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
@@ -134,6 +135,7 @@ runs:
           node_modules
           apps/*/node_modules
           packages/*/node_modules
+          editions/*/node_modules
           infra/updater/node_modules
           infra/sandboxes/supervisor/node_modules
         key: ${{ steps.node-modules.outputs.cache-primary-key }}
