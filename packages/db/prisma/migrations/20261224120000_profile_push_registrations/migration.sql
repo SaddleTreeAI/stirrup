@@ -14,4 +14,4 @@ CREATE INDEX "profile_push_registrations_sessionId_idx" ON "profile_push_registr
 ALTER TABLE "profile_push_registrations" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "profile_push_registrations" FORCE ROW LEVEL SECURITY;
 CREATE POLICY profile_push_registrations_system ON "profile_push_registrations"
-  USING ((SELECT app_rls_bypass())) WITH CHECK ((SELECT app_rls_bypass()));
+  USING ((SELECT app_rls_bypass()));
