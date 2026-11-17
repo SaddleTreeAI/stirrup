@@ -34,7 +34,7 @@ unit_site=false
 while IFS= read -r file; do
   case "$file" in
     */Dockerfile*) all_packages=true ;;
-    apps/*/package.json | packages/*/package.json | infra/*/package.json) all_packages=true ;;
+    apps/*/package.json | packages/*/package.json | editions/*/package.json | infra/*/package.json) all_packages=true ;;
     # vitest.config.ts loads these into every package's tests, which the package graph misses.
     packages/testkit/src/pin-test-env.ts | packages/testkit/src/lingui-core-macro.ts | \
       packages/testkit/src/lingui-react-macro.ts | \
@@ -42,7 +42,7 @@ while IFS= read -r file; do
       packages/db/src/index.ts | \
       packages/chat-ui/src/native-test-stubs.tsx) all_packages=true ;;
     apps/www/* | docs/*) unit_site=true ;;
-    apps/*/* | packages/*/* | infra/sandboxes/supervisor/* | infra/updater/*) unit_packages=true ;;
+    apps/*/* | packages/*/* | editions/*/* | infra/sandboxes/supervisor/* | infra/updater/*) unit_packages=true ;;
     .agents/skills/pr-watch/* | .agents/skills/translate/*) all_packages=true ;;
     .agents/* | .claude/*) ;;
     # Repo checks run in every Lint and typecheck job. Workflows stay below: unit and script tests
@@ -81,7 +81,7 @@ while IFS= read -r file; do
     *) www=true ;;
   esac
   case "$file" in
-    apps/*/package.json | packages/*/package.json) ;;
+    apps/*/package.json | packages/*/package.json | editions/*/package.json) ;;
     .agents/* | .claude/* | apps/mobile/*) continue ;;
     # The production build checks the bundle budget; the other repo checks run on every pull request.
     scripts/checks/bundle-size*) web=true; continue ;;
@@ -93,6 +93,12 @@ while IFS= read -r file; do
     apps/web/* | apps/desktop/* | packages/ui-web/* | packages/chat-ui/*)
       web=true
       e2e=true
+      continue
+      ;;
+    editions/*)
+      web=true
+      e2e=true
+      server=true
       continue
       ;;
     apps/worker/*) web=true; server=true; continue ;;

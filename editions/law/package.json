@@ -24,7 +24,9 @@
   "dependencies": {
     "@lingui/core": "6.12.0",
     "@lingui/react": "6.12.0",
+    "@rakazo/adapter-kit": "workspace:*",
     "@rakazo/adapters": "workspace:*",
+    "@rakazo/contracts": "workspace:*",
     "@rakazo/core": "workspace:*",
     "@rakazo/db": "workspace:*",
     "@rakazo/edition-sdk": "workspace:*",

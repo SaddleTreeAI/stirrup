@@ -1,12 +1,5 @@
 {
   "app": ["packages/testkit/src/pi-image-file.postgres.test.ts -> ../../../apps/api/src/app.ts"],
-  "unused": [
-    "editions/law/package.json -> @rakazo/adapters",
-    "editions/law/package.json -> @rakazo/core",
-    "editions/law/package.json -> @rakazo/db",
-    "editions/law/package.json -> @rakazo/logging",
-    "editions/law/package.json -> @rakazo/ui-web"
-  ],
   "relative": [
     "apps/api/src/account-deletion.postgres.test.ts -> ../../../packages/adapters/src/object-storage.test-support.js",
     "apps/api/src/board-app.postgres.test.ts -> ../../../packages/testkit/src/index.js",

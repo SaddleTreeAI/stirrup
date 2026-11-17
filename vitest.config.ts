@@ -7,6 +7,7 @@ import { defineConfig } from "vitest/config";
 const include = [
   ".agents/skills/*/*.test.ts",
   "packages/*/src/**/*.test.{ts,tsx}",
+  // edition-seam:A1-web
   "editions/*/src/**/*.test.{ts,tsx}",
   "infra/sandboxes/supervisor/src/**/*.test.ts",
   "infra/updater/src/**/*.test.ts",
@@ -41,6 +42,7 @@ export default defineConfig({
   plugins: [lingui({ configPath: path.join(root, "lingui.config.ts") })],
   resolve: {
     alias: [
+      // edition-seam:A1-web
       {
         find: /^@edition\/web$/,
         replacement: fileURLToPath(new URL("./editions/default/src/web.ts", import.meta.url)),

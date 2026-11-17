@@ -834,9 +834,15 @@ importers:
       '@lingui/react':
         specifier: 6.12.0
         version: 6.12.0(@babel/core@7.29.13(supports-color@8.1.1))(react@19.3.1)
+      '@rakazo/adapter-kit':
+        specifier: workspace:*
+        version: link:../../packages/adapter-kit
       '@rakazo/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@rakazo/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@rakazo/core':
         specifier: workspace:*
         version: link:../../packages/core

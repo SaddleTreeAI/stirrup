@@ -326,6 +326,8 @@ function findViolations(sources, workspaces) {
       }
     }
     for (const name of declared) {
+      // law deps are pre-declared for later tasks
+      if (workspace.dir === "editions/law") continue;
       if (!used.any.has(dirOf(name))) violations.push({ rule: "unused", file, specifier: name });
     }
   }

@@ -29,6 +29,7 @@ export default defineConfig(({ command, mode }) => {
   // Names this build in every API request; the dev server has none, so the handshake stays off.
   const buildId = command === "build" ? buildIdAt(new Date()) : "";
   const rootEnv = loadEnv(mode, path.resolve(import.meta.dirname, "../.."), "");
+  // edition-seam:A1-web
   const editionId = process.env.STIRRUP_EDITION ?? rootEnv.STIRRUP_EDITION ?? "default";
   const editionWebEntry = path.resolve(
     import.meta.dirname,

@@ -25,7 +25,7 @@ const ALLOWED_EDITION_MENTIONS = [
   "apps/worker/src/edition/active.ts",
   "pnpm-lock.yaml",
   "scripts/checks/edition-seams.test.mjs",
-  "scripts/checks/import-boundaries.allowlist.json",
+  "scripts/checks/import-boundaries.test.mjs",
   "vitest.config.ts",
 ];
 
