@@ -2,6 +2,14 @@ import type { Deferred } from "@rakazo/core/test-async";
 import { deferred } from "@rakazo/core/test-async";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const profiles = vi.hoisted(() => ({
+  activeId: null as string | null,
+  items: [] as { id: string; label: string; serverUrl: string }[],
+}));
+const activateProfile = vi.hoisted(() =>
+  vi.fn(async (_profileId: string) => ({ ok: true as const, url: "https://instance.example" })),
+);
+
 vi.mock("expo-notifications", () => ({
   DEFAULT_ACTION_IDENTIFIER: "expo.modules.notifications.actions.DEFAULT",
   addNotificationResponseReceivedListener: vi.fn(),
@@ -10,10 +18,17 @@ vi.mock("expo-notifications", () => ({
   useLastNotificationResponse: vi.fn(),
 }));
 vi.mock("expo-router", () => ({
-  router: { push: vi.fn() },
+  router: { push: vi.fn(), dismissAll: vi.fn(), replace: vi.fn() },
 }));
+vi.mock("./account-profiles", () => ({
+  activeAccountProfileId: () => profiles.activeId,
+  listAccountProfiles: () => profiles.items,
+}));
+vi.mock("./api-server", () => ({ activateAccountProfile: activateProfile }));
 vi.mock("./session", () => ({
   loadSessionToken: vi.fn(),
+  currentSessionGeneration: () => 1,
+  subscribeSessionGeneration: () => () => {},
 }));
 vi.mock("./settings-sheet", () => ({
   closeSettingsSheet: vi.fn(),
@@ -37,6 +52,9 @@ function tap(id: string, data: Record<string, unknown> = { botId: "bot-1", threa
 
 beforeEach(() => {
   vi.clearAllMocks();
+  profiles.activeId = null;
+  profiles.items = [];
+  activateProfile.mockImplementation(async () => ({ ok: true, url: "https://instance.example" }));
 });
 
 describe("opening a notification tap", () => {
@@ -68,6 +86,57 @@ describe("opening a notification tap", () => {
       { dangerouslySingular: threadRouteId },
     );
     expect(Notifications.clearLastNotificationResponse).not.toHaveBeenCalled();
+  });
+
+  it("switches to the bound saved account before opening a same-host native push", async () => {
+    profiles.activeId = "profile-personal";
+    profiles.items = [
+      { id: "profile-personal", label: "Personal", serverUrl: "https://instance.example" },
+      { id: "profile-work", label: "Work", serverUrl: "https://instance.example" },
+    ];
+    activateProfile.mockImplementation(async (profileId) => {
+      profiles.activeId = profileId;
+      return { ok: true, url: "https://instance.example" };
+    });
+    vi.mocked(loadSessionToken).mockResolvedValue("work-token");
+
+    await expect(
+      openNotificationResponse(
+        tap("tap-bound-same-host", {
+          botId: "work-bot",
+          threadId: "work-thread",
+          clientProfileId: "profile-work",
+          serverOrigin: "https://instance.example",
+        }),
+      ),
+    ).resolves.toBe(true);
+    expect(activateProfile).toHaveBeenCalledExactlyOnceWith("profile-work");
+    expect(router.push).toHaveBeenCalledWith(
+      { pathname: "/thread", params: { botId: "work-bot", threadId: "work-thread" } },
+      { dangerouslySingular: threadRouteId },
+    );
+  });
+
+  it("refuses a bound notification when the saved profile has a different origin", async () => {
+    profiles.activeId = "profile-personal";
+    profiles.items = [
+      { id: "profile-personal", label: "Personal", serverUrl: "https://instance.example" },
+      { id: "profile-work", label: "Work", serverUrl: "https://other.example" },
+    ];
+    vi.mocked(loadSessionToken).mockResolvedValue("personal-token");
+
+    await expect(
+      openNotificationResponse(
+        tap("tap-bound-wrong-origin", {
+          botId: "work-bot",
+          threadId: "work-thread",
+          clientProfileId: "profile-work",
+          serverOrigin: "https://instance.example",
+        }),
+      ),
+    ).resolves.toBe(false);
+    expect(activateProfile).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("drops a signed-out tap so a later cold start cannot replay it", async () => {

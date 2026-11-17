@@ -25,6 +25,7 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 import type { Organization } from "../lib/organizations";
+import { DesktopAccountProfiles } from "./DesktopAccountProfiles";
 import { useSidebarUpdate } from "./DesktopUpdates";
 import { IconTooltip } from "./IconTooltip";
 
@@ -191,6 +192,7 @@ export function SidebarFooter({
               </Popover>
             ) : null}
             {administration}
+            <DesktopAccountProfiles />
             <Button
               variant="ghost"
               className="h-9 w-full justify-start gap-2.5 font-normal"

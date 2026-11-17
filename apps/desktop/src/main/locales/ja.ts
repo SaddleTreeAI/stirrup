@@ -113,6 +113,7 @@ export const JA_MESSAGES: Record<string, string> = {
   "Setup could not start. Quit Stirrup and try again.":
     "設定を開始できませんでした。Stirrupを終了してからもう一度お試しください。",
   "Enter a server address.": "サーバのアドレスを入力してください。",
+  "You have reached the saved account limit.": "保存できるアカウント数の上限に達しました。",
   "Enter a valid http:// or https:// address.":
     "有効なhttp://またはhttps://のアドレスを入力してください。",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":

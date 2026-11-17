@@ -41,7 +41,6 @@ import {
 import type { AuthMode } from "../lib/auth-routing";
 import { initialAuthMode } from "../lib/auth-routing";
 import { CallKeyboardContext } from "../lib/call-keyboard-context";
-import { displayApiHost, usesCustomApiBase } from "../lib/endpoint";
 import { hasIncomingShare } from "../lib/incoming-share";
 import { useMobileTokens } from "../lib/native";
 import { passkeysAvailable, signInWithPasskey } from "../lib/passkey";
@@ -259,8 +258,6 @@ export default function SignIn() {
       setPending(false);
     }
   }
-
-  const custom = usesCustomApiBase(apiBase);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: tokens.background }}>
@@ -716,13 +713,9 @@ export default function SignIn() {
             </ScrollView>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={
-                custom
-                  ? t`Custom server ${ph({ host: displayApiHost(apiBase) })}`
-                  : t`Use a custom server`
-              }
+              accessibilityLabel={t`Accounts`}
               hitSlop={12}
-              onPress={() => router.push("/server")}
+              onPress={() => router.push("/accounts")}
               style={{
                 alignItems: "center",
                 paddingHorizontal: 24,
@@ -730,20 +723,7 @@ export default function SignIn() {
                 paddingTop: 8,
               }}
             >
-              {custom ? (
-                <>
-                  <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
-                    {t`Custom server`}
-                  </Text>
-                  <Text style={{ color: tokens.mutedForeground, fontSize: 13, marginTop: 2 }}>
-                    {displayApiHost(apiBase)}
-                  </Text>
-                </>
-              ) : (
-                <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>
-                  {t`Use a custom server`}
-                </Text>
-              )}
+              <Text style={{ color: tokens.mutedForeground, fontSize: 13 }}>{t`Accounts`}</Text>
             </Pressable>
           </View>
         </TouchableWithoutFeedback>

@@ -1,5 +1,6 @@
 import type { DesktopSetup } from "@rakazo/contracts";
 import type { BrowserWindow } from "electron";
+import type { DesktopProfileStore } from "./account-profile-store.js";
 import type { AppTarget } from "./app-frame.js";
 import type { DesktopUpdateController } from "./auto-update.js";
 import type { prepareHostComputer } from "./host-computer.js";
@@ -12,6 +13,9 @@ export const desktop = {
   replacedAppWindow: null,
   setupWindow: null,
   currentSetup: null,
+  profileStore: null,
+  currentProfileLegacySession: true,
+  addingProfile: false,
   currentTargetUrl: null,
   setupError: null,
   quitting: false,
@@ -33,6 +37,9 @@ export const desktop = {
   replacedAppWindow: BrowserWindow | null;
   setupWindow: BrowserWindow | null;
   currentSetup: DesktopSetup | null;
+  profileStore: DesktopProfileStore | null;
+  currentProfileLegacySession: boolean;
+  addingProfile: boolean;
   currentTargetUrl: string | null;
   setupError: string | null;
   quitting: boolean;

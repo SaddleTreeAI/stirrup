@@ -100,6 +100,7 @@ export const ZH_CN_MESSAGES: Record<string, string> = {
   "Setup bridge unavailable.": "设置桥接不可用。",
   "Setup could not start. Quit Stirrup and try again.": "无法开始设置。请退出 Stirrup 后重试。",
   "Enter a server address.": "请输入服务器地址。",
+  "You have reached the saved account limit.": "已达到保存账户数量上限。",
   "Enter a valid http:// or https:// address.": "请输入有效的 http:// 或 https:// 地址。",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "请输入有效的服务器地址。公共服务器需要 HTTPS；新的本地实例必须使用 localhost。",

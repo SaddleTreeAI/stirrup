@@ -1,6 +1,6 @@
 import type { MediaAccessPermissionRequest, Session, WebContents } from "electron";
 import { describe, expect, it, vi } from "vitest";
-import { installSessionPermissions } from "./session-permissions.js";
+import { installNotificationPermission, installSessionPermissions } from "./session-permissions.js";
 import { shouldOpenInAppPopup } from "./window-open.js";
 
 const appUrl = "https://app.example.test/chat";
@@ -220,6 +220,24 @@ describe("desktop session permissions", () => {
     expect(policy.request()).toBe(false);
     expect(policy.check()).toBe(false);
     expect(policy.check("notifications", { embeddingOrigin: appUrl }, null)).toBe(false);
+  });
+
+  it("grants only notifications to a registered inactive profile window", () => {
+    const policy = policyFixture();
+    const hidden = {
+      session: policy.session,
+      isDestroyed: vi.fn(() => false),
+      getURL: vi.fn(() => appUrl),
+      mainFrame: {},
+    } as unknown as WebContents;
+    installNotificationPermission(policy.session, hidden, appUrl);
+    policy.setApp(null);
+    expect(policy.request("notifications", {}, hidden)).toBe(true);
+    expect(policy.check("notifications", {}, hidden)).toBe(true);
+    expect(policy.request("media", {}, hidden)).toBe(false);
+    expect(policy.check("clipboard-sanitized-write", {}, hidden)).toBe(false);
+    expect(policy.request("notifications", { requestingUrl: providerUrl }, hidden)).toBe(false);
+    expect(policy.check("notifications", {}, hidden, new URL(providerUrl).origin)).toBe(false);
   });
 
   it("revokes grants if the app is destroyed or navigates to another origin", () => {

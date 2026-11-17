@@ -493,12 +493,18 @@ export function accountRoutes(ctx: RouterContext) {
       registerPush: authed.notifications.registerPush.handler(async ({ context, input }) => {
         const sessionId = context.sessionId;
         if (!sessionId) throw new ORPCError("UNAUTHORIZED");
+        const serverOrigin = new URL(deps.env.webOrigin).origin;
+        if (input.serverOrigin && input.serverOrigin !== serverOrigin)
+          throw new ClientError("BAD_REQUEST", "Notification host does not match this server");
         try {
           await deps.pushTokens.save(
             context.actor.userId,
             input.token,
             sessionId,
             input.presentation,
+            input.clientProfileId
+              ? { clientProfileId: input.clientProfileId, serverOrigin }
+              : undefined,
           );
         } catch (error) {
           if (error instanceof PushSessionEndedError)
@@ -514,8 +520,7 @@ export function accountRoutes(ctx: RouterContext) {
           await deps.pushTokens.endSession(context.actor.userId, context.sessionId);
           return { ok: true as const };
         }
-        await deps.pushTokens.remove(context.actor.userId);
-        return { ok: true as const };
+        throw new ClientError("UNAUTHORIZED", "A signed-in session is required");
       }),
       followWorkActivity: authed.notifications.followWorkActivity.handler(
         async ({ context, input }) => {

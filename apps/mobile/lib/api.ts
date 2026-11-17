@@ -15,6 +15,7 @@ import {
 } from "@rakazo/core";
 import { clientCorrelationHeaders, responseCorrelation } from "@rakazo/logging/monitoring";
 import * as SecureStore from "expo-secure-store";
+import { activeAccountProfileId, credentialsForProfile } from "./account-profiles";
 import { promptAiConsent } from "./ai-consent";
 import type { EndpointResult } from "./endpoint";
 import { defaultApiBase, normalizeApiBase } from "./endpoint";
@@ -26,6 +27,8 @@ import {
   syncMobileAvatarSession,
 } from "./logo-avatar-activity";
 import { reportMobileError } from "./monitoring";
+import type { ApiRequestContext } from "./profile-request-context";
+import { captureSavedProfileRequestContext } from "./profile-request-context";
 import { followSelectedSpace, selectedSpaceChanged } from "./referral";
 import { fetchServer } from "./server-headers";
 import {
@@ -169,18 +172,25 @@ export function configureClientBuild(options: typeof clientBuild): void {
 export async function authHeaders(
   spaceId: string | null = selectedSpaceId(),
 ): Promise<Record<string, string>> {
+  const profileId = activeAccountProfileId();
+  const generation = currentSessionGeneration();
+  const apiBase = currentApiBase();
   const token = await loadSessionToken();
+  const credentials = profileId ? await credentialsForProfile(profileId) : { headers: {} };
+  if (
+    generation !== currentSessionGeneration() ||
+    profileId !== activeAccountProfileId() ||
+    apiBase !== currentApiBase()
+  )
+    throw new Error(t`The account changed while starting the request`);
   return {
     ...clientBuild.headers(),
     ...(token ? { authorization: `Bearer ${token}` } : {}),
     ...(spaceId ? { "x-rakazo-space-id": spaceId } : {}),
+    ...credentials.headers,
   };
 }
-export type ApiRequestContext = {
-  sessionGeneration?: number;
-  apiBase: string;
-  headers: Record<string, string>;
-};
+export type { ApiRequestContext };
 /** Keeps consent prompts separate across servers and the selected Space. */
 export function aiConsentCoalesceKey(requestContext: ApiRequestContext): string {
   return [requestContext.apiBase, requestContext.headers["x-rakazo-space-id"] ?? ""].join("\u0000");
@@ -213,7 +223,21 @@ export async function captureApiRequestContext(
   }
   if (generation !== currentSessionGeneration())
     throw new Error(t`Something went wrong. Try again.`);
-  return { apiBase, headers, sessionGeneration: generation };
+  const profileId = activeAccountProfileId();
+  return {
+    apiBase,
+    headers,
+    sessionGeneration: generation,
+    ...(profileId ? { profileId } : {}),
+  };
+}
+
+/** Pins a saved account's authenticated request, currently used for push registration. */
+export async function captureProfileRequestContext(
+  profileId: string,
+  spaceId: string | null = null,
+): Promise<ApiRequestContext> {
+  return captureSavedProfileRequestContext(profileId, spaceId, clientBuild.headers());
 }
 /** Revoking other sessions also refuses this one until the replacement is saved. */
 let passwordChangesInFlight = 0;
@@ -745,6 +769,8 @@ async function request(
           signal: controller.signal,
         },
         consentContext?.apiBase ?? currentApiBase(),
+        fetch,
+        !activeAccountProfileId() && !consentContext?.profileId,
       );
     } catch (error) {
       // The native fetch reports an aborted request with an implementation detail

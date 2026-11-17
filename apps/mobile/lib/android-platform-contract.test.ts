@@ -7,6 +7,24 @@ import { normalizeApiBase } from "./endpoint.js";
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("Android mobile platform contract", () => {
+  it("binds native sender notification links to their originating saved profile", () => {
+    const senderPush = readFileSync(
+      resolve(
+        mobileRoot,
+        "modules/rakazo-notifications/android/src/main/java/com/rakazo/notifications/SenderPush.kt",
+      ),
+      "utf8",
+    );
+    const route = readFileSync(resolve(mobileRoot, "app/push-target.tsx"), "utf8");
+
+    expect(senderPush).toContain('"rakazo://push-target?$owner');
+    expect(senderPush).toContain("clientProfileId=");
+    expect(senderPush).toContain("serverOrigin=");
+    expect(route).toContain("notificationAccountBinding(params)");
+    expect(route).toContain("new URL(profile.serverUrl).origin !== binding.serverOrigin");
+    expect(route).toContain("activateAccountProfile(profile.id)");
+  });
+
   it("keeps Server Save in an Android card header and preserves the iOS sheet", () => {
     const layout = readFileSync(resolve(mobileRoot, "app/_layout.tsx"), "utf8");
     const server = readFileSync(resolve(mobileRoot, "app/server.tsx"), "utf8");
@@ -44,6 +62,8 @@ describe("Android mobile platform contract", () => {
     );
     const service = readFileSync(resolve(nativeRoot, "RakazoNotificationService.kt"), "utf8");
     const module = readFileSync(resolve(nativeRoot, "RakazoNotificationsModule.kt"), "utf8");
+    const senderPush = readFileSync(resolve(nativeRoot, "SenderPush.kt"), "utf8");
+    const storage = readFileSync(resolve(nativeRoot, "NotificationStorage.kt"), "utf8");
     const allowlist = readFileSync(resolve(nativeRoot, "EndpointAllowlist.kt"), "utf8");
     expect(service).toContain("android.requestPromotedOngoing");
     expect(service).toContain("liveStatusIcon(primary, avatarStyle)");
@@ -58,6 +78,8 @@ describe("Android mobile platform contract", () => {
     expect(module).toContain("RakazoNotificationService.clearSession(context)");
     expect(module).toContain("isAllowedNotificationEndpoint(endpoint)");
     expect(module).toContain("storage.spaceId = spaceId");
+    expect(module).toContain("storage.profileId = profileId");
+    expect(module).toContain("storage.serverOrigin = serverOrigin");
     expect(allowlist).toContain("isAllowedNotificationEndpoint");
     expect(allowlist).toContain('scheme == "https"');
     expect(allowlist).toContain("isLanOrLocalHost");
@@ -103,10 +125,14 @@ describe("Android mobile platform contract", () => {
       "fun clearSession(context: Context) {\n      synchronized(sessionLock)",
     );
     expect(service).not.toContain("private fun postCompletion(");
-    expect(service).toContain('"rakazo://group-thread?groupId=');
-    expect(service).toMatch(/&spaceId=\$\{Uri\.encode\(run\.spaceId\)\}/);
+    expect(service).toContain("SenderPush.targetLink(");
+    expect(senderPush).toContain('return "rakazo://push-target?$owner&spaceId=');
+    expect(senderPush).toContain("&clientProfileId=");
+    expect(senderPush).toContain("&serverOrigin=");
+    expect(storage).toContain("var profileId: String");
+    expect(storage).toContain("var serverOrigin: String");
     expect(service).toContain('putString("rakazo.spaceId", run.spaceId)');
-    expect(service).toMatch(/&threadId=\$\{Uri\.encode\(run\.threadId\)\}/);
+    expect(senderPush).toMatch(/threadId=\$\{Uri\.encode\(threadId\)\}/);
     expect(service).toContain('if (run.groupId != null) put("groupId", run.groupId)');
     expect(service).toContain('if (message.optString("runId") != run.runId) continue');
     expect(service).toContain('if (block.optString("kind") == "handoff") return null');

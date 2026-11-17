@@ -8,8 +8,9 @@ import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { activeAccountProfileId, profileCredentialStorageKey } from "./account-profiles";
 import { currentApiBase, setCachedApiBase, setSelectedSpace } from "./api";
-import { saveApiBase } from "./api-server";
+import { loadApiBase, saveApiBase } from "./api-server";
 import { jsonResponse, mockSecureStore } from "./api-test-helpers";
 import type { SaveSend } from "./query";
 import { useSave } from "./query";
@@ -29,7 +30,6 @@ vi.mock("./network-cache", () => ({ clearNetworkCache: vi.fn() }));
 
 const OLD = "https://old.example.test";
 const NEW = "https://new.example.test";
-const SESSION_KEY = "rakazo.session_token";
 const WRITE = "spaceSettings/setOverride";
 
 const onSaved = vi.fn();
@@ -59,7 +59,8 @@ beforeEach(async () => {
   store = new Map();
   mockSecureStore(store);
   originalBase = currentApiBase();
-  setCachedApiBase(OLD);
+  await loadApiBase();
+  await saveApiBase(OLD);
   await restoreSessionToken("old-token");
   setSelectedSpace("space-old");
   requests = [];
@@ -98,12 +99,16 @@ const writes = () => requests.filter((request) => request.url.endsWith(`/rpc/${W
 function holdTokenRead(answer: "as read" | "as stored by then") {
   const held = deferred();
   let waiting = true;
+  const profileId = activeAccountProfileId();
+  if (!profileId) throw new Error("The account profile fixture was not loaded");
+  const key = profileCredentialStorageKey(profileId);
+  const read = store.get(key) ?? JSON.stringify({ token: "", headers: {} });
   vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-    if (key !== SESSION_KEY || !waiting) return store.get(key) ?? null;
+    if (key !== profileCredentialStorageKey(profileId) || !waiting) return store.get(key) ?? null;
     waiting = false;
-    const read = store.get(key) ?? null;
     await held.promise;
-    return answer === "as read" ? read : (store.get(key) ?? null);
+    if (answer === "as read") return read;
+    return store.get(key) ?? read;
   });
   return held.resolve;
 }

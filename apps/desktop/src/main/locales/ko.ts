@@ -109,6 +109,7 @@ export const KO_MESSAGES: Record<string, string> = {
   "Setup could not start. Quit Stirrup and try again.":
     "설정을 시작할 수 없습니다. Stirrup을 종료하고 다시 시도하세요.",
   "Enter a server address.": "서버 주소를 입력하세요.",
+  "You have reached the saved account limit.": "저장된 계정 한도에 도달했습니다.",
   "Enter a valid http:// or https:// address.": "올바른 http:// 또는 https:// 주소를 입력하세요.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "올바른 서버 주소를 입력하세요. 공개 서버는 HTTPS가 필요하며, 새 로컬 인스턴스는 localhost를 사용해야 합니다.",

@@ -13,7 +13,7 @@ function hook(config: DesktopSetup | null = setup) {
   const register = vi.fn();
   installServerHeaders(
     { webRequest: { onBeforeSendHeaders: register } } as unknown as Session,
-    () => config,
+    config,
     () => 7,
   );
   return register;
@@ -62,5 +62,39 @@ describe("server header hook", () => {
     for (const frame of ["devtools://devtools/", "chrome-extension://example/"]) {
       expect(send("https://server.example:8443/rpc", 7, frame)).toEqual({ Accept: "*/*" });
     }
+  });
+
+  it("keeps an in-flight session bound to the account that installed its headers", () => {
+    const oldHandler = hook(setup).mock.calls[0]![0];
+    const newSetup: DesktopSetup = {
+      mode: "existing",
+      serverUrl: setup.serverUrl,
+      headers: { "X-Access-Token": "second-account-secret" },
+    };
+    const newHandler = hook(newSetup).mock.calls[0]![0];
+    const oldCallback = vi.fn();
+    oldHandler(
+      {
+        url: setup.serverUrl,
+        webContentsId: 7,
+        frame: { url: setup.serverUrl },
+        requestHeaders: {},
+      },
+      oldCallback,
+    );
+    const newCallback = vi.fn();
+    newHandler(
+      {
+        url: setup.serverUrl,
+        webContentsId: 7,
+        frame: { url: setup.serverUrl },
+        requestHeaders: {},
+      },
+      newCallback,
+    );
+    expect(oldCallback.mock.calls[0]![0].requestHeaders["X-Access-Token"]).toBe("fake-secret");
+    expect(newCallback.mock.calls[0]![0].requestHeaders["X-Access-Token"]).toBe(
+      "second-account-secret",
+    );
   });
 });

@@ -5,14 +5,14 @@ import { serverHeadersFor } from "./setup-config.js";
 /** Call only for the selected app session with nonempty, validated headers. */
 export function installServerHeaders(
   value: Session,
-  setup: () => DesktopSetup | null,
+  setup: DesktopSetup | null,
   appContentsId: () => number | undefined,
 ) {
-  const names = Object.keys(setup()?.headers ?? {}).map((name) => name.toLowerCase());
+  const names = Object.keys(setup?.headers ?? {}).map((name) => name.toLowerCase());
   if (names.length === 0) return;
   value.webRequest.onBeforeSendHeaders((details, callback) => {
     const requestHeaders = { ...details.requestHeaders };
-    const extra = serverHeadersFor(details.url, setup());
+    const extra = serverHeadersFor(details.url, setup);
     const nativeRequest =
       (details.webContentsId === -1 || details.webContentsId === undefined) && !details.frame;
     // Redirects can inherit custom headers. Strip them before checking the new destination.

@@ -1,4 +1,4 @@
-# Fork iPhone distribution
+# Fork mobile distribution
 
 The optional `release-mobile-fork` workflow builds the configured fork on `main` and uploads it to TestFlight. It does not submit public App Review or build Android. Native signing credentials must already exist in the build service for the app and its extensions.
 
@@ -15,3 +15,9 @@ Run the workflow from Actions or through an authorized repository connection. On
 ## Installing Stirrup
 
 Existing testers install updates from TestFlight. Public App Store distribution is not enabled by this workflow. The display name comes from `app.json`; the existing bundle, signing, project and legacy URL-scheme identities are preserved.
+
+## Android APK
+
+The separate `release-android-fork` workflow produces an installable APK artifact from `main`, without submitting to a store. Set an explicit `androidPackage` in the private distribution configuration or the `MOBILE_ANDROID_PACKAGE` secret. The workflow refuses to build without it and verifies the finished build's project, package, and profile before downloading it. Configure the signing key in the owned build-service project first; retain that key for future updates.
+
+Android push additionally needs that application's messaging configuration and server credentials in the owned build project. An APK can be built without them, but background push notifications will not work. The build does not provision messaging credentials or borrow the upstream project's configuration. Account switching and foreground usage remain available.

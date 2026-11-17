@@ -5,11 +5,21 @@ export type { RakazoDesktop, RakazoDesktopOAuthCallback } from "@rakazo/contract
 declare global {
   interface Window {
     rakazoDesktop?: RakazoDesktop;
+    /** Present only in an unprivileged hidden profile notification window. */
+    rakazoProfileNotification?: {
+      activateProfile: () => Promise<boolean>;
+    };
   }
 }
 
 export function desktopBridge(): RakazoDesktop | undefined {
   return typeof window === "undefined" ? undefined : window.rakazoDesktop;
+}
+
+export function activateProfileFromNotification(): Promise<boolean> | undefined {
+  return typeof window === "undefined"
+    ? undefined
+    : window.rakazoProfileNotification?.activateProfile();
 }
 
 /** The compact `code#state` form the manual paste flow already accepts. */

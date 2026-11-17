@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 // window's static assets have to be copied into dist alongside them.
 const STATIC_FILES = [
   "preload/preload.cjs",
+  "preload/profile-notification-preload.cjs",
   "preload/setup-preload.cjs",
   "setup-renderer/setup.html",
   "setup-renderer/setup.css",

@@ -58,6 +58,7 @@ describe("desktop preload bridge", () => {
       "oauth",
       "passkeys",
       "platform",
+      "profiles",
       "server",
       "settings",
       "update",
@@ -97,6 +98,11 @@ describe("desktop preload bridge", () => {
     await bridge.update.download();
     await bridge.update.install();
     await bridge.server!.change();
+    await bridge.server!.addProfile?.();
+    await bridge.profiles?.state();
+    await bridge.profiles?.select("profile-id");
+    await bridge.profiles?.rename("profile-id", "Work");
+    await bridge.profiles?.remove("profile-id");
     expect(invoke.mock.calls.map(([channel]) => channel)).toEqual([
       "desktop.badge.set",
       "desktop.clipboard.write",
@@ -116,6 +122,11 @@ describe("desktop preload bridge", () => {
       "desktop.update.download",
       "desktop.update.install",
       "desktop.server.change",
+      "desktop.server.addProfile",
+      "desktop.profiles.state",
+      "desktop.profiles.select",
+      "desktop.profiles.rename",
+      "desktop.profiles.remove",
     ]);
   });
 
@@ -234,6 +245,21 @@ describe("desktop preload bridge", () => {
     expect(received).toEqual([{ session: 3, type: "end" }]);
     unsubscribe();
     expect(off).toHaveBeenCalledWith("desktop.speech.event", expect.any(Function));
+  });
+});
+
+describe("inactive notification preload bridge", () => {
+  it("exposes only the profile activation route", async () => {
+    const { invoke, exposeInMainWorld } = runPreload("profile-notification-preload.cjs");
+    expect(exposeInMainWorld).toHaveBeenCalledTimes(1);
+    const [globalName, bridge] = exposeInMainWorld.mock.calls[0] as [
+      string,
+      { activateProfile: () => Promise<boolean> },
+    ];
+    expect(globalName).toBe("rakazoProfileNotification");
+    expect(Object.keys(bridge)).toEqual(["activateProfile"]);
+    await bridge.activateProfile();
+    expect(invoke).toHaveBeenCalledExactlyOnceWith("desktop.notifications.activateProfile");
   });
 });
 

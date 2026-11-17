@@ -1,5 +1,10 @@
 import { parseServerHeaders } from "@rakazo/contracts";
 import * as SecureStore from "expo-secure-store";
+import {
+  activeAccountProfileId,
+  credentialsForProfile,
+  saveActiveProfileCredentials,
+} from "./account-profiles";
 
 const SERVER_HEADERS_KEY = "rakazo.server_headers";
 
@@ -20,6 +25,11 @@ export function serverHeadersForUrl(url: string, apiBase: string): Record<string
 }
 
 export async function loadServerHeaders(apiBase: string): Promise<void> {
+  const profileId = activeAccountProfileId();
+  if (profileId) {
+    await loadProfileServerHeaders(profileId, apiBase);
+    return;
+  }
   let stored: string | null = null;
   try {
     stored = await SecureStore.getItemAsync(SERVER_HEADERS_KEY);
@@ -37,6 +47,20 @@ export async function loadServerHeaders(apiBase: string): Promise<void> {
   }
 }
 
+/** Preloads a saved profile's headers before making that profile active. */
+export async function loadProfileServerHeaders(profileId: string, apiBase: string): Promise<void> {
+  const credentials = await credentialsForProfile(profileId);
+  saved = { apiBase, headers: credentials.headers };
+  try {
+    await SecureStore.setItemAsync(
+      SERVER_HEADERS_KEY,
+      JSON.stringify({ apiBase, headers: credentials.headers }),
+    );
+  } catch {
+    // The intent extension still reads the singleton copy when available.
+  }
+}
+
 /** Replaces the headers for `apiBase`; an empty set removes them. */
 export async function saveServerHeaders(
   apiBase: string,
@@ -45,7 +69,18 @@ export async function saveServerHeaders(
   const parsed = parseServerHeaders(headers);
   if (parsed === null) return false;
   headers = parsed;
+  const profileId = activeAccountProfileId();
   try {
+    if (profileId) {
+      const credentials = await credentialsForProfile(profileId);
+      await saveActiveProfileCredentials(profileId, { ...credentials, headers });
+      saved = { apiBase, headers };
+      await SecureStore.setItemAsync(
+        SERVER_HEADERS_KEY,
+        JSON.stringify({ apiBase, headers }),
+      ).catch(() => undefined);
+      return true;
+    }
     if (Object.keys(headers).length === 0) {
       await SecureStore.deleteItemAsync(SERVER_HEADERS_KEY);
       saved = null;
@@ -65,9 +100,10 @@ export function fetchServer(
   init: RequestInit,
   apiBase: string,
   fetchImpl: typeof fetch = fetch,
+  includeSavedHeaders = true,
 ): ReturnType<typeof fetch> {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-  const extra = Object.entries(serverHeadersForUrl(url, apiBase));
+  const extra = includeSavedHeaders ? Object.entries(serverHeadersForUrl(url, apiBase)) : [];
   if (extra.length === 0) return fetchImpl(input, init);
   const headers = new Headers(init.headers);
   for (const [name, value] of extra) headers.set(name, value);

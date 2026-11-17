@@ -82,6 +82,7 @@ import {
   currentReadySessionGeneration,
   loadSessionToken,
   registerSessionDiskCache,
+  registerSessionMemoryCache,
   subscribeSessionGeneration,
 } from "../lib/session";
 import { InboxBesideContext } from "../lib/side-insets";
@@ -112,7 +113,7 @@ import { InboxPane } from "./index";
 capTextScaling();
 configureForegroundNotifications();
 registerSessionDiskCache(clearSavedChats);
-registerSessionDiskCache(clearQueries);
+registerSessionMemoryCache(clearQueries);
 subscribeAiConsentGranted(() => void resetRpcQueries("aiConsent/status"));
 registerSessionDiskCache((sameAccount) => {
   if (!sameAccount) return clearLastBot();
@@ -444,6 +445,15 @@ function LayoutContent() {
                       />
                       <Stack.Screen name="share" options={{ headerShown: false }} />
                       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="accounts"
+                        options={{
+                          title: t`Accounts`,
+                          presentation: Platform.OS === "ios" ? "formSheet" : "card",
+                          sheetAllowedDetents: [0.7, 1],
+                          sheetGrabberVisible: true,
+                        }}
+                      />
                       <Stack.Screen
                         name="paywall"
                         options={{

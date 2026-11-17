@@ -5,6 +5,7 @@ import type {
 } from "@orpc/contract";
 import { eventIterator, oc } from "@orpc/contract";
 import * as z from "zod";
+import { PushProfileBindingSchema } from "./account-profiles.js";
 import {
   AgentImportCreateInput,
   AgentImportPlanSchema,
@@ -1743,10 +1744,14 @@ export const appContract = {
     registerPush: oc
       // No whitespace: the token store keeps the registering session on the next line.
       .input(
-        z.object({
-          token: z.string().min(8).max(512).regex(/^\S+$/),
-          presentation: z.literal("android_sender").optional(),
-        }),
+        z
+          .object({
+            token: z.string().min(8).max(512).regex(/^\S+$/),
+            presentation: z.literal("android_sender").optional(),
+            clientProfileId: PushProfileBindingSchema.shape.clientProfileId.optional(),
+            serverOrigin: PushProfileBindingSchema.shape.serverOrigin.optional(),
+          })
+          .refine((value) => Boolean(value.clientProfileId) === Boolean(value.serverOrigin)),
       )
       .output(z.object({ ok: z.literal(true) })),
     unregisterPush: oc.output(z.object({ ok: z.literal(true) })),

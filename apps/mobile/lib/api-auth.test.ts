@@ -5,6 +5,11 @@ import { deferred, flush } from "@rakazo/core/test-async";
 import * as SecureStore from "expo-secure-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  activeAccountProfile,
+  activeAccountProfileId,
+  profileCredentialStorageKey,
+} from "./account-profiles";
+import {
   authHeaders,
   currentApiBase,
   flushPendingSignOut,
@@ -69,6 +74,26 @@ import {
   pendingSignOutRecords,
 } from "./api-test-helpers";
 
+function mockAuthSecureStore(store: Map<string, string>) {
+  mockSecureStore(store);
+  const profile = activeAccountProfile();
+  if (!profile) return;
+  store.set("rakazo.account_profiles", JSON.stringify([profile]));
+  store.set("rakazo.active_account_profile", profile.id);
+  store.set(
+    profileCredentialStorageKey(profile.id),
+    JSON.stringify({ token: store.get("rakazo.session_token") ?? "", headers: {} }),
+  );
+}
+
+function setProfileToken(store: Map<string, string>, token: string) {
+  store.set("rakazo.session_token", token);
+  const profileId = activeAccountProfileId();
+  if (profileId) {
+    store.set(profileCredentialStorageKey(profileId), JSON.stringify({ token, headers: {} }));
+  }
+}
+
 describe("mobile API sign-in and account", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
@@ -76,7 +101,12 @@ describe("mobile API sign-in and account", () => {
     vi.mocked(SecureStore.setItemAsync).mockReset();
     vi.mocked(SecureStore.deleteItemAsync).mockReset();
     vi.mocked(resumeLiveNotifications).mockClear();
+    const store = new Map<string, string>();
+    mockSecureStore(store);
+    await loadApiBase();
     await restoreSessionToken("");
+    vi.mocked(SecureStore.setItemAsync).mockClear();
+    vi.mocked(SecureStore.deleteItemAsync).mockClear();
   });
 
   describe.each([signIn, signUp])("email auth errors", (authenticate) => {
@@ -196,7 +226,13 @@ describe("mobile API sign-in and account", () => {
       [429, '{"message":"Please wait before trying again"}', "Please wait before trying again"],
       [403, '{"code":"REAUTHENTICATION_REQUIRED"}', "Sign in again"],
     ])("maps HTTP %s with body %s", async (status, body, message) => {
-      vi.mocked(SecureStore.getItemAsync).mockResolvedValue("fake-session");
+      vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
+        key === profileCredentialStorageKey(activeAccountProfileId() ?? "")
+          ? JSON.stringify({ token: "fake-session", headers: {} })
+          : key === "rakazo.session_token"
+            ? "fake-session"
+            : null,
+      );
       vi.stubGlobal(
         "fetch",
         vi.fn(async () => new Response(body, { status })),
@@ -357,21 +393,21 @@ describe("mobile API sign-in and account", () => {
     "drops a sign-in that starts and finishes while %s is still being stored",
     async (_name, next, change) => {
       const storage = new Map<string, string>();
-      mockSecureStore(storage);
+      mockAuthSecureStore(storage);
       await saveApiBase("https://first.example.test");
       const writeHeld = deferred();
       const writeStarted = deferred();
-      const holdEndpointWrite = async (key: string) => {
-        if (key !== "rakazo.api_base") return;
+      const holdProfileSelectionWrite = async (key: string) => {
+        if (key !== "rakazo.active_account_profile") return;
         writeStarted.resolve();
         await writeHeld.promise;
       };
       vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-        await holdEndpointWrite(key);
+        await holdProfileSelectionWrite(key);
         storage.set(key, value);
       });
       vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-        await holdEndpointWrite(key);
+        await holdProfileSelectionWrite(key);
         storage.delete(key);
       });
       const fetchMock = vi.fn(async (input: string, _init?: RequestInit) =>
@@ -419,7 +455,7 @@ describe("mobile API sign-in and account", () => {
     const started = deferred();
     // A store that keeps what it accepts: the dropped sign-in's revocation is delivered from it.
     const storage = new Map<string, string>();
-    mockSecureStore(storage);
+    mockAuthSecureStore(storage);
     vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
       if (key === "rakazo.session_token") {
         started.resolve();
@@ -454,7 +490,7 @@ describe("mobile API sign-in and account", () => {
 
   it("keeps a dropped sign-in's revocation pending until its server answers", async () => {
     const storage = new Map<string, string>();
-    mockSecureStore(storage);
+    mockAuthSecureStore(storage);
     const held = deferred();
     let firstServerUp = false;
     const fetchMock = vi.fn(async (input: string, _init?: RequestInit) => {
@@ -654,7 +690,11 @@ describe("mobile API sign-in and account", () => {
 
   it("uses original password change and deletion endpoints after account-security 404", async () => {
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
-      key === "rakazo.session_token" ? "fake-session" : null,
+      key === profileCredentialStorageKey(activeAccountProfileId() ?? "")
+        ? JSON.stringify({ token: "fake-session", headers: {} })
+        : key === "rakazo.session_token"
+          ? "fake-session"
+          : null,
     );
     const fetchMock = vi
       .fn()
@@ -719,7 +759,7 @@ describe("mobile API sign-in and account", () => {
   });
 
   it("changes a password with the bearer session and revokes other sessions", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("session-token");
+    await saveSessionToken("session-token");
     const fetchMock = vi.fn(async () => jsonResponse({ status: true }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -740,7 +780,11 @@ describe("mobile API sign-in and account", () => {
 
   it("keeps the session the server issues after revoking the others", async () => {
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
-      key === "rakazo.session_token" ? "session-token" : null,
+      key === profileCredentialStorageKey(activeAccountProfileId() ?? "")
+        ? JSON.stringify({ token: "session-token", headers: {} })
+        : key === "rakazo.session_token"
+          ? "session-token"
+          : null,
     );
     await selectInitialSpace("space-default");
     vi.mocked(resumeLiveNotifications).mockClear();
@@ -761,7 +805,7 @@ describe("mobile API sign-in and account", () => {
 
   it("keeps the same account's unsent messages and their cache namespace across a password change", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const clear = vi.fn();
     configureUnsentSends({
       request: vi.fn(),
@@ -784,7 +828,9 @@ describe("mobile API sign-in and account", () => {
     expect(await artifactCacheSession("rotated-token")).toBe(namespace);
     // A restart reads the new token and the namespace that names the queue.
     expect(store.get("rakazo.session_token")).toBe("rotated-token");
-    expect(JSON.parse(store.get("rakazo.artifact-cache-session") ?? "null")).toEqual({
+    expect(
+      JSON.parse(store.get(`rakazo.artifact-cache-session.${activeAccountProfileId()}`) ?? "null"),
+    ).toEqual({
       token: "rotated-token",
       namespace,
       previous: "session-token",
@@ -793,7 +839,7 @@ describe("mobile API sign-in and account", () => {
 
   it("finishes a pending session save before it submits another password change", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const namespace = await artifactCacheSession("session-token");
     const fetchMock = vi.fn(async (_url: string, init: RequestInit) =>
       jsonResponse({
@@ -830,7 +876,9 @@ describe("mobile API sign-in and account", () => {
       newPassword: "newer-password",
     });
     expect(store.get("rakazo.session_token")).toBe("rotated-2");
-    expect(JSON.parse(store.get("rakazo.artifact-cache-session") ?? "null")).toEqual({
+    expect(
+      JSON.parse(store.get(`rakazo.artifact-cache-session.${activeAccountProfileId()}`) ?? "null"),
+    ).toEqual({
       token: "rotated-2",
       namespace,
       previous: "rotated-1",
@@ -839,7 +887,7 @@ describe("mobile API sign-in and account", () => {
 
   it("completes a resubmitted password change after its session save failed, without resending it", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     // The server accepted the first change, so the old password no longer matches.
     const fetchMock = vi.fn(async () =>
       fetchMock.mock.calls.length === 1
@@ -865,12 +913,15 @@ describe("mobile API sign-in and account", () => {
 
   it("rotates the cache namespace from the token the password change was sent with", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const namespace = await artifactCacheSession("session-token");
     let sessionReads = 0;
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
       // One transient keychain failure while the password change starts.
-      if (key === "rakazo.session_token" && ++sessionReads === 1)
+      if (
+        key === profileCredentialStorageKey(activeAccountProfileId() ?? "") &&
+        ++sessionReads === 1
+      )
         throw new Error("keychain unavailable");
       return store.get(key) ?? null;
     });
@@ -902,7 +953,7 @@ describe("mobile API sign-in and account", () => {
     ["a server change", () => saveApiBase("https://second-server.example")],
   ])("still deletes unsent messages for %s", async (_change, change) => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse({})),
@@ -929,7 +980,7 @@ describe("mobile API sign-in and account", () => {
 
   it("drops a rotated token when sign-out clears the session before the response", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     await selectSpace("space-default");
     vi.mocked(resumeLiveNotifications).mockClear();
     const { fetchMock, resolveFetch, fetchStarted } = deferredFetch();
@@ -950,7 +1001,7 @@ describe("mobile API sign-in and account", () => {
 
   it("keeps the rotated token when the session store is unreadable at response time", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const { fetchMock, resolveFetch, fetchStarted } = deferredFetch();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -977,7 +1028,7 @@ describe("mobile API sign-in and account", () => {
 
   it("keeps the rotated token in memory and reports a failed keychain write", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse({ token: "rotated-token", user: { id: "user-1" } })),
@@ -993,7 +1044,7 @@ describe("mobile API sign-in and account", () => {
 
   it("resumes live notifications with the rotated token when the keychain write fails", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     await selectSpace("space-default");
     vi.mocked(resumeLiveNotifications).mockClear();
     vi.stubGlobal(
@@ -1015,7 +1066,7 @@ describe("mobile API sign-in and account", () => {
 
   it("drops a rotated token when the server changes before the response", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     await selectSpace("space-default");
     vi.mocked(resumeLiveNotifications).mockClear();
     const { fetchMock, resolveFetch, fetchStarted } = deferredFetch();
@@ -1049,6 +1100,8 @@ describe("mobile API sign-in and account", () => {
   it("does not send a password or bearer token to a persisted public HTTP server", async () => {
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
       if (key === "rakazo.api_base") return "http://app.example.test";
+      if (key === profileCredentialStorageKey(activeAccountProfileId() ?? ""))
+        return JSON.stringify({ token: "session-token", headers: {} });
       if (key === "rakazo.session_token") return "session-token";
       return null;
     });
@@ -1072,7 +1125,11 @@ describe("mobile API sign-in and account", () => {
 
   it("starts notifications only after the inbox selects the default space", async () => {
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
-      key === "rakazo.session_token" ? "session-token" : null,
+      key === profileCredentialStorageKey(activeAccountProfileId() ?? "")
+        ? JSON.stringify({ token: "session-token", headers: {} })
+        : key === "rakazo.session_token"
+          ? "session-token"
+          : null,
     );
 
     await expect(selectInitialSpace("space-default")).resolves.toBe(true);
@@ -1165,7 +1222,7 @@ describe("mobile API sign-in and account", () => {
 
   it("signs out locally and keeps the revocation pending when the server cannot be reached", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1181,9 +1238,17 @@ describe("mobile API sign-in and account", () => {
 
   it("preserves the session for retry when sign-out cannot snapshot it", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     await selectSpace("space-support");
-    vi.mocked(SecureStore.getItemAsync).mockRejectedValueOnce(new Error("device locked"));
+    const credentialKey = profileCredentialStorageKey(activeAccountProfileId() ?? "");
+    let credentialReadFailed = false;
+    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
+      if (key === credentialKey && !credentialReadFailed) {
+        credentialReadFailed = true;
+        throw new Error("device locked");
+      }
+      return store.get(key) ?? null;
+    });
     vi.mocked(SecureStore.deleteItemAsync).mockClear();
     const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
     vi.stubGlobal("fetch", fetchMock);
@@ -1210,7 +1275,7 @@ describe("mobile API sign-in and account", () => {
 
   it("sends sign-out with a JSON body so the server ends the session", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ success: true }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1225,7 +1290,7 @@ describe("mobile API sign-in and account", () => {
 
   it("clears the local session when the sign-out request stalls", async () => {
     vi.useFakeTimers();
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("session-token");
+    await saveSessionToken("session-token");
     const fetchMock = vi.fn().mockImplementationOnce(() => new Promise<Response>(() => undefined));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1240,7 +1305,7 @@ describe("mobile API sign-in and account", () => {
   it("clears the local session before a silent server answers", async () => {
     vi.useFakeTimers();
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const fetchMock = vi.fn((_url: string) => new Promise<Response>(() => undefined));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1270,12 +1335,18 @@ describe("mobile API sign-in and account", () => {
     "does not repeat what a flush during the local clear delivered (sign-out %s)",
     async (status) => {
       const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-      mockSecureStore(store);
-      const fetchMock = vi.fn<typeof globalThis.fetch>(async () => new Response("{}", { status }));
+      mockAuthSecureStore(store);
+      const deliveryResponse = deferred<Response>();
+      let deliveries = 0;
+      const fetchMock = vi.fn<typeof globalThis.fetch>(async () => {
+        deliveries += 1;
+        return deliveries === 1 ? deliveryResponse.promise : new Response("{}", { status });
+      });
       vi.stubGlobal("fetch", fetchMock);
       const clearHeld = deferred();
       vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-        if (key === "rakazo.session_token") await clearHeld.promise;
+        if (key === profileCredentialStorageKey(activeAccountProfileId() ?? ""))
+          await clearHeld.promise;
         store.delete(key);
       });
 
@@ -1283,7 +1354,9 @@ describe("mobile API sign-in and account", () => {
       // The record is saved while the local clear still waits, and a flush delivers it in that
       // window. After a hard answer the sign-out's own delivery finds no record left to send.
       await vi.waitFor(() => expect(pendingSignOutRecords(store)).toHaveLength(1));
-      await flushPendingSignOut(true);
+      const flushing = flushPendingSignOut(true);
+      deliveryResponse.resolve(new Response("{}", { status }));
+      await flushing;
       clearHeld.resolve();
       await signingOut;
 
@@ -1301,7 +1374,7 @@ describe("mobile API sign-in and account", () => {
 
   it("joins the earlier sign-out's delivery instead of resending it", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "token-a"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const heldResponse = deferred<Response>();
     let calls = 0;
     const fetchMock = vi.fn<typeof globalThis.fetch>((_url) => {
@@ -1314,7 +1387,7 @@ describe("mobile API sign-in and account", () => {
     // Account A signs out; the old server holds its revocation. Account B signs in
     // on the same server and signs out; B's delivery completes while A's is in flight.
     await signOut();
-    store.set("rakazo.session_token", "token-b");
+    setProfileToken(store, "token-b");
     await signOut();
     await vi.waitFor(() =>
       expect(pendingSignOutRecords(store)).toEqual([
@@ -1356,7 +1429,7 @@ describe("mobile API sign-in and account", () => {
         ]),
       ],
     ]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const heldResponse = deferred<Response>();
     let calls = 0;
     const fetchMock = vi.fn<typeof globalThis.fetch>((_url) => {
@@ -1385,7 +1458,7 @@ describe("mobile API sign-in and account", () => {
 
   it("delivers the captured revocation when the record cannot be persisted", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
       if (key === "rakazo.pending_sign_out") throw new Error("device locked");
       store.set(key, value);
@@ -1408,7 +1481,7 @@ describe("mobile API sign-in and account", () => {
 
   it("does not deliver when the local clear fails and the next pass delivers the record", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
     vi.stubGlobal("fetch", fetchMock);
     vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
@@ -1436,7 +1509,7 @@ describe("mobile API sign-in and account", () => {
 
   it("clears the pending revocation when the server answers", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1458,7 +1531,7 @@ describe("mobile API sign-in and account", () => {
 
   it("delivers a pending revocation on the next answered request", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1489,7 +1562,7 @@ describe("mobile API sign-in and account", () => {
       recordedAt: Date.now(),
     };
     const store = new Map<string, string>([["rakazo.pending_sign_out", JSON.stringify([record])]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     let storeLocked = true;
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
       if (key === "rakazo.pending_sign_out" && storeLocked) throw new Error("device locked");
@@ -1522,7 +1595,7 @@ describe("mobile API sign-in and account", () => {
   it("spaces non-forced retries, keeping launch retries immediate", async () => {
     vi.useFakeTimers();
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1554,7 +1627,7 @@ describe("mobile API sign-in and account", () => {
 
   it("keeps a revocation for each signed-out server", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "token-a"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1564,7 +1637,7 @@ describe("mobile API sign-in and account", () => {
     await saveApiBase("https://second-server.example");
 
     // Signed in on the second server, then offline sign-out there as well.
-    store.set("rakazo.session_token", "token-b");
+    setProfileToken(store, "token-b");
     await signOut();
     await flushPendingSignOut(true);
     expect(pendingSignOutRecords(store)).toEqual([
@@ -1585,7 +1658,7 @@ describe("mobile API sign-in and account", () => {
 
   it("does not delete a revocation recorded while another is delivering", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "token-a"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1597,21 +1670,26 @@ describe("mobile API sign-in and account", () => {
     // records a second one on the same server; finishing the first must leave it alone.
     const deferred: ((response: Response) => void)[] = [];
     const fetchStarted = new Promise<void>((resolveStarted) => {
+      let calls = 0;
       vi.stubGlobal(
         "fetch",
         vi.fn<typeof globalThis.fetch>(() => {
-          if (deferred.length > 0) return Promise.resolve(jsonResponse({}));
-          return new Promise<Response>((resolve) => {
-            resolveStarted();
-            deferred.push(resolve);
-          });
+          calls += 1;
+          if (calls === 1) {
+            return new Promise<Response>((resolve) => {
+              resolveStarted();
+              deferred.push(resolve);
+            });
+          }
+          return Promise.reject(new Error("offline"));
         }),
       );
     });
     const delivering = flushPendingSignOut(true);
     await fetchStarted;
-    store.set("rakazo.session_token", "token-b");
-    await saveApiBase("https://second-server.example");
+    setProfileToken(store, "token-b");
+    await signOut();
+    await vi.waitFor(() => expect(pendingSignOutRecords(store)).toHaveLength(2));
     deferred[0]?.(jsonResponse({}));
     await delivering;
 
@@ -1626,7 +1704,7 @@ describe("mobile API sign-in and account", () => {
       ["rakazo.session_token", "session-token"],
       ["rakazo.pending_sign_out", "not a record list"],
     ]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const fetchMock = vi.fn<typeof globalThis.fetch>(async () => {
       throw new Error("offline");
     });
@@ -1643,7 +1721,7 @@ describe("mobile API sign-in and account", () => {
 
   it("retries a revocation recorded while the flush's deciding read waits", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1687,7 +1765,7 @@ describe("mobile API sign-in and account", () => {
 
   it.each([200, 401])("retries a same-origin login page with status %s", async (status) => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const fetchMock = vi.fn(async () => {
       const response = new Response("<html>Sign in</html>", { status });
       Object.defineProperties(response, {
@@ -1708,7 +1786,7 @@ describe("mobile API sign-in and account", () => {
 
   it.each([200, 401])("accepts a same-origin redirected status %s", async (status) => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string) => {
@@ -1737,7 +1815,7 @@ describe("mobile API sign-in and account", () => {
     [401, false, "https://other-server.example"],
   ])("retains the record for status %s, redirected %s, URL %s", async (status, redirected, url) => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -1765,7 +1843,7 @@ describe("mobile API sign-in and account", () => {
 
   it("keeps the pending revocation unless the server reports the session invalid", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1812,7 +1890,7 @@ describe("mobile API sign-in and account", () => {
         ]),
       ],
     ]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1838,7 +1916,7 @@ describe("mobile API sign-in and account", () => {
         ]),
       ],
     ]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("device locked"));
     const fetchMock = vi.fn(async () => new Response("{}", { status: 503 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -1854,13 +1932,13 @@ describe("mobile API sign-in and account", () => {
 
   it("bounds the stored revocations, dropping the oldest", async () => {
     const store = new Map<string, string>();
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
     );
     for (let index = 0; index <= 100; index += 1) {
-      store.set("rakazo.session_token", `token-${index}`);
+      setProfileToken(store, `token-${index}`);
       await signOut();
     }
 
@@ -1872,7 +1950,7 @@ describe("mobile API sign-in and account", () => {
 
   it("sends the revocation to the recorded server with redirect error and its own headers", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "token-a"]]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Promise.reject(new Error("offline"))),
@@ -1911,7 +1989,7 @@ describe("mobile API sign-in and account", () => {
         ]),
       ],
     ]);
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1940,7 +2018,7 @@ describe("mobile API sign-in and account", () => {
       ["rakazo.session_token", "token-a"],
       ["rakazo.pending_sign_out", JSON.stringify([provisional("token-a")])],
     ]);
-    mockSecureStore(uncompleted);
+    mockAuthSecureStore(uncompleted);
     const noFetch = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
     vi.stubGlobal("fetch", noFetch);
     await loadApiBase();
@@ -1954,7 +2032,7 @@ describe("mobile API sign-in and account", () => {
       ["rakazo.api_base", "https://second-server.example"],
       ["rakazo.pending_sign_out", JSON.stringify([provisional("token-a")])],
     ]);
-    mockSecureStore(committed);
+    mockAuthSecureStore(committed);
     const deliverFetch = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
     vi.stubGlobal("fetch", deliverFetch);
     await loadApiBase();
@@ -1967,7 +2045,7 @@ describe("mobile API sign-in and account", () => {
   });
 
   it("does not unregister push delivery when deleting the account", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("session-token");
+    await saveSessionToken("session-token");
     const fetchMock = vi.fn(async (_url: string | URL | Request) => jsonResponse({}));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1981,7 +2059,7 @@ describe("mobile API sign-in and account", () => {
   });
 
   it("keeps push registered when the account deletion fails", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("session-token");
+    await saveSessionToken("session-token");
     const fetchMock = vi.fn(async (_url: string | URL | Request) =>
       jsonResponse({ message: "Invalid password" }, { status: 400 }),
     );
@@ -2026,11 +2104,15 @@ describe("mobile API sign-in and account", () => {
 
   it("a sign-out during a running session save stops without clearing and records nothing", async () => {
     const store = new Map<string, string>();
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     await restoreSessionToken("token-a");
     const saveHeld = deferred();
     vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token" && value === "token-b") await saveHeld.promise;
+      if (
+        key === profileCredentialStorageKey(activeAccountProfileId() ?? "") &&
+        JSON.parse(value).token === "token-b"
+      )
+        await saveHeld.promise;
       store.set(key, value);
     });
     const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
@@ -2048,7 +2130,7 @@ describe("mobile API sign-in and account", () => {
 
   it("a sign-out stops without clearing a session saved while it wrote its record", async () => {
     const store = new Map<string, string>();
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     await restoreSessionToken("token-a");
     vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
       // A sign-in saves its token while the sign-out writes the revocation record.
@@ -2061,7 +2143,7 @@ describe("mobile API sign-in and account", () => {
     );
 
     await expect(signOut()).rejects.toThrow("Could not clear the local session");
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     expect(store.get("rakazo.session_token")).toBe("token-b");
     // The record for the session the user signed out of stays for delivery.
     expect(pendingSignOutRecords(store).map((record) => record.token)).toEqual(["token-a"]);
@@ -2069,12 +2151,12 @@ describe("mobile API sign-in and account", () => {
 
   it("a sign-out does not record a session saved while it reads the active one", async () => {
     const store = new Map<string, string>();
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     let signedIn: Promise<void> | undefined;
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
       const value = store.get(key) ?? null;
       // A sign-in saves its token while the sign-out reads the active session.
-      if (key === "rakazo.session_token" && !signedIn) {
+      if (key === profileCredentialStorageKey(activeAccountProfileId() ?? "") && !signedIn) {
         signedIn = saveSessionToken("fake-session-new");
         await signedIn;
       }
@@ -2091,10 +2173,14 @@ describe("mobile API sign-in and account", () => {
 
   it("a sign-out after a failed session save revokes the stored token it clears", async () => {
     const store = new Map<string, string>();
-    mockSecureStore(store);
+    mockAuthSecureStore(store);
     await restoreSessionToken("token-a");
     vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token" && value === "token-b") throw new Error("device locked");
+      if (
+        key === profileCredentialStorageKey(activeAccountProfileId() ?? "") &&
+        JSON.parse(value).token === "token-b"
+      )
+        throw new Error("device locked");
       store.set(key, value);
     });
     const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));

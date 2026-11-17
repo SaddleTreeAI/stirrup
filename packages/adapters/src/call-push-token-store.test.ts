@@ -55,6 +55,7 @@ function fixture() {
       strings.join("").includes('FROM "session"') ? (live ? [{ id: "session-1" }] : []) : [],
     ),
     pushRegistration: { deleteMany: vi.fn(async () => {}) },
+    profilePushRegistration: { deleteMany: vi.fn(async () => {}) },
   };
   const prisma = {
     ...tx,

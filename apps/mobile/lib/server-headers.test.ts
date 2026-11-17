@@ -3,10 +3,11 @@ vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
 
 import * as SecureStore from "expo-secure-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { activeAccountProfileId, profileCredentialStorageKey } from "./account-profiles";
 import { authHeaders, currentApiBase } from "./api.js";
 import { passwordResetCapabilities } from "./api-auth.js";
 import { loadApiBase, resetApiBase, saveApiBase } from "./api-server.js";
-import { probeApiBase } from "./endpoint.js";
+import { defaultApiBase, probeApiBase } from "./endpoint.js";
 import { fetchServer, serverHeaders, serverHeadersForUrl } from "./server-headers.js";
 
 vi.mock("expo-secure-store", () => ({
@@ -25,7 +26,7 @@ const ACCESS = { "CF-Access-Client-Id": "id.access", "CF-Access-Client-Secret": 
 
 let store: Map<string, string>;
 
-beforeEach(() => {
+beforeEach(async () => {
   store = new Map();
   vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => store.get(key) ?? null);
   vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
@@ -34,6 +35,7 @@ beforeEach(() => {
   vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
     store.delete(key);
   });
+  await loadApiBase();
 });
 
 afterEach(async () => {
@@ -65,7 +67,7 @@ describe("server request headers", () => {
     await expect(saveApiBase(SERVER, ACCESS)).resolves.toEqual({ ok: true, url: SERVER });
 
     expect(serverHeaders(currentApiBase())).toEqual(ACCESS);
-    expect(await authHeaders(null)).not.toHaveProperty("CF-Access-Client-Secret");
+    expect(await authHeaders(null)).toHaveProperty("CF-Access-Client-Secret", "secret");
     expect(serverHeadersForUrl(`${SERVER}/rpc/me`, currentApiBase())).toEqual(ACCESS);
     expect(serverHeadersForUrl("https://rakazo.example.test.evil/rpc", SERVER)).toEqual({});
     expect(serverHeadersForUrl("https://other.example.test/rpc", SERVER)).toEqual({});
@@ -93,31 +95,30 @@ describe("server request headers", () => {
 
     await saveApiBase("https://second.example.test");
     expect(await authHeaders(null)).not.toHaveProperty("CF-Access-Client-Id");
-    expect(store.has("rakazo.server_headers")).toBe(false);
+    expect(JSON.parse(store.get("rakazo.server_headers") ?? "null").headers).toEqual({});
   });
 
-  it("restores headers if saving the endpoint fails", async () => {
+  it("keeps profile headers when secure storage refuses an update", async () => {
     await saveApiBase(SERVER, ACCESS);
-    vi.mocked(SecureStore.setItemAsync)
-      .mockImplementationOnce(async (key, value) => {
-        store.set(key, value);
-      })
-      .mockRejectedValueOnce(new Error("Storage unavailable"));
+    const profileId = activeAccountProfileId();
+    if (!profileId) throw new Error("The active profile is missing");
+    const key = profileCredentialStorageKey(profileId);
+    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (writeKey, value) => {
+      if (writeKey === key) throw new Error("Storage unavailable");
+      store.set(writeKey, value);
+    });
     await expect(saveApiBase(SERVER, { "X-Access": "replacement" })).resolves.toMatchObject({
       ok: false,
     });
     expect(serverHeaders(SERVER)).toEqual(ACCESS);
   });
 
-  it("does not claim to reset when deleting headers fails", async () => {
+  it("resets to a saved default profile without deleting the other profile", async () => {
     await saveApiBase(SERVER, ACCESS);
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.server_headers") throw new Error("Storage unavailable");
-      store.delete(key);
-    });
-    await expect(resetApiBase()).resolves.toMatchObject({ ok: false });
-    expect(currentApiBase()).toBe(SERVER);
-    expect(serverHeaders(SERVER)).toEqual(ACCESS);
+    const profileId = activeAccountProfileId();
+    await expect(resetApiBase()).resolves.toMatchObject({ ok: true, url: defaultApiBase() });
+    expect(currentApiBase()).toBe(defaultApiBase());
+    expect(activeAccountProfileId()).not.toBe(profileId);
   });
 
   it("ignores a damaged saved value", async () => {

@@ -113,6 +113,8 @@ export const NL_MESSAGES: Record<string, string> = {
   "Setup could not start. Quit Stirrup and try again.":
     "De installatie kon niet starten. Stop Stirrup en probeer het opnieuw.",
   "Enter a server address.": "Voer een serveradres in.",
+  "You have reached the saved account limit.":
+    "Je hebt de limiet voor opgeslagen accounts bereikt.",
   "Enter a valid http:// or https:// address.": "Voer een geldig http://- of https://-adres in.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "Voer een geldig serveradres in. Openbare servers vereisen HTTPS; een nieuwe lokale instantie moet localhost gebruiken.",

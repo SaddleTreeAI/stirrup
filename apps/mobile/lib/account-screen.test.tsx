@@ -832,7 +832,7 @@ it("hides password change from an account without a password", async () => {
 });
 
 it.each([false, true])(
-  "lists the settings in order, free of server controls (stored owner: %s)",
+  "lists account settings in order and omits server controls (stored owner: %s)",
   async (isDeploymentOwner) => {
     account.me = { ...account.me, isDeploymentOwner };
     const events: string[] = [];
@@ -859,7 +859,7 @@ it.each([false, true])(
         "Labs",
         "Members",
       ];
-      expect(titles).toEqual(["tester@example.test", "Usage", ...links]);
+      expect(titles).toEqual(["tester@example.test", "Usage", "Accounts", ...links]);
       const artifacts = view.button("Artifacts")!;
       expect(artifacts.getAttribute("role")).toBe("button");
       expect(artifacts.dataset.chevron).toBe("right");

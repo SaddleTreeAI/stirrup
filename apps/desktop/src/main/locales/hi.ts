@@ -108,6 +108,7 @@ export const HI_MESSAGES: Record<string, string> = {
   "Setup could not start. Quit Stirrup and try again.":
     "सेटअप शुरू नहीं हो सका। Stirrup बंद करके फिर से कोशिश करें।",
   "Enter a server address.": "सर्वर का पता डालें।",
+  "You have reached the saved account limit.": "आप सहेजे गए खातों की सीमा तक पहुँच गए हैं।",
   "Enter a valid http:// or https:// address.": "मान्य http:// या https:// पता डालें।",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "मान्य सर्वर पता डालें। सार्वजनिक सर्वर के लिए HTTPS ज़रूरी है; नए लोकल इंस्टेंस को localhost इस्तेमाल करना होगा।",

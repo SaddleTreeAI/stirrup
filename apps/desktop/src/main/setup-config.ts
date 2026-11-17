@@ -179,15 +179,23 @@ export function servesBundledRenderer(targetUrl: string, managedLocalStack: bool
 }
 
 /** Each Stirrup origin gets its own persistent cookie and storage partition. */
-export function sessionPartitionForServerUrl(targetUrl: string): string | null {
+export function sessionPartitionForServerUrl(targetUrl: string, profileId?: string): string | null {
   try {
     const url = new URL(targetUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    const digest = createHash("sha256").update(url.origin).digest("hex").slice(0, 24);
+    const digest = createHash("sha256")
+      .update(profileId === undefined ? url.origin : `profile:${profileId}`)
+      .digest("hex")
+      .slice(0, 24);
     return `persist:rakazo-${digest}`;
   } catch {
     return null;
   }
+}
+
+/** Only the original single-profile setup may reuse the legacy default session. */
+export function usesLegacyDefaultSession(profileId?: string): boolean {
+  return profileId === undefined;
 }
 
 /** External pages are opened by the OS, never in a privileged Electron child window. */

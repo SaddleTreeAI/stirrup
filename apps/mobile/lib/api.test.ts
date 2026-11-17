@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { promptAiConsent } from "./ai-consent";
 import {
   captureApiRequestContext,
+  currentApiBase,
   fetchAuthenticatedAccountJson,
   fetchMobileJson,
   isServerReachable,
@@ -114,7 +115,9 @@ describe("mobile API requests", () => {
   });
 
   it("uses a pinned server's access headers after the selected server changes", async () => {
-    const apiBase = "https://captured.example.test";
+    mockSecureStore(new Map());
+    await loadApiBase();
+    const apiBase = currentApiBase();
     const originalBase = (await captureApiRequestContext(null)).apiBase;
     expect(await saveServerHeaders(apiBase, { "x-access-key": "fake-access-key" })).toBe(true);
     setCachedApiBase("https://replacement.example.test");
@@ -374,7 +377,9 @@ describe("mobile API requests", () => {
   });
 
   it("sends authenticated RPC input and reports structured RPC errors", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("session-token");
+    mockSecureStore(new Map());
+    await loadApiBase();
+    await saveSessionToken("session-token");
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ json: { ok: true } }))

@@ -62,6 +62,15 @@ internal class NotificationStorage(context: Context) {
     get() = preferences.getString(LOCALE, "").orEmpty()
     set(value) = commit { putString(LOCALE, value) }
 
+  /** Nonsecret route binding prevents a delivered notification from opening in another account. */
+  var profileId: String
+    get() = preferences.getString(PROFILE_ID, "").orEmpty()
+    set(value) = commit { putString(PROFILE_ID, value) }
+
+  var serverOrigin: String
+    get() = preferences.getString(SERVER_ORIGIN, "").orEmpty()
+    set(value) = commit { putString(SERVER_ORIGIN, value) }
+
   var token: String
     get() = readSecret(TOKEN)
     set(value) = writeSecret(TOKEN, value)
@@ -125,6 +134,8 @@ internal class NotificationStorage(context: Context) {
     const val ENDPOINT = "endpoint"
     const val SPACE_ID = "space_id"
     const val LOCALE = "locale"
+    const val PROFILE_ID = "profile_id"
+    const val SERVER_ORIGIN = "server_origin"
     const val TOKEN = "token"
     const val HEADERS = "server_headers"
     const val KEY_ALIAS = "rakazo.notifications.session"

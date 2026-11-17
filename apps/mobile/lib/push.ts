@@ -4,9 +4,15 @@ import { requireOptionalNativeModule } from "expo-modules-core";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-import { currentApiBase, rpc, selectedSpaceId } from "./api";
+import {
+  activeAccountProfileId,
+  credentialsForProfile,
+  listAccountProfiles,
+  profileSpaceStorageKey,
+} from "./account-profiles";
+import { captureProfileRequestContext, currentApiBase, rpc, selectedSpaceId } from "./api";
 import { resumeLiveNotifications } from "./live-notifications";
-import { currentSessionGeneration, loadSessionToken } from "./session";
+import { currentSessionGeneration } from "./session";
 
 async function notificationsAllowed() {
   // On iOS getPermissionsAsync holds Expo's shared native queue until the system answers,
@@ -25,34 +31,64 @@ export async function registerPushToken() {
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     if (!token) return;
     const generation = currentSessionGeneration();
-    const apiBase = currentApiBase();
-    const sessionToken = await loadSessionToken();
-    // A sign-in still saving its token registers again once the session lands.
-    if (!sessionToken) return;
-    if (generation !== currentSessionGeneration() || apiBase !== currentApiBase()) return;
-    // The server can push the moment this registration lands, before any Space load
-    // resumes native notifications; sync the session first, so Android's signed-out
-    // drop rule sees this account instead of the blank of a fresh sign-in. A rejected
-    // resume means native never stored this session: registering would have Android
-    // drop every push, so leave the token unregistered for the next attempt to retry.
-    // A server native notifications skip (public http) keeps no native session, so it
-    // gets plain pushes, which the drop rule never sees.
-    let nativeSession: boolean;
-    try {
-      nativeSession = await resumeLiveNotifications(apiBase, sessionToken, selectedSpaceId() ?? "");
-    } catch {
-      return;
+    const activeId = activeAccountProfileId();
+    const profiles = listAccountProfiles();
+    if (!activeId || !profiles.length) return;
+    const orderedProfiles = [
+      ...profiles.filter((profile) => profile.id === activeId),
+      ...profiles.filter((profile) => profile.id !== activeId),
+    ];
+    for (const profile of orderedProfiles) {
+      const credentials = await credentialsForProfile(profile.id);
+      // Sign-in of an added profile may still be saving its token. It will retry
+      // registration after the session lands, without borrowing another token.
+      if (!credentials.token) continue;
+      if (generation !== currentSessionGeneration()) return;
+      let profileSpace = "";
+      try {
+        profileSpace = (await SecureStore.getItemAsync(profileSpaceStorageKey(profile.id))) ?? "";
+      } catch {
+        // Register account-level pushes if a saved Space preference is temporarily unreadable.
+      }
+      const isActive = profile.id === activeId && currentApiBase() === profile.serverUrl;
+      const requestContext = await captureProfileRequestContext(
+        profile.id,
+        isActive ? selectedSpaceId() : profileSpace,
+      );
+      let nativeSession = false;
+      if (isActive) {
+        // The server may push as soon as registration lands. Resume the active
+        // native session first so Android's signed-out drop rule sees this account.
+        // Inactive profiles are registered without replacing that native session.
+        try {
+          nativeSession = await resumeLiveNotifications(
+            profile.serverUrl,
+            credentials.token,
+            selectedSpaceId() ?? "",
+          );
+        } catch {
+          continue;
+        }
+      }
+      const payload = {
+        token,
+        clientProfileId: profile.id,
+        serverOrigin: new URL(profile.serverUrl).origin,
+        ...(Platform.OS === "android" &&
+        nativeSession &&
+        requireOptionalNativeModule<{ supportsSenderAvatars?: boolean }>("RakazoNotifications")
+          ?.supportsSenderAvatars
+          ? { presentation: "android_sender" as const }
+          : {}),
+      };
+      try {
+        await rpc("notifications/registerPush", payload, { requestContext });
+        if (isActive) await registerCallPushToken({ expoToken: token });
+      } catch {
+        // A server may be offline or this profile may have expired; keep other
+        // saved profiles registered and retry this one on the next sync.
+      }
     }
-    await rpc("notifications/registerPush", {
-      token,
-      ...(Platform.OS === "android" &&
-      nativeSession &&
-      requireOptionalNativeModule<{ supportsSenderAvatars?: boolean }>("RakazoNotifications")
-        ?.supportsSenderAvatars
-        ? { presentation: "android_sender" as const }
-        : {}),
-    });
-    await registerCallPushToken({ expoToken: token });
   } catch {
     // Expo Go without an EAS project id and Android builds without a Firebase config
     // cannot mint an Expo push token.
