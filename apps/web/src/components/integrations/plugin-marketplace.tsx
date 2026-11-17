@@ -128,7 +128,9 @@ function sourceHref(source: string, sha: string | undefined) {
   if (url.protocol !== "https:" || url.username || url.password) return undefined;
   if (subdir) {
     const path = subdir.split("/").filter(Boolean).map(encodeURIComponent).join("/");
-    url.pathname = `${url.pathname.replace(/\/+$/, "")}/tree/${encodeURIComponent(sha ?? "HEAD")}/${path}`;
+    let end = url.pathname.length;
+    while (end > 0 && url.pathname[end - 1] === "/") end--;
+    url.pathname = `${url.pathname.slice(0, end)}/tree/${encodeURIComponent(sha ?? "HEAD")}/${path}`;
   }
   return url.href;
 }
