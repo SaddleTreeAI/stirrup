@@ -16,7 +16,7 @@ docker compose --env-file .env -f docker-compose.images.yml exec api \
 
 For a source checkout, use `-f infra/compose/docker-compose.yml`. The command enables company mode,
 which closes public registration. It never chooses an owner based on signup order. For an existing
-Space created by this owner, add `--company-space <space-id>` to adopt it without changing its ID,
+Space created by this owner, add `--company-space SPACE_ID` to adopt it without changing its ID,
 encrypted content or history. Adoption requires that every current member already be an active,
 email-verified platform account; non-owners must have accepted the monitoring notice. The owner
 configures a new company Space from **Administration** if no existing Space is selected.
@@ -25,14 +25,17 @@ configures a new company Space from **Administration** if no existing Space is s
 
 Registration is invite-only. Owners and administrators can invite members; only an owner can create
 a pending account or appoint an administrator. A pending account has no password until its recipient
-activates it. Invitation and activation links expire after seven days, can be revoked or reissued,
-and require email delivery. The recipient verifies their email, chooses their password and accepts
-the workspace monitoring notice before joining. An invitation alone does not verify an email.
+activates it. Invitation and activation links expire after seven days. Administration returns a link
+to share; a configured email provider also sends it and is required for mailbox verification. The
+recipient must verify their email, choose a password and accept the workspace monitoring notice
+before joining. An invitation alone does not verify an email. Administrators can revoke invitations;
+owners can revoke or rotate pending account activation links.
 
 The roles are **Owner**, **Admin** and **Member**. The owner configures the company Space, provider
 connections, budgets and roles. Admins can manage member accounts and view company usage; only the
-owner can inspect bot content. Company membership and bot access require an active, verified account
-and the required notice acceptance. Deactivated accounts lose access.
+owner can inspect bot content. Staff company membership and bot access require an active, verified
+account and accepted notice; the owner's access is assigned by the operator bootstrap. Deactivated
+accounts lose access.
 
 The owner can view all platform accounts, their usage and bot content across the instance, including
 content in private Spaces. Content inspection is owner-only and recorded in the security audit log.
