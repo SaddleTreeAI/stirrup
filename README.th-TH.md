@@ -1,65 +1,67 @@
-# Stirrup
+<p align="center">
+  <img src="./apps/www/public/brand/kit/stirrup-logo.png" alt="Stirrup" width="520">
+</p>
 
-[![GitHub stars](https://img.shields.io/github/stars/SaddleTreeAI/stirrup?labelColor=black&style=for-the-badge&color=2563EB)](https://github.com/SaddleTreeAI/stirrup/stargazers)
-[![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?labelColor=black&style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/RWwKa2Sn7h)
-[![Download on the App Store](https://img.shields.io/badge/App%20Store-Download%20for%20iPhone-black?labelColor=black&style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/rakazo/id6801531099)
-[![Get Android on Google Play](https://img.shields.io/badge/Google%20Play-Get%20the%20app-black?labelColor=black&style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.rakazo.app)
+# Stirrup by SaddleTree
 
-![Stirrup — AI teammates you actually own](./docs/readme-hero.png)
+**ทีม AI ของคุณ เครื่องมือของคุณ โครงสร้างพื้นฐานของคุณ**
 
-Stirrup เป็น AI agent โอเพนซอร์สสำหรับ bot ที่ทำงานต่อเนื่องและผู้ช่วยที่ self-host บนเครื่องคุณ มีบนเว็บ เดสก์ท็อป Electron และมือถือ นำโมเดลและ computer provider มาเองหรือรันทั้งสแต็ก local ได้
+Stirrup คือเวิร์กสเปซโอเพนซอร์สของ SaddleTree AI สำหรับผู้ช่วย AI ที่ทำงานต่อเนื่อง เราเรียกผู้ช่วยแต่ละตัวว่า **stirrup** คุณกำหนดบทบาท เชื่อมต่อโมเดลและเครื่องมือ แล้วทำงานร่วมกันผ่านแชตได้ ผู้ช่วยสามารถจดจำบริบท ทำงานตามกิจวัตร ใช้คอมพิวเตอร์ และทำงานร่วมกันในกลุ่ม
 
-รายละเอียดเพิ่มที่ [rakazo.com](https://stirrup.saddletree.ai)
+[เปิด Stirrup](https://stirrup.saddletree.ai) · [ดาวน์โหลด](https://github.com/SaddleTreeAI/stirrup/releases/latest) · [ติดตั้งเอง](./docs/self-host.md) · [SaddleTree AI](https://saddletree.ai)
 
-## เริ่มเร็ว (published images)
+[English](./README.md) · [简体中文](./README.zh-CN.md) · [日本語](./README.ja.md) · [ไทย](./README.th-TH.md)
 
-ต้องมี Docker Engine, Compose plugin, curl และ OpenSSL ไม่ต้อง clone หรือติดตั้ง Node
+![ผู้ช่วยสองตัวทำงานร่วมกันในแชตกลุ่ม พร้อมปุ่มค้นหา เพิ่ม การแจ้งเตือน และย่อแถบด้านข้าง](./docs/screenshots/stirrup/team-chat.png)
+
+_ภาพใช้บทสนทนาสมมติสำหรับสาธิต [ที่มาของภาพ](./docs/screenshots/stirrup/README.md)_
+
+## ทำอะไรได้บ้าง
+
+- สร้างผู้ช่วยตามบทบาท ใช้แชตแยกหรือจัดเป็นทีม
+- ใช้ความจำ งานตามตาราง และเหตุการณ์ที่กระตุ้นการทำงาน
+- ให้ผู้ช่วยใช้เบราว์เซอร์ เทอร์มินัล และไฟล์ พร้อมรับช่วงควบคุมเมื่อจำเป็น
+- เชื่อมต่อแอป เซิร์ฟเวอร์ MCP และเครื่องมือ OpenAPI
+- สร้างเอกสารและ Pages แบบโต้ตอบที่แชร์ได้
+- เลือกผู้ให้บริการโมเดลที่รองรับหรือโมเดล local ที่เข้ากันได้ และรันเซิร์ฟเวอร์บนระบบของคุณ
+
+ความสามารถขึ้นอยู่กับโมเดล การเชื่อมต่อ และผู้ให้บริการคอมพิวเตอร์ที่ตั้งค่าไว้
+
+## เดสก์ท็อปและการเชื่อมต่อแอป
+
+![หน้าตั้งค่า Stirrup บน macOS ให้เลือกคลาวด์ คอมพิวเตอร์เครื่องนี้ หรือเซิร์ฟเวอร์ที่มีอยู่](./docs/screenshots/stirrup/desktop-setup.png)
+
+![รายการแอปที่เชื่อมต่อกับ Stirrup ได้](./docs/screenshots/stirrup/integrations.png)
+
+เว็บ แอป Electron และแอปมือถือ Expo ใช้ Stirrup API เดียวกัน ดาวน์โหลดตัวติดตั้งเดสก์ท็อปที่มีให้จาก[หน้า releases ของ repo นี้](https://github.com/SaddleTreeAI/stirrup/releases/latest) ซอร์สแอปมือถืออยู่ใน repo แต่การมีซอร์สหรือรุ่นเบต้าไม่ได้หมายความว่าเปิดให้ดาวน์โหลดในร้านแอปแล้ว ดู[คู่มือ build มือถือ](./docs/mobile-release.md)และ[คู่มือเชื่อมต่อ](./docs/self-host-clients.md)
+
+## เริ่มใช้งาน
+
+ต้องมี Docker Engine 26+, Compose plugin, curl และ OpenSSL ไม่ต้อง clone ซอร์สหรือติดตั้ง Node.js
 
 ```bash
-mkdir -p rakazo && cd rakazo &&
-curl -fsSLO https://raw.githubusercontent.com/SaddleTreeAI/stirrup/main/infra/compose/install-images.sh &&
+mkdir -p stirrup && cd stirrup
+curl -fsSLO https://raw.githubusercontent.com/SaddleTreeAI/stirrup/main/infra/compose/install-images.sh
 bash install-images.sh
 ```
 
-สคริปต์ดาวน์โหลด Compose สร้าง `.env` พร้อม secret แบบสุ่ม แล้วสตาร์ท Stirrup รันซ้ำจะเก็บ `.env` เดิมไว้
+ตัวติดตั้งจะดาวน์โหลดไฟล์ Compose สร้าง secret แบบสุ่มใน `.env` และเริ่มระบบ โดยเก็บ `.env` เดิมเมื่อรันซ้ำ เปิด [localhost:5173](http://127.0.0.1:5173) สร้างบัญชี เชื่อมต่อโมเดล แล้วสร้าง stirrup ตัวแรก
 
-เปิด [http://127.0.0.1:5173](http://127.0.0.1:5173) สมัครบัญชี แล้วเชื่อมโมเดล Docker computers เปิดอยู่ตามค่าเริ่มต้น
+อิมเมจ `edge` ติดตาม main หากต้องการตรึงเวอร์ชัน ตั้งค่าโดเมน HTTPS หรือสำรองข้อมูล ดู[คู่มือติดตั้งเอง](./docs/self-host.md)และ[คู่มือ production](./docs/self-host-production.md)
 
-แท็ก image ค่าเริ่มต้นคือ `edge` รายละเอียดติดตั้งบนเซิร์ฟเวอร์ดู [คู่มือ self-host](./docs/th-TH/self-host.md)
+## การพัฒนาและเอกสาร
 
-## รันบนเซิร์ฟเวอร์
+ใช้ Node.js 24.15+ ในสาย 24.x หรือ 26+, pnpm 12 และ Docker ไม่รองรับ Node.js 25 ทำตาม[คู่มือพัฒนา](./docs/development.md)เพื่อตั้งค่าฐานข้อมูลและ secret ก่อนเริ่มระบบ
 
-bot ทำงานต่อเมื่อ backend รันบนเซิร์ฟเวอร์ ใช้ installer เดียวกันบน VPS แล้วเชื่อมจากเดสก์ท็อป มือถือ หรือเบราว์เซอร์
+ชื่อแพ็กเกจ ตัวแปรสภาพแวดล้อม และรหัสแอปบางส่วนยังใช้ `rakazo` เพื่อให้เข้ากับการติดตั้งเดิมได้ โปรดใช้ชื่อตามเอกสารเมื่อตั้งค่า
 
-```bash
-bash install-images.sh --prepare-only
-# edit .env: SANDBOX_PROVIDER=boat (or e2b / daytona / createos) with its API key, RAKAZO_HOST=your.domain
-bash install-images.sh
-```
+- [README ภาษาอังกฤษฉบับเต็ม](./README.md)
+- [โมเดล](./docs/self-host-models.md) [การเชื่อมต่อ](./docs/self-host-integrations.md) และ[ผู้ให้บริการคอมพิวเตอร์](./docs/self-host-sandbox-providers.md)
+- [การสำรองข้อมูล](./docs/self-host-backups.md) [การอัปเกรด](./docs/self-host-upgrading.md) และ[การติดตามระบบ](./docs/self-host-observability.md)
+- [การมีส่วนร่วม](./CONTRIBUTING.md) [รายงานช่องโหว่](./SECURITY.md) และ[บันทึกรุ่น](./CHANGELOG.md)
 
-ใส่ HTTPS หน้า port 5173 ในแอปเดสก์ท็อปเลือก **Existing instance** แล้วใส่ที่อยู่ `https://`
+## ต้นทางและสัญญาอนุญาต
 
-## ภาษา UI
+Stirrup เป็น fork ของ [Rakazo](https://github.com/elie222/rakazo) โดย SaddleTree AI ขอบคุณผู้ดูแลและผู้ร่วมพัฒนาโครงการต้นทาง
 
-เว็บและ Electron รองรับหลายภาษาใน **ตั้งค่า (Settings) → Language** ตอนนี้ยังไม่มีภาษาไทยในรายการนั้น
-
-## เอกสาร
-
-- [Self-host](./docs/th-TH/self-host.md)
-- [การตั้งค่า](./docs/th-TH/self-host-configuration.md)
-- [Secrets](./docs/th-TH/self-host-secrets.md)
-- [บัญชีและการลงชื่อเข้าใช้](./docs/th-TH/self-host-accounts.md)
-- [โมเดล](./docs/th-TH/self-host-models.md)
-- [Production](./docs/th-TH/self-host-production.md)
-- [สำรองและกู้คืน](./docs/th-TH/self-host-backups.md)
-- [อัปเกรด](./docs/th-TH/self-host-upgrading.md)
-- [แก้ปัญหา](./docs/th-TH/troubleshooting.md)
-- [เริ่มต้นใช้งาน](./docs/th-TH/getting-started.md)
-- [Bot และแชท](./docs/th-TH/bots-and-chats.md)
-- [เชื่อมแอป](./docs/th-TH/integrations.md)
-- [Routines](./docs/th-TH/routines.md)
-- [การอนุมัติ](./docs/th-TH/approvals.md)
-- [คอมพิวเตอร์ของ bot](./docs/th-TH/computer.md)
-- [ความจำ](./docs/th-TH/memory.md)
-
-คำถามและไอเดียพูดคุยได้ใน [ชุมชน Discord ของ Stirrup](https://discord.gg/RWwKa2Sn7h)
+โค้ดยังคงใช้สัญญาอนุญาต [Apache 2.0](./LICENSE) และเก็บประกาศของบุคคลที่สามไว้ใน [NOTICE](./NOTICE)
