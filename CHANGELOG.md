@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-17
+
+### Security
+
+- Reject invalid app sign-in URLs before handing them to native app handlers, and require operator consent before connecting memory services through loopback endpoints.
+- Keep chat-markdown and shared-text parsing linear for malformed or unusually large input, avoiding excessive processing.
+- Update vulnerable dependencies and add dependency and container security scans.
+
+### Added
+
+- Choose a model from the message composer without leaving the conversation.
+- Invite guests to Spaces by email and identify Spaces that include outside guests; invite and manage organization members.
+- Review usage by bot, model, and local calendar range.
+- Transfer a selected account, Space, and bots between self-hosted instances with the operator CLI ([transfer guide](scripts/account-transfer/README.md)).
+- Save separate server and login profiles on desktop and mobile, switch without signing out, and receive ordinary notifications for inactive saved profiles.
+
+### Changed
+
+- Send chat-message push notifications to every device where the account is signed in.
+- Keep desktop bots and the local server under an explicit **Quit and Stop Bots** action; switching away from the local server stops it.
+- Bind notification taps to the saved profile and server origin that generated them; native incoming-call registrations remain active-profile-only.
+
+### Fixed
+
+- Keep signed-in sessions alive when the server renews the session cookie.
+
+### Self-host upgrade notes
+
+- Account transfer is an operator-run cutover: follow the transfer guide for source pause and drain, file copying, target activation, verification, and rollback. The tool transfers database-backed records and does not pause work or copy files for you.
+- iOS and Android need a new native build to use saved profiles and profile-bound push. Android push additionally requires a build configured with the deployment's own Firebase and EAS identity.
+
 ## [0.12.0] - 2026-11-16
 
 ### Security
