@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Review usage by bot, model, and local calendar range.
 - Transfer a selected account, Space, and bots between self-hosted instances with the operator CLI ([transfer guide](scripts/account-transfer/README.md)).
 - Save separate server and login profiles on desktop and mobile, switch without signing out, and receive ordinary notifications for inactive saved profiles.
+- Run an opt-in [self-hosted company workspace](docs/self-host-company.md) with owner-managed accounts and invitations, shared bots with per-bot permissions, centrally granted model connections, and usage allowances. Owners can inspect account content, with consent at activation and an audit record.
 
 ### Changed
 
@@ -35,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Self-host upgrade notes
 
 - Account transfer is an operator-run cutover: follow the transfer guide for source pause and drain, file copying, target activation, verification, and rollback. The tool transfers database-backed records and does not pause work or copy files for you.
+- Review the [company workspace setup](docs/self-host-company.md) before enabling company mode. Ownership must be explicitly bootstrapped; ordinary sign-up does not grant administration. Model allowances are not provider-side spending limits.
 - iOS and Android need a new native build to use saved profiles and profile-bound push. Android push additionally requires a build configured with the deployment's own Firebase and EAS identity.
 
 ## [0.12.0] - 2026-11-16
