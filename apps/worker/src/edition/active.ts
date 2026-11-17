@@ -10,12 +10,5 @@ const registry = {
 
 /** Resolve after loadRootEnv() so STIRRUP_EDITION is available. */
 export function getEdition() {
-  return resolveEdition(process.env.STIRRUP_EDITION ?? "default", registry);
+  return resolveEdition(process.env.STIRRUP_EDITION?.trim() || "default", registry);
 }
-
-/** Lazily resolved active edition (do not read at module load). */
-export const edition = {
-  get current() {
-    return getEdition();
-  },
-};

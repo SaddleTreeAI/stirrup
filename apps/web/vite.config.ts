@@ -30,14 +30,12 @@ export default defineConfig(({ command, mode }) => {
   const buildId = command === "build" ? buildIdAt(new Date()) : "";
   const rootEnv = loadEnv(mode, path.resolve(import.meta.dirname, "../.."), "");
   // edition-seam:A1-web
-  const editionId = process.env.STIRRUP_EDITION ?? rootEnv.STIRRUP_EDITION ?? "default";
-  const editionWebEntry = path.resolve(
-    import.meta.dirname,
-    `../../editions/${editionId}/src/web.ts`,
-  );
-  if (!fs.existsSync(editionWebEntry)) {
+  const editionId =
+    (process.env.STIRRUP_EDITION || rootEnv.STIRRUP_EDITION || "default").trim() || "default";
+  const editionWeb = path.resolve(import.meta.dirname, `../../editions/${editionId}/src/web.ts`);
+  if (!fs.existsSync(editionWeb)) {
     throw new Error(
-      `Unknown STIRRUP_EDITION "${editionId}": editions/${editionId} does not exist (expected ${editionWebEntry})`,
+      `Unknown STIRRUP_EDITION "${editionId}": editions/${editionId} does not exist (expected ${editionWeb})`,
     );
   }
   const webPort = Number(process.env.WEB_PORT ?? rootEnv.WEB_PORT ?? 5173);
@@ -68,7 +66,7 @@ export default defineConfig(({ command, mode }) => {
     define: { "import.meta.env.RAKAZO_BUILD": JSON.stringify(buildId) },
     resolve: {
       // edition-seam:A1-web
-      alias: { "@edition/web": editionWebEntry },
+      alias: { "@edition/web": editionWeb },
     },
     plugins: [
       {
