@@ -150,7 +150,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await openBotSettings(page);
   const sharing = page.getByRole("region", { name: "Bot access" });
   await expect(sharing.getByRole("heading", { name: "Company access" })).toBeVisible();
-  await expect(sharing.getByText("Teammate")).toBeVisible();
+  await expect(sharing.getByText("Teammate", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "company-bot-sharing");
   await expect(page.getByRole("button", { name: "Edit name", exact: true })).toBeVisible();
   async function editName(value: string) {

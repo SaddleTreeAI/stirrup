@@ -168,6 +168,9 @@ export async function resolveModelKey(...args: Parameters<typeof resolveModelKey
     // Funded managed backups use deployment credentials just like the primary.
     args[7] = { ...args[7], requireStoredSecret: false };
   }
+  // In company mode a deleted personal credential must not fall through to an
+  // instance credential. Company credentials are resolved only through grants.
+  args[7] = { ...args[7], disallowDeploymentKey: privatePlatform };
   const credential = args[3];
   let companyAccess: Awaited<ReturnType<typeof resolvePlatformModelProvider>> = null;
   if (privatePlatform && !args[3]) {
@@ -224,7 +227,10 @@ async function resolveModelKeyMaterial(
   provider: string,
   modelId: string,
   registerSecrets?: (values: string[]) => void,
-  { requireStoredSecret = false }: { requireStoredSecret?: boolean } = {},
+  {
+    requireStoredSecret = false,
+    disallowDeploymentKey = false,
+  }: { requireStoredSecret?: boolean; disallowDeploymentKey?: boolean } = {},
 ): Promise<{
   apiKey?: string;
   accountId?: string;
@@ -261,6 +267,8 @@ async function resolveModelKeyMaterial(
       if (!row) {
         if (await modelCreditBillingEnabled(deps))
           throw new Error("Connect that model provider again.");
+        if (disallowDeploymentKey)
+          throw new UnavailableModelForAuthError("The saved credential is no longer available.");
         if (requireStoredSecret) throw new Error("Backup model credential is no longer available");
         if (credential.provider === OPENAI_COMPATIBLE_PROVIDER_ID) {
           throw new UnavailableModelForAuthError("Unknown model for that provider");

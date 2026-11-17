@@ -8,6 +8,7 @@ import {
   provisionRuntimeRole,
   RUNTIME_ROLE,
 } from "./database-access.js";
+import { createGroupRepos } from "./groups.js";
 import { createRepos } from "./repos.js";
 import {
   drainUnscopedDatabaseAccess,
@@ -625,6 +626,13 @@ describePostgres("row-level security (PostgreSQL)", () => {
     const privateThreadId = `rls-company-private-thread-${suffix}`;
     const privateComputerId = `rls-company-private-computer-${suffix}`;
     const grantId = `rls-company-grant-${suffix}`;
+    const companySectionId = `rls-company-section-created-${suffix}`;
+    const ordinarySectionId = `rls-ordinary-section-created-${suffix}`;
+    let companyBoardId: string;
+    let createdCompanyBoard = false;
+    const companyTicketId = `rls-company-ticket-${suffix}`;
+    const ordinarySecondBotId = `rls-ordinary-group-bot-${suffix}`;
+    const crossSpaceMemberId = `rls-company-member-${suffix}`;
     await owner.prisma.deploymentSettings.upsert({
       where: { id: "default" },
       create: { id: "default", companySpaceId: a.spaceId },
@@ -663,6 +671,32 @@ describePostgres("row-level security (PostgreSQL)", () => {
         createdByUserId: a.userId,
       },
     });
+    await owner.prisma.spaceMember.create({
+      data: {
+        id: crossSpaceMemberId,
+        spaceId: a.spaceId,
+        userId: b.userId,
+        organizationId,
+        role: "member",
+        createdAt: new Date(),
+      },
+    });
+    const existingCompanyBoard = await owner.prisma.board.findUnique({
+      where: { spaceId: a.spaceId },
+      select: { id: true },
+    });
+    if (existingCompanyBoard) {
+      companyBoardId = existingCompanyBoard.id;
+    } else {
+      companyBoardId = `rls-company-board-${suffix}`;
+      await owner.prisma.board.create({ data: { id: companyBoardId, spaceId: a.spaceId } });
+      createdCompanyBoard = true;
+    }
+    const previousTicket = await owner.prisma.ticket.aggregate({
+      where: { boardId: companyBoardId },
+      _max: { number: true },
+    });
+    const ticketNumber = (previousTicket._max.number ?? 0) + 1;
     const scope = {
       spaceId: a.spaceId,
       userId: b.userId,
@@ -683,6 +717,8 @@ describePostgres("row-level security (PostgreSQL)", () => {
     const createdComputerId = `rls-company-computer-${suffix}`;
     let repoCreatedCompanyBotId: string | undefined;
     let repoCreatedOrdinaryBotId: string | undefined;
+    let companyGroupId: string | undefined;
+    let ordinaryGroupId: string | undefined;
     try {
       const allowed = await runAsTenantWithPlatformBots(scope, async () => {
         const bots = await db.bot.findMany({
@@ -773,6 +809,90 @@ describePostgres("row-level security (PostgreSQL)", () => {
       repoCreatedCompanyBotId = companyRepoBot.id;
       expect(companyRepoBot.id).toBe(`rls-company-repo-created-${suffix}`);
 
+      const groupRepos = createGroupRepos(db);
+      const companyActor = {
+        userId: a.userId,
+        spaceId: a.spaceId,
+        email: `${a.userId}@rakazo.test`,
+        isDeploymentOwner: false,
+      };
+      const companySection = await runAsTenantWithPlatformBots(
+        { ...manageScope, userId: a.userId },
+        () =>
+          db.botSection.create({
+            data: {
+              id: companySectionId,
+              spaceId: a.spaceId,
+              userId: a.userId,
+              name: "Company section",
+            },
+            select: { id: true },
+          }),
+      );
+      expect(companySection.id).toBe(companySectionId);
+      const companyTicket = await runAsTenantWithPlatformBots(
+        { ...manageScope, userId: a.userId },
+        () =>
+          db.ticket.create({
+            data: {
+              id: companyTicketId,
+              spaceId: a.spaceId,
+              boardId: companyBoardId,
+              number: ticketNumber,
+              title: "Company ticket",
+              createdByBotId: a.botId,
+            },
+            select: { id: true },
+          }),
+      );
+      expect(companyTicket.id).toBe(companyTicketId);
+      await expect(
+        runAsTenantWithPlatformBots(scope, () =>
+          db.ticket.create({
+            data: {
+              spaceId: a.spaceId,
+              boardId: companyBoardId,
+              number: ticketNumber + 1,
+              title: "Ticket references inaccessible bot",
+              createdByBotId: privateBotId,
+            },
+            select: { id: true },
+          }),
+        ),
+      ).rejects.toThrow(/row-level security/);
+      const companyGroup = await runAsTenantWithPlatformBots(
+        { ...manageScope, userId: a.userId },
+        () =>
+          groupRepos.createGroup(companyActor, {
+            name: "Company group",
+            botIds: [a.botId, privateBotId],
+          }),
+      );
+      companyGroupId = companyGroup.id;
+      expect(companyGroup.members.map(({ botId }) => botId).sort()).toEqual(
+        [a.botId, privateBotId].sort(),
+      );
+      const companyActorB = {
+        userId: b.userId,
+        spaceId: a.spaceId,
+        email: `${b.userId}@rakazo.test`,
+        isDeploymentOwner: false,
+      };
+      await expect(
+        runAsTenantWithPlatformBots(
+          {
+            ...scope,
+            editBotIds: [a.botId],
+            requiredPermission: "edit",
+          },
+          () =>
+            groupRepos.createGroup(companyActorB, {
+              name: "Group with inaccessible bot",
+              botIds: [a.botId, privateBotId],
+            }),
+        ),
+      ).rejects.toThrow();
+
       // Normal first-user onboarding has no company Space. It must retain the
       // ordinary tenant policy and also return the newly inserted bot.
       await owner.prisma.deploymentSettings.update({
@@ -785,6 +905,37 @@ describePostgres("row-level security (PostgreSQL)", () => {
         email: `${b.userId}@rakazo.test`,
         isDeploymentOwner: false,
       };
+      await owner.prisma.bot.create({
+        data: {
+          id: ordinarySecondBotId,
+          spaceId: b.spaceId,
+          userId: b.userId,
+          name: "Second ordinary bot",
+          color: "#000",
+        },
+      });
+      const ordinarySection = await runAsTenant({ spaceId: b.spaceId, userId: b.userId }, () =>
+        db.botSection.create({
+          data: {
+            id: ordinarySectionId,
+            spaceId: b.spaceId,
+            userId: b.userId,
+            name: "Ordinary section",
+          },
+          select: { id: true },
+        }),
+      );
+      expect(ordinarySection.id).toBe(ordinarySectionId);
+      const ordinaryGroup = await runAsTenant({ spaceId: b.spaceId, userId: b.userId }, () =>
+        groupRepos.createGroup(actorB, {
+          name: "Ordinary group",
+          botIds: [b.botId, ordinarySecondBotId],
+        }),
+      );
+      ordinaryGroupId = ordinaryGroup.id;
+      expect(ordinaryGroup.members.map(({ botId }) => botId).sort()).toEqual(
+        [b.botId, ordinarySecondBotId].sort(),
+      );
       const ordinaryRepoBot = await runAsTenant({ spaceId: b.spaceId, userId: b.userId }, () =>
         repos.createBot(actorB, {
           id: `rls-ordinary-repo-created-${suffix}`,
@@ -807,6 +958,17 @@ describePostgres("row-level security (PostgreSQL)", () => {
       );
       expect(unscoped).toEqual([]);
     } finally {
+      await owner.prisma.chatGroup.deleteMany({
+        where: { id: { in: [companyGroupId, ordinaryGroupId].filter((id): id is string => !!id) } },
+      });
+      await owner.prisma.botSection.deleteMany({
+        where: { id: { in: [companySectionId, ordinarySectionId] } },
+      });
+      await owner.prisma.ticket.deleteMany({ where: { id: companyTicketId } });
+      if (createdCompanyBoard)
+        await owner.prisma.board.deleteMany({ where: { id: companyBoardId } });
+      await owner.prisma.bot.deleteMany({ where: { id: ordinarySecondBotId } });
+      await owner.prisma.spaceMember.deleteMany({ where: { id: crossSpaceMemberId } });
       if (repoCreatedCompanyBotId)
         await owner.prisma.bot.deleteMany({ where: { id: repoCreatedCompanyBotId } });
       if (repoCreatedOrdinaryBotId)
@@ -1123,11 +1285,18 @@ describePostgres("row-level security (PostgreSQL)", () => {
     expect(
       policies.filter(
         (p) =>
-          p.qual !== "( SELECT app_rls_bypass() AS app_rls_bypass)" ||
-          (p.with_check !== null &&
-            p.with_check !== "( SELECT app_rls_bypass() AS app_rls_bypass)"),
+          (p.qual !== "( SELECT app_rls_bypass() AS app_rls_bypass)" ||
+            (p.with_check !== null &&
+              p.with_check !== "( SELECT app_rls_bypass() AS app_rls_bypass)")) &&
+          p.policyname !== "bot_email_messages_owner_fence",
       ),
     ).toEqual([]);
+    const botEmailOwnerFence = policies.find(
+      (policy) => policy.policyname === "bot_email_messages_owner_fence",
+    );
+    expect(botEmailOwnerFence?.qual).toContain("app_rls_bypass()");
+    expect(botEmailOwnerFence?.qual).toContain('b."userId"');
+    expect(botEmailOwnerFence?.with_check).toContain('b."userId"');
   });
 
   it("keeps the caller's temporary schema last in every owner-rights function", async () => {
