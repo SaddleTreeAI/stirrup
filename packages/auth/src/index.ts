@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expo } from "@better-auth/expo";
 import { passkey } from "@better-auth/passkey";
 import type {
@@ -233,6 +234,65 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
     const policy = signupPolicyFromEnv(env);
     if (!env.singleAccount || !policy.enabled) return policy;
     return (await hasAdmittedAccount(prisma)) ? { ...policy, enabled: false } : policy;
+  };
+  const platformMode = async () =>
+    Boolean(
+      (
+        await prisma.deploymentSettings.findUnique({
+          where: { id: "default" },
+          select: { platformMode: true },
+        })
+      )?.platformMode,
+    );
+  const validPlatformInvite = async (token: unknown, email: string) => {
+    if (typeof token !== "string" || token.length < 32 || token.length > 256) return null;
+    if (!(await platformMode())) return null;
+    return prisma.platformInvite.findFirst({
+      where: {
+        tokenHash: createHash("sha256").update(token).digest("hex"),
+        email: email.trim().toLowerCase(),
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true, role: true },
+    });
+  };
+  const acceptPlatformInvite = async (
+    token: unknown,
+    email: string,
+    userId: string,
+    monitoringConsent: unknown,
+  ) => {
+    if (monitoringConsent !== true)
+      throw new APIError("FORBIDDEN", {
+        code: "PLATFORM_MONITORING_CONSENT_REQUIRED",
+        message: "Accept the workspace monitoring notice to continue",
+      });
+    const invite = await validPlatformInvite(token, email);
+    if (!invite)
+      throw new APIError("BAD_REQUEST", {
+        code: "INVALID_INVITE",
+        message: "Invite is invalid or expired",
+      });
+    const accepted = await prisma.platformInvite.updateMany({
+      where: { id: invite.id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+      data: { acceptedAt: new Date(), acceptedByUserId: userId },
+    });
+    if (accepted.count !== 1)
+      throw new APIError("BAD_REQUEST", {
+        code: "INVALID_INVITE",
+        message: "Invite is invalid or expired",
+      });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { platformRole: invite.role, platformMonitoringAcceptedAt: new Date() },
+    });
+    await recordSecurityEvent({
+      type: "platform.account.monitoring_accepted",
+      userId,
+      metadata: { inviteId: invite.id },
+    });
   };
   /** Admits the sole account one at a time, so two first signups cannot both get in. */
   const admitSoleAccount = (userId: string) =>
@@ -659,12 +719,23 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
             .toLowerCase();
           if (!(await ctx.context.internalAdapter.findUserByEmail(email))) {
             const policy = await admission();
-            if (!policy.enabled || !emailAllowed(email, policy.allowlist)) {
+            if (
+              (await platformMode()) ||
+              !policy.enabled ||
+              !emailAllowed(email, policy.allowlist)
+            ) {
               if (ctx.path === SEND_SIGN_IN_CODE_PATH) return ctx.json({ success: true });
               throw new APIError("BAD_REQUEST", { code: "INVALID_OTP", message: "Invalid OTP" });
             }
           }
         }
+        const inviteToken = ctx.body?.platformInviteToken;
+        const inviteEmail = String(ctx.body?.email ?? "");
+        const platformInvite =
+          ctx.path === "/sign-up/email"
+            ? await validPlatformInvite(inviteToken, inviteEmail)
+            : null;
+        const privateMode = ctx.path === "/sign-up/email" && (await platformMode());
         let policy =
           ctx.path === "/sign-up/email"
             ? await admission()
@@ -673,25 +744,38 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
               : undefined;
         let requireEmailVerification = false;
         if (ctx.path === "/sign-up/email") {
-          if (!policy?.enabled) {
+          policy ??= signupPolicyFromEnv(env);
+          if (platformInvite && ctx.body?.platformMonitoringConsent !== true) {
+            throw new APIError("FORBIDDEN", {
+              code: "PLATFORM_MONITORING_CONSENT_REQUIRED",
+              message: "Accept the workspace monitoring notice to continue",
+            });
+          }
+          if (privateMode && !platformInvite) {
+            throw new APIError("BAD_REQUEST", {
+              code: "REGISTRATION_CLOSED",
+              message: "Registration is closed",
+            });
+          }
+          if (!policy?.enabled && !platformInvite) {
             throw new APIError("BAD_REQUEST", {
               code: "REGISTRATION_CLOSED",
               message: "Registration is closed",
             });
           }
           const email = String(ctx.body?.email ?? "");
-          if (!emailAllowed(email, policy.allowlist)) {
+          if (!platformInvite && !emailAllowed(email, policy.allowlist)) {
             throw new APIError("BAD_REQUEST", {
               code: "EMAIL_NOT_ALLOWED",
               message: "Email is not allowed to register",
             });
           }
-          if (policy.allowlist.length > 0 && !env.email) {
+          if ((policy.allowlist.length > 0 || platformInvite) && !env.email) {
             throw new APIError("BAD_REQUEST", {
               message: "Registration requires email delivery",
             });
           }
-          requireEmailVerification = policy.allowlist.length > 0;
+          requireEmailVerification = policy.allowlist.length > 0 || Boolean(platformInvite);
         } else if (policy) {
           requireEmailVerification = policy.allowlist.length > 0;
         }
@@ -827,10 +911,23 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
             // Only admitted sessions provision a workspace; never assign administration.
             const membership = await prisma.spaceMember.findFirst({ where: { userId: user.id } });
             if (!membership) {
+              const privateDeployment = await platformMode();
+              const acceptedInvite = privateDeployment
+                ? await prisma.platformInvite.findFirst({
+                    where: { acceptedByUserId: user.id, acceptedAt: { not: null } },
+                    select: { id: true },
+                  })
+                : null;
+              if (privateDeployment && !acceptedInvite && !(await provisioned(user.id)))
+                throw new APIError("FORBIDDEN", {
+                  code: "REGISTRATION_CLOSED",
+                  message: "Registration is closed",
+                });
               if (
                 (!policy.enabled ||
                   (!bypassAllowlist && !emailAllowed(user.email, policy.allowlist))) &&
-                !(await provisioned(user.id))
+                !(await provisioned(user.id)) &&
+                !acceptedInvite
               ) {
                 throw new APIError("FORBIDDEN", {
                   code: "REGISTRATION_CLOSED",
@@ -909,6 +1006,17 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
       user: {
         create: {
           after: async (user, ctx) => {
+            if (
+              ctx?.path === "/sign-up/email" &&
+              typeof ctx.body?.platformInviteToken === "string"
+            ) {
+              await acceptPlatformInvite(
+                ctx.body.platformInviteToken,
+                user.email,
+                user.id,
+                ctx.body.platformMonitoringConsent,
+              );
+            }
             const attribution = SignupAttribution.safeParse({
               surface: user.signupSurface ?? undefined,
               utmSource: user.signupUtmSource ?? undefined,

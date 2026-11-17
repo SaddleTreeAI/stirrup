@@ -132,7 +132,9 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
                 role="alert"
                 className="mx-6 my-6 rounded-xl bg-muted px-4 py-4 text-body text-muted-foreground"
               >
-                {selected.status === "interrupted" ? (
+                {selected.failureReason ? (
+                  selected.failureReason
+                ) : selected.status === "interrupted" ? (
                   <Trans>Recovery is unavailable until the previous operation has stopped.</Trans>
                 ) : (
                   <Trans>

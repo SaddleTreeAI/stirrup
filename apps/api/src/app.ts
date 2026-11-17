@@ -136,7 +136,7 @@ import { cors } from "hono/cors";
 import { deleteAccountContent, finishStalledOrganizationDeletions } from "./account-deletion.js";
 import { mountAccountExportRoute } from "./account-export.js";
 import { mountAccountImportRoute } from "./account-import.js";
-import { settleDirectoryChange } from "./account-status.js";
+import { setAccountActive, settleDirectoryChange } from "./account-status.js";
 import { mountAppAssociation, nativePasskeys } from "./app-association.js";
 import { storeInboundAttachment } from "./artifacts.js";
 import { mountAuditExportRoute } from "./audit-export.js";
@@ -165,6 +165,8 @@ import { marketingEmailRoutes, sendWelcomeEmail } from "./marketing-email.js";
 import { moveMcpArgsIntoSecrets } from "./mcp-args-migration.js";
 import { startMessagingRuntime } from "./messaging-runtime.js";
 import { monitoringRoutes } from "./monitoring.js";
+import { mountPlatformAdminBotFileRoute } from "./platform-admin-bot-files.js";
+import { sendPlatformBudgetAlerts } from "./platform-budget-alerts.js";
 import { pluginSubmissionRoutes } from "./plugin-submissions.js";
 import { sendReferralEmails } from "./referral-email.js";
 import { mountApiRequestBodyLimits, rpcBodyLimit } from "./request-body-limit.js";
@@ -726,6 +728,12 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
           onEmailError,
         )
       : undefined;
+  const stopPlatformBudgetAlerts = email
+    ? startHourlySweep(
+        sendPlatformBudgetAlerts({ prisma, email, onError: onEmailError }),
+        onEmailError,
+      )
+    : undefined;
 
   // Self-hosted deployments without billing keep every saved home.
   const stopHomeRetention =
@@ -802,6 +810,21 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     modelConnectionCheck: env.agentRuntime === "pi" ? verifyModelServesAgents : undefined,
     artifacts,
     email,
+    setPlatformAccountActive: (userId, active) =>
+      setAccountActive(
+        {
+          prisma,
+          pushTokens,
+          devices: deviceSessions,
+          events,
+          afterDeparture: (actor, departure) =>
+            afterSpaceDeparture({ prisma, sandbox, jobs, events }, actor, departure),
+        },
+        userId,
+        active,
+        Boolean(directory),
+        true,
+      ),
     onEmailError,
     dataDir: env.dataDir,
     billing,
@@ -1102,6 +1125,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     return reply;
   });
   mountAccountExportRoute(app, { prisma, auth, artifacts, home });
+  mountPlatformAdminBotFileRoute(app, { prisma, artifacts, sessionActor });
   mountAuditExportRoute(app, { prisma, sessionActor });
   mountVoiceHttpRoutes(app, { prisma, secrets, env }, async (c) => {
     const actor = await sessionActor(c.req.raw);
@@ -1225,6 +1249,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
         await userDeviceHub?.close();
         await oauthLogins.abortAll();
         await stopReferralEmails?.();
+        await stopPlatformBudgetAlerts?.();
         await stopHomeRetention?.();
         await stopOrganizationDeletions();
         await reconciler?.stop();

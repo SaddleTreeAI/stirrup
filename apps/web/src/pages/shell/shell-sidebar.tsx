@@ -16,6 +16,7 @@ import { CreateOrganizationDialog } from "../../components/CreateOrganizationDia
 import { InviteDialog } from "../../components/InviteDialog";
 import { PasskeyOffer } from "../../components/PasskeyOffer";
 import { PlanUsageRows, useUsageHint } from "../../components/PlanUsage";
+import { PlatformAdminLink } from "../../components/PlatformAdminLink";
 import { SidebarFooter } from "../../components/SidebarFooter";
 import { useBilling } from "../../components/SubscriptionGate";
 import { formatBillingDate } from "../../lib/billing";
@@ -389,6 +390,7 @@ function ShellSidebarFooter({
         </div>
       ) : null}
       <SidebarFooter
+        administration={<PlatformAdminLink />}
         mini={mini}
         logos={logos}
         name={userName}

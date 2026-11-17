@@ -19,7 +19,13 @@ import {
   SandboxUnresponsiveError,
 } from "@rakazo/adapter-kit";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
-import { runAsSystem, runAsTenant } from "@rakazo/db";
+import {
+  cancelRunsInTransaction,
+  resolvePlatformBotTenantScope,
+  runAsSystem,
+  runAsTenant,
+  runAsTenantWithPlatformBots,
+} from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { settleCallRequest } from "./call-request.js";
 import type { CloudAgentConnection, UserCloudAgents } from "./cloud-agent-factory.js";
@@ -49,6 +55,40 @@ import { expireTaughtSkillTeaching } from "./teaching-session.js";
 import type { TeamChat } from "./team-chat.js";
 
 type Tenant = { spaceId: string; userId: string };
+type ContinuableRunTenant = Tenant & { id: string; botId: string; taskId: string };
+type BotTenant = Tenant & { botId: string; botIds?: string[] };
+type CompanyComputerTenant = Tenant & {
+  botIds: string[];
+  requesterBound?: boolean;
+  requireRequester?: boolean;
+  legacyUserId?: string;
+};
+
+async function cancelComputerUpdateForAccess(
+  deps: { prisma: PrismaClient; events: ThreadEvents },
+  updateId: string,
+  spaceId: string,
+  reason: "missing-requester" | "revoked-access",
+) {
+  const failureReason =
+    reason === "missing-requester"
+      ? "This queued request has no verified requester. Ask an administrator to submit it again."
+      : "The requester no longer has access to every bot using this computer. The update was cancelled.";
+  await runAsSystem("cancel a queued computer update after company access changed", async () => {
+    await deps.prisma.$transaction(async (tx) => {
+      const canceled = await tx.computerUpdate.updateMany({
+        where: { id: updateId, status: "queued" },
+        data: { status: "failed", failureReason },
+      });
+      if (canceled.count !== 1) return;
+      await tx.computer.updateMany({
+        where: { maintenanceId: updateId },
+        data: { maintenanceId: null },
+      });
+    });
+  });
+  await deps.events.publishSpaceChange?.(spaceId, "computerUpdates");
+}
 
 /**
  * A job that acts for one run, routine, computer, skill, thread, cloud agent or purchase runs
@@ -72,7 +112,144 @@ function asOwner<Key, P extends Key>(
   };
 }
 
+/** Rechecks a company bot grant at each durable run continuation before any tool or model work. */
+function asCompanyBotRunOwner<Key extends { runId: string }, P extends Key>(
+  prisma: PrismaClient,
+  owner: (payload: Key) => Promise<ContinuableRunTenant | null>,
+  handler: (
+    payload: P,
+    execution: BackgroundJobExecution | undefined,
+    tenant: Tenant,
+  ) => Promise<void>,
+  events: ThreadEvents,
+): (payload: P, execution?: BackgroundJobExecution) => Promise<void> {
+  return async (payload, execution) => {
+    const tenant = await runAsSystem("find the tenant a run continuation acts for", () =>
+      owner(payload),
+    );
+    if (!tenant) return;
+    const resolution = await resolvePlatformBotTenantScope(prisma, {
+      spaceId: tenant.spaceId,
+      userId: tenant.userId,
+      botId: tenant.botId,
+      botIds: [tenant.botId],
+      requiredPermission: "use",
+    });
+    if (resolution.kind === "not-company") {
+      await runAsTenant(tenant, () => handler(payload, execution, tenant));
+      return;
+    }
+    if (resolution.kind === "granted") {
+      await runAsTenantWithPlatformBots(resolution.scope, () =>
+        handler(payload, execution, tenant),
+      );
+      return;
+    }
+
+    // Access may have been revoked after the message queued this run. Settle it without executing
+    // another model/tool pass, so a denied job doesn't leave a permanently queued run behind.
+    await runAsSystem("cancel a queued company bot run after access was revoked", async () => {
+      await prisma.$transaction(async (tx) => {
+        await cancelRunsInTransaction(tx, [tenant], new Date());
+      });
+    });
+    await events.publishSpaceChange?.(tenant.spaceId, "runs");
+  };
+}
+
+/** Applies the live bot grant to every bot-linked durable job before it reads or writes content. */
+function asCompanyBotOwner<Key, P extends Key>(
+  prisma: PrismaClient,
+  owner: (payload: Key) => Promise<BotTenant | null>,
+  handler: (
+    payload: P,
+    execution: BackgroundJobExecution | undefined,
+    tenant: Tenant,
+  ) => Promise<void>,
+): (payload: P, execution?: BackgroundJobExecution) => Promise<void> {
+  return async (payload, execution) => {
+    const tenant = await runAsSystem("find the bot tenant a background job acts for", () =>
+      owner(payload),
+    );
+    if (!tenant) return;
+    const resolution = await resolvePlatformBotTenantScope(prisma, {
+      spaceId: tenant.spaceId,
+      userId: tenant.userId,
+      botId: tenant.botId,
+      botIds: tenant.botIds ?? [tenant.botId],
+      requiredPermission: "use",
+    });
+    if (resolution.kind === "not-company") {
+      await runAsTenant(tenant, () => handler(payload, execution, tenant));
+    } else if (resolution.kind === "granted") {
+      await runAsTenantWithPlatformBots(resolution.scope, () =>
+        handler(payload, execution, tenant),
+      );
+    }
+  };
+}
+
+/** Company computer maintenance requires permission over every bot attached to the machine. */
+function asCompanyComputerOwner<Key, P extends Key>(
+  prisma: PrismaClient,
+  owner: (payload: Key) => Promise<CompanyComputerTenant | null>,
+  requiredPermission: "use" | "manage",
+  handler: (
+    payload: P,
+    execution: BackgroundJobExecution | undefined,
+    tenant: Tenant,
+  ) => Promise<void>,
+  denied?: (
+    payload: P,
+    tenant: CompanyComputerTenant,
+    reason: "missing-requester" | "revoked-access",
+  ) => Promise<void>,
+): (payload: P, execution?: BackgroundJobExecution) => Promise<void> {
+  return async (payload, execution) => {
+    const tenant = await runAsSystem("find the company computer tenant for a lifecycle job", () =>
+      owner(payload),
+    );
+    if (!tenant) return;
+    const [botId, ...botIds] = tenant.botIds;
+    const resolution = await resolvePlatformBotTenantScope(prisma, {
+      spaceId: tenant.spaceId,
+      userId: tenant.userId,
+      botId: botId ?? "",
+      botIds,
+      requiredPermission,
+    });
+    const deniedReason =
+      tenant.requireRequester && !tenant.requesterBound
+        ? "missing-requester"
+        : resolution.kind === "denied"
+          ? "revoked-access"
+          : null;
+    if (resolution.kind !== "not-company" && deniedReason) {
+      await denied?.(payload, tenant, deniedReason);
+      return;
+    }
+    if (resolution.kind === "not-company") {
+      const legacyTenant = {
+        spaceId: tenant.spaceId,
+        userId: tenant.requesterBound ? tenant.userId : (tenant.legacyUserId ?? tenant.userId),
+      };
+      await runAsTenant(legacyTenant, () => handler(payload, execution, legacyTenant));
+    } else if (resolution.kind === "granted") {
+      await runAsTenantWithPlatformBots(resolution.scope, () =>
+        handler(payload, execution, tenant),
+      );
+    }
+  };
+}
+
 const OWNER = { spaceId: true, userId: true } as const;
+const CONTINUABLE_RUN = {
+  id: true,
+  spaceId: true,
+  userId: true,
+  botId: true,
+  taskId: true,
+} as const;
 const CONTROL_EXPIRE_RETRY_MS = 30_000;
 /**
  * How long to wait before asking again whether the memory provider stored a turn: 5 s, doubling
@@ -109,15 +286,38 @@ export function createBackgroundJobHandlers(deps: {
   const delivery = deps.messagingDelivery;
   const cleanupDeps = { prisma: deps.prisma, secrets: deps.secretStore };
   const run = ({ runId }: { runId: string }) =>
-    deps.prisma.run.findUnique({ where: { id: runId }, select: OWNER });
+    deps.prisma.run.findUnique({ where: { id: runId }, select: CONTINUABLE_RUN });
   const routine = ({ routineId }: { routineId: string }) =>
-    deps.prisma.routine.findUnique({ where: { id: routineId }, select: OWNER });
+    deps.prisma.routine.findUnique({
+      where: { id: routineId },
+      select: { ...OWNER, botId: true },
+    });
   const computer = ({ computerId }: { computerId: string }) =>
-    deps.prisma.computer.findUnique({ where: { id: computerId }, select: OWNER });
+    deps.prisma.computer.findUnique({
+      where: { id: computerId },
+      select: { ...OWNER, bots: { where: { archivedAt: null }, select: { id: true } } },
+    });
   const thread = ({ threadId }: { threadId: string }) =>
-    deps.prisma.thread.findUnique({ where: { id: threadId }, select: OWNER });
+    deps.prisma.thread.findUnique({
+      where: { id: threadId },
+      select: {
+        ...OWNER,
+        botId: true,
+        group: { select: { members: { select: { botId: true } } } },
+      },
+    });
+  const threadBotTenant = async ({ threadId }: { threadId: string }): Promise<BotTenant | null> => {
+    const row = await thread({ threadId });
+    if (!row) return null;
+    const botIds = row.botId ? [row.botId] : (row.group?.members.map(({ botId }) => botId) ?? []);
+    if (!botIds.length) return null;
+    return { spaceId: row.spaceId, userId: row.userId, botId: botIds[0]!, botIds };
+  };
   const skill = ({ skillId }: { skillId: string }) =>
-    deps.prisma.taughtSkill.findUnique({ where: { id: skillId }, select: OWNER });
+    deps.prisma.taughtSkill.findUnique({
+      where: { id: skillId },
+      select: { ...OWNER, botId: true },
+    });
   const cloudAgent = ({ agentId }: { agentId: string }) =>
     deps.prisma.cloudAgent.findUnique({ where: { id: agentId }, select: OWNER });
   const purchase = ({ purchaseId }: { purchaseId: string }) =>
@@ -129,30 +329,61 @@ export function createBackgroundJobHandlers(deps: {
         select: { run: { select: OWNER } },
       })
     )?.run ?? null;
-  const updatedComputer = async ({ updateId }: { updateId: string }) =>
-    (
-      await deps.prisma.computerUpdate.findUnique({
-        where: { id: updateId },
-        select: { computer: { select: OWNER } },
-      })
-    )?.computer ?? null;
+  const computerTenant = async (
+    row: Awaited<ReturnType<typeof computer>>,
+  ): Promise<CompanyComputerTenant | null> =>
+    row
+      ? {
+          spaceId: row.spaceId,
+          userId: row.userId,
+          botIds: row.bots?.map(({ id }) => id) ?? [],
+        }
+      : null;
+  const updatedComputer = async ({ updateId }: { updateId: string }) => {
+    const row = await deps.prisma.computerUpdate.findUnique({
+      where: { id: updateId },
+      select: {
+        requestedByUserId: true,
+        computer: {
+          select: { ...OWNER, bots: { where: { archivedAt: null }, select: { id: true } } },
+        },
+      },
+    });
+    if (!row?.computer) return null;
+    const tenant = await computerTenant(row.computer);
+    if (!tenant) return null;
+    return {
+      ...tenant,
+      userId: row.requestedByUserId ?? row.computer.userId,
+      legacyUserId: row.computer.userId,
+      requesterBound: row.requestedByUserId !== null,
+      requireRequester: true,
+    };
+  };
+  const computerJobTenant = async (payload: { computerId: string }) =>
+    computerTenant(await computer(payload));
 
   return {
-    "run.continue": asOwner(run, async (payload, execution, { spaceId }) => {
-      try {
-        if (execution)
-          await deps.executor.continueRun(payload.runId, deps.workerId, execution.onRunStarted);
-        else await deps.executor.continueRun(payload.runId, deps.workerId);
-      } finally {
-        // Whatever this turn did to its run (waited, paused, requeued, ended), apps read it again.
-        await deps.events.publishSpaceChange?.(spaceId, "runs");
-      }
-      // The process that ran the turn sends what it said straight away. An ended run's reply
-      // job, scheduled with its status, covers a failure here; it never fails the run.
-      await delivery?.deliverRun(payload.runId).catch((error) => {
-        delivery.reportFailure("messaging reply delivery error", error);
-      });
-    }),
+    "run.continue": asCompanyBotRunOwner(
+      deps.prisma,
+      run,
+      async (payload, execution, { spaceId }) => {
+        try {
+          if (execution)
+            await deps.executor.continueRun(payload.runId, deps.workerId, execution.onRunStarted);
+          else await deps.executor.continueRun(payload.runId, deps.workerId);
+        } finally {
+          // Whatever this turn did to its run (waited, paused, requeued, ended), apps read it again.
+          await deps.events.publishSpaceChange?.(spaceId, "runs");
+        }
+        // The process that ran the turn sends what it said straight away. An ended run's reply
+        // job, scheduled with its status, covers a failure here; it never fails the run.
+        await delivery?.deliverRun(payload.runId).catch((error) => {
+          delivery.reportFailure("messaging reply delivery error", error);
+        });
+      },
+      deps.events,
+    ),
     "messaging.send": async ({ outboundId }, _execution, attempt) => {
       await delivery?.sendJob(outboundId, attempt);
     },
@@ -164,7 +395,7 @@ export function createBackgroundJobHandlers(deps: {
     },
     "connection.cleanup": asOwner(
       async (payload: BackgroundJobPayloads["connection.cleanup"]) => payload,
-      async (payload) => {
+      async (payload: BackgroundJobPayloads["connection.cleanup"]) => {
         // Fail rather than finish, so the queue keeps the job for a process that has connectors.
         if (!deps.connectors) throw new Error("connection cleanup has no connector registry");
         await retryConnectionCleanup(
@@ -199,59 +430,92 @@ export function createBackgroundJobHandlers(deps: {
     "team_chat.ambient": async ({ conversationId }) => {
       await deps.teamChat?.ambientJob(conversationId);
     },
-    "routine.wakeup": asOwner(routine, async (payload, _execution, { spaceId }) => {
-      try {
-        await deps.executor.wakeRoutine(payload.routineId, payload.scheduledFor);
-      } finally {
-        // A wake moves the routine's next run, or pauses it, and may queue or coalesce runs.
-        await deps.events.publishSpaceChange?.(spaceId, "routines");
-        await deps.events.publishSpaceChange?.(spaceId, "runs");
-      }
-    }),
-    "routine.retry": asOwner(run, async (payload, _execution, { spaceId }) => {
-      try {
-        await deps.executor.retryRoutineRun(payload.runId);
-      } finally {
-        await deps.events.publishSpaceChange?.(spaceId, "runs");
-      }
-    }),
-    "computer.update": asOwner(updatedComputer, async ({ updateId }) => {
-      await performComputerUpdate(deps, updateId);
-    }),
-    "computer.sleep": asOwner(computer, async (payload) => {
-      await sleepComputerIfIdle(deps, payload.computerId);
-    }),
-    "computer.control-expire": asOwner(computer, async ({ computerId, leaseId }) => {
-      try {
-        if (await expireComputerControl(deps, computerId, leaseId)) {
-          scheduleComputerSleep(deps.jobs, computerId);
+    "routine.wakeup": asCompanyBotOwner(
+      deps.prisma,
+      routine,
+      async (payload, _execution, { spaceId }) => {
+        try {
+          await deps.executor.wakeRoutine(payload.routineId, payload.scheduledFor);
+        } finally {
+          // A wake moves the routine's next run, or pauses it, and may queue or coalesce runs.
+          await deps.events.publishSpaceChange?.(spaceId, "routines");
+          await deps.events.publishSpaceChange?.(spaceId, "runs");
         }
-      } catch (error) {
-        // Input is already denied and the lease kept, so a provider outage only delays the release.
-        if (
-          !(error instanceof SandboxUnresponsiveError) &&
-          !(error instanceof SandboxUnavailableError) &&
-          !(error instanceof SandboxRateLimitError)
-        )
-          throw error;
-        getLogger().warn("computer.control_expire_deferred", { "computer.id": computerId, error });
-        await scheduleComputerControlExpiry(
-          deps.jobs,
-          computerId,
-          leaseId,
-          rateLimitEnds(error) ?? new Date(Date.now() + CONTROL_EXPIRE_RETRY_MS),
-        );
-      }
-    }),
-    "skill.teaching-expire": asOwner(skill, async (payload) => {
+      },
+    ),
+    "routine.retry": asCompanyBotOwner(
+      deps.prisma,
+      run,
+      async (payload, _execution, { spaceId }) => {
+        try {
+          await deps.executor.retryRoutineRun(payload.runId);
+        } finally {
+          await deps.events.publishSpaceChange?.(spaceId, "runs");
+        }
+      },
+    ),
+    "computer.update": asCompanyComputerOwner(
+      deps.prisma,
+      updatedComputer,
+      "manage",
+      async ({ updateId }) => {
+        await performComputerUpdate(deps, updateId);
+      },
+      async ({ updateId }, tenant, reason) => {
+        await cancelComputerUpdateForAccess(deps, updateId, tenant.spaceId, reason);
+      },
+    ),
+    "computer.sleep": asCompanyComputerOwner(
+      deps.prisma,
+      computerJobTenant,
+      "use",
+      async (payload) => {
+        await sleepComputerIfIdle(deps, payload.computerId);
+      },
+    ),
+    "computer.control-expire": asCompanyComputerOwner(
+      deps.prisma,
+      computerJobTenant,
+      "use",
+      async ({ computerId, leaseId }) => {
+        try {
+          if (await expireComputerControl(deps, computerId, leaseId)) {
+            scheduleComputerSleep(deps.jobs, computerId);
+          }
+        } catch (error) {
+          // Input is already denied and the lease kept, so a provider outage only delays the release.
+          if (
+            !(error instanceof SandboxUnresponsiveError) &&
+            !(error instanceof SandboxUnavailableError) &&
+            !(error instanceof SandboxRateLimitError)
+          )
+            throw error;
+          getLogger().warn("computer.control_expire_deferred", {
+            "computer.id": computerId,
+            error,
+          });
+          await scheduleComputerControlExpiry(
+            deps.jobs,
+            computerId,
+            leaseId,
+            rateLimitEnds(error) ?? new Date(Date.now() + CONTROL_EXPIRE_RETRY_MS),
+          );
+        }
+      },
+    ),
+    "skill.teaching-expire": asCompanyBotOwner(deps.prisma, skill, async (payload) => {
       await expireTaughtSkillTeaching(deps, payload.skillId);
     }),
-    "run.forget-secrets": asOwner(run, async ({ runId }) => {
+    "run.forget-secrets": asCompanyBotOwner(deps.prisma, run, async ({ runId }) => {
       await expireRunSecrets({ ...deps, now: new Date() }, runId);
     }),
-    "call.expire": asOwner(thread, async (payload) => {
-      await settleCallRequest(deps, { ...payload, from: ["ringing"], status: "missed" });
-    }),
+    "call.expire": asCompanyBotOwner<{ threadId: string }, BackgroundJobPayloads["call.expire"]>(
+      deps.prisma,
+      threadBotTenant,
+      async (payload) => {
+        await settleCallRequest(deps, { ...payload, from: ["ringing"], status: "missed" });
+      },
+    ),
     "cloud_agent.poll": asOwner(cloudAgent, async (payload) => {
       await pollCloudAgent(
         {
@@ -282,29 +546,50 @@ export function createBackgroundJobHandlers(deps: {
     "push.receipt": async (payload) => {
       await runAsSystem("check a push receipt", () => deps.notifications?.checkReceipt(payload));
     },
-    "history.compact": asOwner(thread, async (payload) => {
-      // Retrieval policies use stored context without paid message-count compaction.
-      // Skip legacy backlog work after a policy change.
-      if (deps.executor.contextStrategy && deps.executor.contextStrategy !== "current") return;
-      await compactHistory(
-        {
-          prisma: deps.prisma,
-          runtime: deps.runtime,
-          jobs: deps.jobs,
-          memoryProviders: deps.memoryProviders,
-          deploymentModelKey: deps.deploymentModelKey,
-          deploymentModelConfigured: deps.deploymentModelConfigured,
-          ...(deps.executor.resolveModel ? { resolveModel: deps.executor.resolveModel } : {}),
-        },
-        payload.threadId,
-        payload.userId,
-      );
-    }),
-    "memory.purge-history": asOwner(
+    "history.compact": asCompanyBotOwner<
+      { threadId: string; userId?: string },
+      BackgroundJobPayloads["history.compact"]
+    >(
+      deps.prisma,
+      async (payload) => {
+        const row = await threadBotTenant(payload);
+        if (row && !payload.userId) {
+          const deployment = await deps.prisma.deploymentSettings.findUnique({
+            where: { id: "default" },
+            select: { platformMode: true },
+          });
+          // Old jobs have no authenticated requester. In a company deployment, do
+          // not reinterpret them as the thread owner and spend that account's key.
+          if (deployment?.platformMode) return null;
+        }
+        return row ? { ...row, userId: payload.userId ?? row.userId } : null;
+      },
+      async (payload) => {
+        // Retrieval policies use stored context without paid message-count compaction.
+        // Skip legacy backlog work after a policy change.
+        if (deps.executor.contextStrategy && deps.executor.contextStrategy !== "current") return;
+        await compactHistory(
+          {
+            prisma: deps.prisma,
+            runtime: deps.runtime,
+            jobs: deps.jobs,
+            memoryProviders: deps.memoryProviders,
+            deploymentModelKey: deps.deploymentModelKey,
+            deploymentModelConfigured: deps.deploymentModelConfigured,
+            ...(deps.executor.resolveModel ? { resolveModel: deps.executor.resolveModel } : {}),
+          },
+          payload.threadId,
+          payload.userId,
+        );
+      },
+    ),
+    "memory.purge-history": asCompanyBotOwner(
+      deps.prisma,
       async (payload: BackgroundJobPayloads["memory.purge-history"]) => payload,
       async (payload) => retryConversationMemoryPurge(deps, payload),
     ),
-    "memory.retain-turn": asOwner(
+    "memory.retain-turn": asCompanyBotOwner(
+      deps.prisma,
       async (payload: BackgroundJobPayloads["memory.retain-turn"]) =>
         // Source was captured from the run before submission; group deletion may remove that row.
         payload.pending ? payload.pending.source : run(payload),

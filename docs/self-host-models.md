@@ -24,6 +24,9 @@ IRSA or EC2 instance role, opt in with `PI_DEFAULT_CREDENTIALS=host` and set
 role, keep [restricted computer egress](./self-host-docker-computers.md#restricted-computer-egress) on so bot computers
 cannot read the role's credentials from the metadata endpoint.
 
+For centrally managed model connections and per-person budgets, see the
+[single-company deployment guide](./self-host-company.md).
+
 Google Vertex works the same way with `PI_DEFAULT_PROVIDER=google-vertex`, using the host's
 application default credentials (`GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_PROJECT`,
 `GOOGLE_CLOUD_LOCATION`). Runs on host credentials are billed to that cloud account.

@@ -56,6 +56,7 @@ import { onboardingRoutes } from "./routes/onboarding.js";
 import { organizationsRoutes } from "./routes/organizations.js";
 import { pagesRoutes } from "./routes/pages.js";
 import { paymentWalletRoutes } from "./routes/payment-wallet.js";
+import { platformAdminRoutes } from "./routes/platform-admin.js";
 import { routinesRoutes } from "./routes/routines.js";
 import { spacesRoutes } from "./routes/spaces.js";
 import { spendingLimitRoutes } from "./routes/spending-limit.js";
@@ -131,6 +132,11 @@ export interface RouterDeps {
   /** Present only when the deployment bills; self-hosted installs leave it unset. */
   billing?: BillingService;
   email?: TransactionalEmailProvider;
+  /** Uses the full account-status cleanup path; absent in tests that do not exercise administration. */
+  setPlatformAccountActive?: (
+    userId: string,
+    active: boolean,
+  ) => Promise<"changed" | "unchanged" | "directory">;
   onEmailError?: (error: unknown) => void;
   speechSummary?: VoiceDeps["speechSummary"];
   env: {
@@ -193,5 +199,6 @@ export function createRouter(deps: RouterDeps) {
     ...pagesRoutes(ctx),
     ...paymentWalletRoutes(ctx),
     ...spendingLimitRoutes(ctx),
+    ...platformAdminRoutes(ctx),
   });
 }

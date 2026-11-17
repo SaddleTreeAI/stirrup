@@ -2,7 +2,7 @@ import { createRouterClient } from "@orpc/server";
 import type { Actor } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
-import { createRouter } from "./router.js";
+import { createRouter } from "./router-test-support.js";
 
 const actor: Actor = {
   spaceId: "space-1",

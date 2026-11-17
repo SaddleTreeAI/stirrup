@@ -4,7 +4,7 @@ import type { Actor } from "@rakazo/contracts";
 import { ConnectionSetupError } from "@rakazo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
-import { createRouter } from "./router.js";
+import { createRouter } from "./router-test-support.js";
 
 const actor = { userId: "user-fixture", spaceId: "space-fixture" } as Actor;
 const baseUrl = "https://models.example.com/v1";

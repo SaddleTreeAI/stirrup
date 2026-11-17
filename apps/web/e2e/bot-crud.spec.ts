@@ -120,7 +120,38 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   expect(new URL(page.url()).pathname).toBe(deletedBotPath);
   await captureScreenshot(page, testInfo, "27-created-bot");
 
+  await page.route(/\/rpc\/bots\/access\/list(\?|$)/, (route) =>
+    route.fulfill({
+      json: {
+        json: {
+          isCompanyBot: true,
+          permission: "manage",
+          canManage: true,
+          members: [
+            {
+              userId: "owner-user",
+              name: "Workspace owner",
+              email: "owner@example.test",
+              role: "owner",
+              permission: null,
+            },
+            {
+              userId: "teammate-user",
+              name: "Teammate",
+              email: "teammate@example.test",
+              role: "member",
+              permission: "use",
+            },
+          ],
+        },
+      },
+    }),
+  );
   await openBotSettings(page);
+  const sharing = page.getByRole("region", { name: "Bot access" });
+  await expect(sharing.getByRole("heading", { name: "Company access" })).toBeVisible();
+  await expect(sharing.getByText("Teammate", { exact: true })).toBeVisible();
+  await captureScreenshot(page, testInfo, "company-bot-sharing");
   await expect(page.getByRole("button", { name: "Edit name", exact: true })).toBeVisible();
   async function editName(value: string) {
     await page.getByRole("button", { name: "Edit name", exact: true }).click();

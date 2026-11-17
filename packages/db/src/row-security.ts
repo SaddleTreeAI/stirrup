@@ -16,8 +16,16 @@ import { withTransactionRetry } from "./transaction-retry.js";
  *
  * Without a context, protected tables return no rows and reject writes.
  */
+export type PlatformBotDbScope = {
+  companySpaceId: string;
+  useBotIds: string[];
+  editBotIds: string[];
+  manageBotIds: string[];
+  requiredPermission: "use" | "edit" | "manage" | "deny" | undefined;
+};
+
 export type DbContext =
-  | { kind: "tenant"; spaceId: string; userId: string }
+  | { kind: "tenant"; spaceId: string; userId: string; platformBots?: PlatformBotDbScope }
   | { kind: "system"; reason: string };
 
 const storage = new AsyncLocalStorage<DbContext>();
@@ -30,7 +38,47 @@ export function runAsTenant<T>(
   tenant: { spaceId: string; userId: string },
   fn: () => T | PromiseLike<T>,
 ): Promise<T> {
-  return within({ kind: "tenant", spaceId: tenant.spaceId, userId: tenant.userId }, fn);
+  const current = storage.getStore();
+  const inherited =
+    current?.kind === "tenant" &&
+    current.spaceId === tenant.spaceId &&
+    current.userId === tenant.userId
+      ? current.platformBots
+      : undefined;
+  return within(
+    { kind: "tenant", spaceId: tenant.spaceId, userId: tenant.userId, platformBots: inherited },
+    fn,
+  );
+}
+
+/** Run a tenant operation with the bot grants resolved for this request. */
+export function runAsTenantWithPlatformBots<T>(
+  scope: {
+    spaceId: string;
+    userId: string;
+    companySpaceId: string;
+    useBotIds: string[];
+    editBotIds: string[];
+    manageBotIds: string[];
+    requiredPermission: "use" | "edit" | "manage" | "deny" | undefined;
+  },
+  fn: () => T | PromiseLike<T>,
+): Promise<T> {
+  return within(
+    {
+      kind: "tenant",
+      spaceId: scope.spaceId,
+      userId: scope.userId,
+      platformBots: {
+        companySpaceId: scope.companySpaceId,
+        useBotIds: scope.useBotIds,
+        editBotIds: scope.editBotIds,
+        manageBotIds: scope.manageBotIds,
+        requiredPermission: scope.requiredPermission,
+      },
+    },
+    fn,
+  );
 }
 
 /**
@@ -126,6 +174,20 @@ export const ROW_SECURITY_MODELS: ReadonlySet<string> = new Set([
   "UserVoiceCredential",
   "TrustedLinkSite",
   "FeedbackReport",
+  "PlatformInvite",
+  "PlatformModelConnection",
+  "PlatformModelGrant",
+  "PlatformModelBudgetBucket",
+  "PlatformModelBudgetAlert",
+  "PlatformModelCall",
+  "PlatformBotGrant",
+  "ChatGroup",
+  "ChatGroupMember",
+  "BotSection",
+  "BotMcpServer",
+  "ExternalEffect",
+  "Attempt",
+  "ComputerUpdate",
   "PaymentWallet",
   "Purchase",
   "SpendingLimit",
@@ -207,16 +269,37 @@ function credentials(connectionString: string | undefined): { user: string; pass
 // By login, for runAsSystemInTransaction, which only has the transaction's connection.
 const bypassKeys = new Map<string, string>();
 
-type Settings = [spaceId: string, userId: string, bypass: "on" | "off", bypassKey: string];
+type Settings = [
+  spaceId: string,
+  userId: string,
+  bypass: "on" | "off",
+  bypassKey: string,
+  companySpaceId: string,
+  useBotIds: string,
+  editBotIds: string,
+  manageBotIds: string,
+  requiredPermission: string,
+];
+
+function botSettings(scope?: PlatformBotDbScope): [string, string, string, string, string] {
+  return [
+    scope?.companySpaceId ?? "",
+    scope?.useBotIds.join(",") ?? "",
+    scope?.editBotIds.join(",") ?? "",
+    scope?.manageBotIds.join(",") ?? "",
+    scope?.requiredPermission ?? "",
+  ];
+}
 
 function settingsFor(context: DbContext | undefined, bypassKey: string): Settings {
-  if (context?.kind === "tenant") return [context.spaceId, context.userId, "off", ""];
-  if (context?.kind === "system") return ["", "", "on", bypassKey];
-  return ["", "", "off", ""];
+  if (context?.kind === "tenant")
+    return [context.spaceId, context.userId, "off", "", ...botSettings(context.platformBots)];
+  if (context?.kind === "system") return ["", "", "on", bypassKey, "", "", "", "", ""];
+  return ["", "", "off", "", "", "", "", "", ""];
 }
 
 const SET_SESSION =
-  "SELECT set_config('app.space_id', $1, false), set_config('app.user_id', $2, false), set_config('app.rls_bypass', $3, false), set_config('app.rls_bypass_key', $4, false), set_config('app.vault_access_version', '1', false)";
+  "SELECT set_config('app.space_id', $1, false), set_config('app.user_id', $2, false), set_config('app.rls_bypass', $3, false), set_config('app.rls_bypass_key', $4, false), set_config('app.vault_access_version', '1', false), set_config('app.company_space_id', $5, false), set_config('app.platform_bot_use_ids', $6, false), set_config('app.platform_bot_edit_ids', $7, false), set_config('app.platform_bot_manage_ids', $8, false), set_config('app.platform_bot_required_permission', $9, false)";
 const applied = new WeakMap<PoolClient, string>();
 
 async function applySettings(client: PoolClient, settings: Settings): Promise<void> {
@@ -281,7 +364,7 @@ export function installDbContext(pool: Pool): void {
 }
 
 const LOCAL_SETTINGS = (settings: Settings) =>
-  Prisma.sql`SELECT set_config('app.space_id', ${settings[0]}, true), set_config('app.user_id', ${settings[1]}, true), set_config('app.rls_bypass', ${settings[2]}, true), set_config('app.rls_bypass_key', ${settings[3]}, true), set_config('app.vault_access_version', '1', true)`;
+  Prisma.sql`SELECT set_config('app.space_id', ${settings[0]}, true), set_config('app.user_id', ${settings[1]}, true), set_config('app.rls_bypass', ${settings[2]}, true), set_config('app.rls_bypass_key', ${settings[3]}, true), set_config('app.vault_access_version', '1', true), set_config('app.company_space_id', ${settings[4]}, true), set_config('app.platform_bot_use_ids', ${settings[5]}, true), set_config('app.platform_bot_edit_ids', ${settings[6]}, true), set_config('app.platform_bot_manage_ids', ${settings[7]}, true), set_config('app.platform_bot_required_permission', ${settings[8]}, true)`;
 
 // A wrapped read keeps the pool's checkout timeout and no run limit it did not
 // have before, instead of Prisma's 2s/5s transaction defaults.

@@ -73,6 +73,9 @@ const AdminPluginsPage = lazyComponent(() =>
 const AdminAccessPage = lazyComponent(() =>
   import("./pages/AdminAccessPage").then((module) => module.AdminAccessPage),
 );
+const AdminPlatformPage = lazyComponent(() =>
+  import("./pages/AdminPlatformPage").then((module) => module.AdminPlatformPage),
+);
 const NavLinkPage = lazyComponent(() =>
   import("./pages/NavLinkPage").then((module) => module.NavLinkPage),
 );
@@ -225,6 +228,16 @@ function SessionApp() {
                 }
               />
               <Route path="/reset-password" element={<PasswordResetPage />} />
+              <Route
+                path="/invite"
+                element={
+                  user ? (
+                    <Navigate to="/app" replace />
+                  ) : (
+                    <AuthPage key="platform-invite" mode="up" />
+                  )
+                }
+              />
               <Route path="/p/:slugToken" element={<SharedPagePage />} />
               <Route
                 path={MCP_OAUTH_CALLBACK_PATH}
@@ -296,6 +309,12 @@ function SessionApp() {
                 path="/admin/access"
                 element={
                   user ? <AdminAccessPage /> : <Navigate to="/sign-in?next=/admin/access" replace />
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  user ? <AdminPlatformPage /> : <Navigate to="/sign-in?next=/admin" replace />
                 }
               />
               <Route

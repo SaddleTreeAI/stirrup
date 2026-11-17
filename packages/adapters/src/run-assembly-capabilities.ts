@@ -37,6 +37,7 @@ import {
 } from "./model-selection.js";
 import { modelAcceptsImageInput } from "./model-vision.js";
 import { paymentWalletConnected } from "./payment-wallets.js";
+import { withPlatformBotComputerAccess } from "./platform-bot-computer-access.js";
 import { backOffRoutineAfterAccountError } from "./routine-backoff.js";
 import type { ThreadHistory, TurnContext } from "./run-assembly-history.js";
 import type { ConnectedRun, RunRecords, SavedTurn } from "./run-assembly-records.js";
@@ -234,7 +235,10 @@ export async function prepareRunComputer(
   const { context, runAbortController } = parts.connected;
   const { currentTurnMessage, history, historyMessages, turnBlocks } = parts.turnContext;
   const { resolved, runModelId, runModelProvider } = parts.model;
-  if (!bot.computer) throw new Error("Bot has no computer");
+  if (!bot.computer)
+    throw new Error(
+      "This bot's shared computer is unavailable. Ask an administrator for access to every bot using it.",
+    );
   const storedComputer = bot.computer;
   const computerMode = parseComputerMode(storedComputer.scope);
   const artifacts = deps.artifacts;
@@ -298,50 +302,57 @@ export async function prepareRunComputer(
       computerUse.reason = reason;
       computerUse.tool = tool && BUILTIN_AGENT_TOOL_NAMES.has(tool) ? tool : undefined;
     }
-    return getLogger().withContext(
-      {
-        reason: computerUse.reason,
-        tool: computerUse.tool,
-        trigger: run.trigger,
-        "run.id": runId,
-        "computer.id": storedComputer.id,
-      },
-      async () => {
-        const computer = await runComputer.get();
-        copyingTurnFiles = copyingTurnFiles
-          .catch(() => undefined)
-          .then(async () => {
-            while (artifacts && pendingTurnFiles.length) {
-              const files = await materializeCurrentTurnFiles(
-                { ...deps, artifacts },
-                pendingTurnFiles[0],
-                {
-                  context,
-                  computer: async () => computer,
-                  computerMode,
-                  markWorkspaceDirty: workspaceCheckpoint.markDirty,
-                },
-              );
-              workspaceCheckpoint.markFiles(files);
-              pendingTurnFiles.shift();
-            }
-            const earlier = earlierFiles.take();
-            if (artifacts && earlier.length) {
-              earlierFiles.copiedTo(
-                earlier,
-                // Saved with the run's checkpoint, so a resumed attempt still has them.
-                await materializeEarlierFiles({ ...deps, artifacts }, earlier, {
-                  context,
-                  computer: async () => computer,
-                  computerMode,
-                  markWorkspaceDirty: workspaceCheckpoint.markDirty,
-                }),
-              );
-            }
-          });
-        await copyingTurnFiles;
-        return computer;
-      },
+    return withPlatformBotComputerAccess(
+      deps.prisma,
+      { spaceId: run.spaceId, userId: run.userId },
+      bot.id,
+      storedComputer.id,
+      () =>
+        getLogger().withContext(
+          {
+            reason: computerUse.reason,
+            tool: computerUse.tool,
+            trigger: run.trigger,
+            "run.id": runId,
+            "computer.id": storedComputer.id,
+          },
+          async () => {
+            const computer = await runComputer.get();
+            copyingTurnFiles = copyingTurnFiles
+              .catch(() => undefined)
+              .then(async () => {
+                while (artifacts && pendingTurnFiles.length) {
+                  const files = await materializeCurrentTurnFiles(
+                    { ...deps, artifacts },
+                    pendingTurnFiles[0],
+                    {
+                      context,
+                      computer: async () => computer,
+                      computerMode,
+                      markWorkspaceDirty: workspaceCheckpoint.markDirty,
+                    },
+                  );
+                  workspaceCheckpoint.markFiles(files);
+                  pendingTurnFiles.shift();
+                }
+                const earlier = earlierFiles.take();
+                if (artifacts && earlier.length) {
+                  earlierFiles.copiedTo(
+                    earlier,
+                    // Saved with the run's checkpoint, so a resumed attempt still has them.
+                    await materializeEarlierFiles({ ...deps, artifacts }, earlier, {
+                      context,
+                      computer: async () => computer,
+                      computerMode,
+                      markWorkspaceDirty: workspaceCheckpoint.markDirty,
+                    }),
+                  );
+                }
+              });
+            await copyingTurnFiles;
+            return computer;
+          },
+        ),
     );
   };
   let currentTurnFiles: Awaited<ReturnType<typeof listCurrentTurnFiles>> = [];

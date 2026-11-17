@@ -2,6 +2,7 @@ import type { InferRouterInitialContext } from "@orpc/server";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import type { Actor, Bot } from "@rakazo/contracts";
+import { vi } from "vitest";
 import { withModelRoles } from "../../../packages/adapters/src/testing/model-roles.js";
 import type { RouterDeps } from "./router.js";
 import {
@@ -13,7 +14,19 @@ import { handleRpcError } from "./rpc-errors.js";
 export { mainRole, withModelRoles } from "../../../packages/adapters/src/testing/model-roles.js";
 
 const withRoleDeps = (deps: RouterDeps) => {
-  withModelRoles(deps.prisma);
+  // Existing route fixtures represent an ordinary deployment unless they explicitly
+  // configure company mode. Keep an explicit settings mock supplied by a test.
+  const prisma = deps.prisma ?? ({} as RouterDeps["prisma"]);
+  if (!prisma.deploymentSettings?.findUnique) {
+    Object.assign(prisma, {
+      deploymentSettings: {
+        ...prisma.deploymentSettings,
+        findUnique: vi.fn(async () => null),
+      },
+    });
+  }
+  withModelRoles(prisma);
+  if (!deps.prisma) deps.prisma = prisma;
   return deps;
 };
 export const createRouter = (deps: RouterDeps) => createRouterWith(withRoleDeps(deps));

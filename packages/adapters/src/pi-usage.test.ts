@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import type { Api, Context, Model, Models, SimpleStreamOptions } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { AssistantMessageEventStream } from "@earendil-works/pi-ai/utils/event-stream";
-import type { AgentRuntimeEvent, AgentUsage } from "@rakazo/adapter-kit";
+import type { AgentRuntimeEvent, AgentUsage, ModelCallObserver } from "@rakazo/adapter-kit";
 import { deferred } from "@rakazo/core/test-async";
 import { Agent } from "undici";
 import { describe, expect, it, vi } from "vitest";
@@ -63,6 +63,70 @@ async function run(usage?: object) {
 }
 
 describe("Pi usage accounting", () => {
+  it("uses the declared context window only for observers that require a hard reservation bound", async () => {
+    const capture = async (reserveFullContextWindow: boolean) => {
+      const beforeCall = vi.fn<ModelCallObserver["beforeCall"]>(() => "reservation");
+      const stream = await observedPiStream(
+        builtinModels(),
+        model,
+        { systemPrompt: "Fixture", messages: [{ role: "user", content: "test", timestamp: 1 }] },
+        {
+          apiKey: "fake-fixture-key",
+          fetch: async () =>
+            new Response(sse({ prompt_tokens: 8, completion_tokens: 2, total_tokens: 10 }), {
+              headers: { "content-type": "text/event-stream" },
+            }),
+        },
+        () => undefined,
+        {
+          reserveFullContextWindow,
+          beforeCall,
+          afterCall: () => undefined,
+        },
+      );
+      for await (const _event of stream) {
+        /* Consume the fixture response. */
+      }
+      return beforeCall.mock.calls[0]?.[0];
+    };
+
+    const companyCall = await capture(true);
+    const hostedWalletCall = await capture(false);
+    expect(companyCall?.maxCostUsd).toBe((4096 * 1 + 256 * 2) / 1_000_000);
+    expect(hostedWalletCall?.maxCostUsd).toBeLessThan(companyCall!.maxCostUsd!);
+    expect(hostedWalletCall?.inputTokensEstimate).toBeLessThan(model.contextWindow);
+  });
+
+  it("passes an unknown bound to the company ledger before any provider request", async () => {
+    const beforeCall = vi.fn<ModelCallObserver["beforeCall"]>(async (call) => {
+      if (call.maxCostUsd === undefined) throw new Error("Unbounded company reservation");
+      return "reservation";
+    });
+    const fetch = vi.fn(
+      async () => new Response(sse(), { headers: { "content-type": "text/event-stream" } }),
+    );
+    const events: AgentRuntimeEvent[] = [];
+    const stream = await observedPiStream(
+      builtinModels(),
+      { ...model, contextWindow: 0 },
+      { messages: [] },
+      { apiKey: "fake-fixture-key", fetch },
+      (event) => events.push(event),
+      {
+        reserveFullContextWindow: true,
+        beforeCall,
+        afterCall: () => undefined,
+      },
+    );
+    for await (const _event of stream) {
+      /* An unbounded request must be rejected before this can receive data. */
+    }
+    expect(beforeCall).toHaveBeenCalledOnce();
+    expect(beforeCall.mock.calls[0]?.[0]?.maxCostUsd).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(events).toHaveLength(0);
+  });
+
   it.each([false, true])(
     "acknowledges a producer sink only after successful accounting (fails=%s)",
     async (fails) => {

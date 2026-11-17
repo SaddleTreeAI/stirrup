@@ -793,6 +793,11 @@ export interface AgentUsage {
 export type UsageOperationKind = "answer" | "setup" | "retrieval" | "subagent" | "compaction";
 
 export interface ModelCallObserver {
+  /**
+   * Use the model's declared context window as the input-token bound when reserving a
+   * company-funded call. Other observers retain the request estimate.
+   */
+  reserveFullContextWindow?: boolean;
   beforeCall(call: {
     callId?: string;
     runId?: string;

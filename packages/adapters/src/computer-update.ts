@@ -40,6 +40,7 @@ export function computerUpdateView(row: {
   botId: string;
   status: string;
   stage: string;
+  failureReason?: string | null;
   computer: { scope: string; bots: { id: string; name: string }[] };
 }): ComputerUpdate {
   return ComputerUpdateSchema.parse({
@@ -53,6 +54,7 @@ export function computerUpdateView(row: {
     mode: row.computer.scope === "team" ? "team" : "dedicated",
     status: row.status,
     stage: row.stage,
+    failureReason: row.failureReason ?? null,
   });
 }
 
@@ -60,6 +62,7 @@ export async function queueComputerUpdate(
   deps: QueueDeps,
   computerId: string,
   botId: string,
+  requestedByUserId: string,
   action: "update" | "recover" = "update",
 ) {
   const prepared = await deps.prisma.$transaction(async (tx) => {
@@ -109,6 +112,7 @@ export async function queueComputerUpdate(
       data: {
         computerId,
         botId,
+        requestedByUserId,
         action,
         // Stay reserving until the provider release is attempted. Reconciliation gives that
         // takeover back. revoking is written before the call and is not proof of release.
@@ -535,7 +539,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
         traceId: updateId,
         botId: update.botId,
         spaceId: update.computer.spaceId,
-        userId: bot.userId,
+        userId: update.requestedByUserId ?? bot.userId,
         signal: controller.signal,
       },
       "none",

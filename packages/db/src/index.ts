@@ -53,6 +53,8 @@ export * from "./organization-changes.js";
 export * from "./organization-members.js";
 export * from "./organizations.js";
 export * from "./page-shares.js";
+export * from "./platform-bot-access.js";
+export * from "./platform-model-usage.js";
 export * from "./prisma-errors.js";
 export * from "./provider-transactions.js";
 export * from "./repos.js";

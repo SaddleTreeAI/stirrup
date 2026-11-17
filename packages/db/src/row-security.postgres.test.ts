@@ -15,6 +15,7 @@ import {
   runAsSystemInTransaction,
   runAsTenant,
 } from "./row-security.js";
+import { createRowSecurityTenants } from "./row-security-test-fixture.js";
 
 // Needs DATABASE_URL as the runtime login and DATABASE_MIGRATION_URL as the
 // owner, as `pnpm test:integration` provides after `pnpm db:migrate`.
@@ -143,20 +144,8 @@ describePostgres("row-level security (PostgreSQL)", () => {
     app = createDb(runtimeUrl!, { poolMax: 4 });
     db = app.prisma;
     const o = owner.prisma;
-    await o.organization.create({
-      data: { id: organizationId, name: "RLS", slug: organizationId, createdAt: new Date() },
-    });
+    await runAsSystem("seed row security test tenants", () => createRowSecurityTenants(o, suffix));
     for (const t of tenants) {
-      await o.user.create({
-        data: { id: t.userId, name: t.name, email: `${t.userId}@rakazo.test`, emailVerified: true },
-      });
-      await o.space.create({ data: { id: t.spaceId, organizationId, name: t.name } });
-      await o.bot.create({
-        data: { id: t.botId, spaceId: t.spaceId, userId: t.userId, name: t.name, color: "#000" },
-      });
-      await o.thread.create({
-        data: { id: t.threadId, spaceId: t.spaceId, userId: t.userId, botId: t.botId },
-      });
       await o.message.create({
         data: { threadId: t.threadId, seq: 1, role: "user", blocks: [{ text: t.name }] },
       });
@@ -217,25 +206,6 @@ describePostgres("row-level security (PostgreSQL)", () => {
           spaceId: t.spaceId,
           kind: "test",
           ciphertext: "c",
-        },
-      });
-      await o.member.create({
-        data: {
-          id: `${t.userId}-member`,
-          organizationId,
-          userId: t.userId,
-          role: "owner",
-          createdAt: new Date(),
-        },
-      });
-      await o.spaceMember.create({
-        data: {
-          id: `${t.userId}-space-member`,
-          spaceId: t.spaceId,
-          userId: t.userId,
-          organizationId,
-          role: "owner",
-          createdAt: new Date(),
         },
       });
       for (const [table, data] of rowsFor(t, "fixture")) {
@@ -342,6 +312,33 @@ describePostgres("row-level security (PostgreSQL)", () => {
     expect(await system(() => db.$executeRaw`DELETE FROM security_events WHERE id = ${id}`)).toBe(
       1,
     );
+  });
+
+  it("keeps company budget threshold alerts system-only", async () => {
+    const id = `rls-platform-budget-alert-${suffix}`;
+    const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+    const system = <T>(fn: () => Promise<T>) => runAsSystem("budget alert RLS test", fn);
+    await system(() =>
+      db.platformModelBudgetAlert.create({
+        data: { id, userId: a.userId, monthStart, thresholdPercent: 80 },
+      }),
+    );
+    expect(await runAsTenant(a, () => db.platformModelBudgetAlert.count({ where: { id } }))).toBe(
+      0,
+    );
+    await expect(
+      runAsTenant(a, () =>
+        db.platformModelBudgetAlert.create({
+          data: {
+            id: `${id}-tenant`,
+            userId: a.userId,
+            monthStart,
+            thresholdPercent: 80,
+          },
+        }),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await system(() => db.platformModelBudgetAlert.delete({ where: { id } }));
   });
 
   it("applies the same rules to the remaining Space-owned tables", async () => {
@@ -882,11 +879,31 @@ describePostgres("row-level security (PostgreSQL)", () => {
       SELECT policyname, qual, with_check FROM pg_policies WHERE schemaname = 'public'
         AND (policyname LIKE '%\\_system' OR qual LIKE '%rls\\_%' OR with_check LIKE '%rls\\_%')`;
     expect(policies.length).toBeGreaterThan(50);
+    const rowWithParentBypass = new Set([
+      "attempts_platform_bot_fence",
+      "external_effects_platform_bot_fence",
+      "memory_revisions_platform_bot_fence",
+      "page_versions_platform_bot_fence",
+      "bot_email_messages_owner_fence",
+    ]);
     expect(
       policies.filter(
-        (p) => p.qual !== "( SELECT app_rls_bypass() AS app_rls_bypass)" || p.with_check !== null,
+        (p) =>
+          (p.qual !== "( SELECT app_rls_bypass() AS app_rls_bypass)" ||
+            (p.with_check !== null &&
+              p.with_check !== "( SELECT app_rls_bypass() AS app_rls_bypass)")) &&
+          !rowWithParentBypass.has(p.policyname),
       ),
     ).toEqual([]);
+    for (const policy of policies.filter((row) => rowWithParentBypass.has(row.policyname))) {
+      expect(policy.qual).toContain("app_rls_bypass()");
+      if (policy.with_check) expect(policy.with_check).toContain("app_rls_bypass()");
+    }
+    const botEmailOwnerFence = policies.find(
+      (policy) => policy.policyname === "bot_email_messages_owner_fence",
+    );
+    expect(botEmailOwnerFence?.qual).toContain('b."userId"');
+    expect(botEmailOwnerFence?.with_check).toContain('b."userId"');
   });
 
   it("keeps the caller's temporary schema last in every owner-rights function", async () => {

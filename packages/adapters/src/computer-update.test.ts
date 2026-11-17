@@ -252,10 +252,23 @@ describe("background computer maintenance", () => {
   it("republishes queued intent after an enqueue failure", async () => {
     const { row, deps, jobs } = fixture();
     jobs.enqueue.mockRejectedValueOnce(new Error("offline"));
-    await queueComputerUpdate(deps, row.computerId, row.botId);
+    await queueComputerUpdate(deps, row.computerId, row.botId, "user");
     await reconcileComputerUpdates(deps);
     expect(jobs.enqueue).toHaveBeenCalledTimes(2);
     expect(replacement).not.toHaveBeenCalled();
+  });
+  it("persists the authenticated requester on each queued update", async () => {
+    const { row, deps, computerUpdate } = fixture();
+    await queueComputerUpdate(deps, row.computerId, row.botId, "requester-1");
+    expect(computerUpdate.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          computerId: row.computerId,
+          botId: row.botId,
+          requestedByUserId: "requester-1",
+        }),
+      }),
+    );
   });
   it("keeps an interrupted worker reserved instead of repeating a destructive step", async () => {
     const { row, deps, computer } = fixture("running");
@@ -348,7 +361,7 @@ describe("background computer maintenance", () => {
   it("rejects a busy computer before publishing an operation", async () => {
     const { row, deps, computer, jobs } = fixture();
     computer.updateMany.mockResolvedValueOnce({ count: 0 });
-    await expect(queueComputerUpdate(deps, row.computerId, row.botId)).rejects.toThrow(
+    await expect(queueComputerUpdate(deps, row.computerId, row.botId, "user")).rejects.toThrow(
       "Computer is busy",
     );
     expect(jobs.enqueue).not.toHaveBeenCalled();
@@ -364,7 +377,7 @@ describe("background computer maintenance", () => {
       expect(revoked).toBe(true);
     });
 
-    await queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    await queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
 
     expect(harness.computer.updateMany).toHaveBeenNthCalledWith(
       1,
@@ -415,7 +428,7 @@ describe("background computer maintenance", () => {
     const harness = takeoverQueue();
     harness.setScreenControl.mockRejectedValue(new Error("provider unavailable"));
 
-    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1")).rejects.toThrow(
+    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user")).rejects.toThrow(
       "Computer is busy",
     );
 
@@ -444,7 +457,7 @@ describe("background computer maintenance", () => {
       Object.assign(new Error("No such container"), { name: "SandboxNotFoundError" }),
     );
 
-    await queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    await queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
 
     // A dead sandbox holds no control to release: the stranded ref is dropped and
     // the update proceeds instead of reporting busy forever.
@@ -464,7 +477,7 @@ describe("background computer maintenance", () => {
     const harness = takeoverQueue();
     harness.computer.updateMany.mockResolvedValueOnce({ count: 0 });
 
-    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1")).rejects.toThrow(
+    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user")).rejects.toThrow(
       "Computer is busy",
     );
 
@@ -477,7 +490,7 @@ describe("background computer maintenance", () => {
     const harness = takeoverQueue({ providerRef: null });
     harness.setScreenControl.mockRejectedValue(new Error("provider unavailable"));
 
-    await queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    await queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
 
     expect(harness.setScreenControl).not.toHaveBeenCalled();
     expect(harness.jobs.cancel).toHaveBeenCalledOnce();
@@ -489,7 +502,7 @@ describe("background computer maintenance", () => {
     const harness = takeoverQueue();
     (harness.deps as { sandbox: { setScreenControl?: unknown } }).sandbox = {};
 
-    await queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    await queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
 
     expect(harness.setScreenControl).not.toHaveBeenCalled();
     expect(harness.jobs.enqueue).toHaveBeenCalledOnce();
@@ -503,7 +516,7 @@ describe("background computer maintenance", () => {
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 });
 
-    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1")).rejects.toThrow(
+    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user")).rejects.toThrow(
       "Computer is busy",
     );
 
@@ -534,7 +547,7 @@ describe("background computer maintenance", () => {
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 });
 
-    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1")).rejects.toThrow(
+    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user")).rejects.toThrow(
       "Computer is busy",
     );
 
@@ -572,7 +585,7 @@ describe("background computer maintenance", () => {
       controlBotId: null,
     });
 
-    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1")).rejects.toThrow(
+    await expect(queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user")).rejects.toThrow(
       "Computer is busy",
     );
 
@@ -627,7 +640,7 @@ describe("background computer maintenance", () => {
     const harness = takeoverQueue();
     const pending = deferred();
     harness.setScreenControl.mockImplementation(() => pending.promise);
-    const work = queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    const work = queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
     await vi.waitFor(() => expect(harness.setScreenControl).toHaveBeenCalledOnce());
 
     await reconcileComputerUpdates(harness.deps);
@@ -675,7 +688,7 @@ describe("background computer maintenance", () => {
     const harness = takeoverQueue();
     const pending = deferred();
     harness.setScreenControl.mockImplementation(() => pending.promise);
-    const work = queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    const work = queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
     await vi.waitFor(() => expect(harness.setScreenControl).toHaveBeenCalledOnce());
     await reconcileComputerUpdates(harness.deps);
 
@@ -709,7 +722,7 @@ describe("background computer maintenance", () => {
     const harness = takeoverQueue();
     const pending = deferred();
     harness.setScreenControl.mockImplementation(() => pending.promise);
-    const work = queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    const work = queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
     await vi.waitFor(() => expect(harness.setScreenControl).toHaveBeenCalledOnce());
     await reconcileComputerUpdates(harness.deps);
     harness.computerRow.controlLeaseId = "lease-replaced";
@@ -771,7 +784,7 @@ describe("background computer maintenance", () => {
       });
     });
 
-    await queueComputerUpdate(harness.deps, "computer-1", "bot-1");
+    await queueComputerUpdate(harness.deps, "computer-1", "bot-1", "user");
 
     const statusOrder = (status: string) => {
       const index = harness.computerUpdate.updateMany.mock.calls.findIndex(

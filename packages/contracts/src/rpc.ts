@@ -87,6 +87,8 @@ import {
   ArtifactWithContentSchema,
   AvailabilityKindSchema,
   AvatarStyleSchema,
+  BotAccessStateSchema,
+  BotPermissionSchema,
   BotSchema,
   BotSectionName,
   BotSectionSchema,
@@ -121,6 +123,18 @@ import {
   OrganizationMembersSchema,
   OrganizationRoleSchema,
   PlanLimitsSchema,
+  PlatformAdminBotInspectionSchema,
+  PlatformAdminBotSummarySchema,
+  PlatformAdminCursorSchema,
+  PlatformAdminOverviewSchema,
+  PlatformAdminUserSchema,
+  PlatformCompanySpaceSchema,
+  PlatformInvitePreviewSchema,
+  PlatformInviteSchema,
+  PlatformModelConnectionSchema,
+  PlatformProviderCatalogSchema,
+  PlatformProviderOptionSchema,
+  PlatformRoleSchema,
   PluginMarketplaceCatalogSchema,
   PluginPartSchema,
   PluginPreviewSchema,
@@ -341,6 +355,12 @@ export const appContract = {
     revoke: oc.input(z.object({ key: z.string().nullable() })).output(AiConsentStatusSchema),
   },
   health: oc.output(z.object({ ok: z.literal(true), version: z.string() })),
+  /** Public bearer-token lookup; returns only the invited address, name and expiry. */
+  platformInvite: {
+    preview: oc
+      .input(z.strictObject({ token: z.string().min(32).max(256) }))
+      .output(PlatformInvitePreviewSchema),
+  },
   me: oc.output(MeSchema),
   billing: {
     /** Claims an invite code first when one is sent, so the status already reflects it. */
@@ -405,6 +425,116 @@ export const appContract = {
     list: oc.output(z.array(AccessGrantSchema)),
     create: oc.input(AccessGrantInputSchema).output(AccessGrantSchema),
     revoke: oc.input(z.object({ id: Id })).output(AccessGrantSchema),
+  },
+  /** Company-platform administration. Every operation is authorized against the persistent role. */
+  platformAdmin: {
+    overview: oc.output(PlatformAdminOverviewSchema),
+    companySpace: {
+      get: oc.output(PlatformCompanySpaceSchema.nullable()),
+      setup: oc
+        .input(z.strictObject({ spaceId: Id.optional() }))
+        .output(PlatformCompanySpaceSchema),
+    },
+    bots: {
+      listForUser: oc
+        .input(z.strictObject({ userId: Id }))
+        .output(z.array(PlatformAdminBotSummarySchema)),
+      inspect: oc
+        .input(
+          z.strictObject({
+            botId: Id,
+            threadId: Id.optional(),
+            threadsBefore: PlatformAdminCursorSchema.optional(),
+            before: PlatformAdminCursorSchema.optional(),
+            memoriesBefore: PlatformAdminCursorSchema.optional(),
+            filesBefore: PlatformAdminCursorSchema.optional(),
+            usageBefore: PlatformAdminCursorSchema.optional(),
+          }),
+        )
+        .output(PlatformAdminBotInspectionSchema),
+    },
+    users: {
+      list: oc.output(z.array(PlatformAdminUserSchema)),
+      createInvite: oc
+        .input(
+          z.strictObject({
+            email: z.string().trim().toLowerCase().email().max(254),
+            name: z.string().trim().min(1).max(120),
+            role: PlatformRoleSchema.exclude(["owner"]).default("member"),
+          }),
+        )
+        .output(z.object({ invite: PlatformInviteSchema, url: z.string().url() })),
+      createProvision: oc
+        .input(
+          z.strictObject({
+            email: z.string().trim().toLowerCase().email().max(254),
+            name: z.string().trim().min(1).max(120),
+            role: PlatformRoleSchema.exclude(["owner"]).default("member"),
+          }),
+        )
+        .output(z.object({ invite: PlatformInviteSchema, url: z.string().url() })),
+      setProvisionRole: oc
+        .input(z.strictObject({ inviteId: Id, role: PlatformRoleSchema.exclude(["owner"]) }))
+        .output(z.object({ ok: z.literal(true) })),
+      resendProvision: oc
+        .input(z.strictObject({ inviteId: Id }))
+        .output(z.object({ url: z.string().url(), expiresAt: z.string() })),
+      deactivate: oc
+        .input(z.strictObject({ userId: Id }))
+        .output(z.object({ ok: z.literal(true) })),
+      reactivate: oc
+        .input(z.strictObject({ userId: Id }))
+        .output(z.object({ ok: z.literal(true) })),
+      setRole: oc
+        .input(z.strictObject({ userId: Id, role: PlatformRoleSchema }))
+        .output(PlatformAdminUserSchema),
+      setBudget: oc
+        .input(
+          z.strictObject({ userId: Id, monthlyBudgetUsd: z.number().finite().min(0).max(100_000) }),
+        )
+        .output(PlatformAdminUserSchema),
+      sendPasswordReset: oc
+        .input(z.strictObject({ userId: Id }))
+        .output(z.object({ ok: z.literal(true) })),
+      invites: oc.output(z.array(PlatformInviteSchema)),
+      revokeInvite: oc
+        .input(z.strictObject({ inviteId: Id }))
+        .output(z.object({ ok: z.literal(true) })),
+    },
+    usage: oc.output(PlatformAdminOverviewSchema),
+    providers: {
+      list: oc.output(z.array(PlatformModelConnectionSchema)),
+      available: oc.output(z.array(PlatformProviderOptionSchema)),
+      catalog: oc
+        .input(z.strictObject({ provider: z.string().min(1).max(120) }))
+        .output(PlatformProviderCatalogSchema),
+      saveConnection: oc
+        .input(
+          z.strictObject({
+            provider: z.string().min(1).max(120),
+            label: z.string().trim().min(1).max(120),
+            apiKey: z.string().trim().min(1).max(8192).optional(),
+          }),
+        )
+        .output(PlatformModelConnectionSchema),
+      setConnectionEnabled: oc
+        .input(z.strictObject({ provider: z.string().min(1).max(120), enabled: z.boolean() }))
+        .output(PlatformModelConnectionSchema),
+      deleteConnection: oc
+        .input(z.strictObject({ provider: z.string().min(1).max(120) }))
+        .output(z.object({ ok: z.literal(true) })),
+      setGrant: oc
+        .input(
+          z.strictObject({
+            userId: Id,
+            provider: z.string().min(1).max(120),
+            enabled: z.boolean(),
+            allowedModelIds: z.array(z.string().min(1).max(256)).max(500),
+            countsTowardUserBudget: z.boolean().default(true),
+          }),
+        )
+        .output(PlatformModelConnectionSchema),
+    },
   },
   preferences: {
     update: oc
@@ -707,6 +837,13 @@ export const appContract = {
       }),
     ),
     revealWebhookSecret: oc.input(botId).output(z.object({ secret: z.string() })),
+    access: {
+      list: oc.input(botId).output(BotAccessStateSchema),
+      set: oc
+        .input(z.strictObject({ botId: Id, userId: Id, permission: BotPermissionSchema }))
+        .output(BotAccessStateSchema),
+      revoke: oc.input(z.strictObject({ botId: Id, userId: Id })).output(BotAccessStateSchema),
+    },
   },
   groups: {
     create: oc.input(CreateGroupInput).output(GroupSchema),

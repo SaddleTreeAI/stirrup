@@ -120,6 +120,21 @@ export class LocalArtifactStore implements ArtifactStore {
     }
   }
 
+  async *stream(id: string, context: AdapterContext): AsyncGenerator<Uint8Array> {
+    const handle = await open(this.file(context.spaceId, id), constants.O_RDONLY | O_NOFOLLOW);
+    try {
+      const source = handle.createReadStream({ start: 0, autoClose: false });
+      if (!isSealedArtifact(await readHead(handle))) {
+        yield* source;
+        return;
+      }
+      if (!this.keys) throw new Error("Artifact is encrypted but no content keys are configured");
+      yield* openArtifact(this.keyIn(context.spaceId), id, source);
+    } finally {
+      await handle.close();
+    }
+  }
+
   async remove(id: string, context: AdapterContext) {
     await rm(this.file(context.spaceId, id), { force: true });
   }
