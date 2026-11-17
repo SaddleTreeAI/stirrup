@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@rakazo/adapters": ["../../packages/adapters/src/index.ts"],
+      "@rakazo/core": ["../../packages/core/src/index.ts"],
+      "@rakazo/core/secrets-guard": ["../../packages/core/src/secrets-guard.ts"],
+      "@rakazo/core/*": ["../../packages/core/src/*"],
+      "@rakazo/db": ["../../packages/db/src/index.ts"]
+    }
+  },
+  "include": ["./*.ts"]
+}

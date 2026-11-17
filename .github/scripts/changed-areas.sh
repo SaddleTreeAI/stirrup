@@ -38,6 +38,8 @@ while IFS= read -r file; do
     # vitest.config.ts loads these into every package's tests, which the package graph misses.
     packages/testkit/src/pin-test-env.ts | packages/testkit/src/lingui-core-macro.ts | \
       packages/testkit/src/lingui-react-macro.ts | \
+      packages/adapters/src/index.ts | packages/core/src/secrets-guard.ts | \
+      packages/db/src/index.ts | \
       packages/chat-ui/src/native-test-stubs.tsx) all_packages=true ;;
     apps/www/* | docs/*) unit_site=true ;;
     apps/*/* | packages/*/* | infra/sandboxes/supervisor/* | infra/updater/*) unit_packages=true ;;
