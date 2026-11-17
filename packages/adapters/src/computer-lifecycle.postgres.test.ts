@@ -666,7 +666,13 @@ describePostgres("Team Computer takeover recovery (PostgreSQL)", () => {
       expect(await status(update.id)).toBe("failed");
       expect(await computer()).toEqual({ state: "error", maintenanceId: null });
 
-      const recover = await queueComputerUpdate(deps, computerId, botId, "recover");
+      const recover = await queueComputerUpdate(
+        deps,
+        computerId,
+        botId,
+        identity.userId,
+        "recover",
+      );
       await performComputerUpdate(deps, recover.id);
       expect(await status(recover.id)).toBe("completed");
       expect(await computer()).toEqual({ state: "running", maintenanceId: null });
@@ -726,7 +732,13 @@ describePostgres("Team Computer takeover recovery (PostgreSQL)", () => {
           }),
         ).resolves.toEqual({ state: expected, maintenanceId: null });
         await expect(
-          queueComputerUpdate({ prisma, jobs }, computerId, identity.botId, "recover"),
+          queueComputerUpdate(
+            { prisma, jobs },
+            computerId,
+            identity.botId,
+            identity.userId,
+            "recover",
+          ),
         ).resolves.toMatchObject({ status: "queued" });
       } finally {
         await prisma.computer.update({

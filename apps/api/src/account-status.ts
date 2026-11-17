@@ -1,5 +1,6 @@
 import type { PushTokenStore } from "@rakazo/adapters";
 import type { DirectoryAccountChange } from "@rakazo/auth";
+import { ClientError } from "@rakazo/core";
 import type { PrismaClient, SpaceDeparture, ThreadEvents } from "@rakazo/db";
 import {
   cancelDeactivatedAccountRuns,
@@ -52,6 +53,7 @@ export async function setAccountActive(
   userId: string,
   active: boolean,
   directoryProvisioning: boolean,
+  protectLastPlatformOwner = false,
 ): Promise<"changed" | "unchanged" | "directory"> {
   return runAsSystem("change an account's status", async () => {
     if (directoryProvisioning) {
@@ -64,9 +66,29 @@ export async function setAccountActive(
       const on = links.some((link) => link.active);
       if (on ? !active : active && links.length + deleted > 0) return "directory";
     }
-    const { count } = await deps.prisma.user.updateMany({
-      where: { id: userId, deactivatedAt: active ? { not: null } : null },
-      data: { deactivatedAt: active ? null : new Date() },
+    const count = await deps.prisma.$transaction(async (tx) => {
+      if (protectLastPlatformOwner && !active) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('rakazo:platform-owner'))`;
+        const target = await tx.user.findUnique({
+          where: { id: userId },
+          select: { platformRole: true, deactivatedAt: true },
+        });
+        if (target?.platformRole === "owner" && !target.deactivatedAt) {
+          const owners = await tx.user.count({
+            where: { platformRole: "owner", deactivatedAt: null },
+          });
+          if (owners <= 1)
+            throw new ClientError(
+              "CONFLICT",
+              "The last active platform owner cannot be deactivated",
+            );
+        }
+      }
+      const changed = await tx.user.updateMany({
+        where: { id: userId, deactivatedAt: active ? { not: null } : null },
+        data: { deactivatedAt: active ? null : new Date() },
+      });
+      return changed.count;
     });
     await finishStatusChange(deps, userId, active, count > 0, "operator");
     return count ? "changed" : "unchanged";

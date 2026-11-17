@@ -28,6 +28,7 @@ function deps(): FleetPrepareDeps {
     updatedAt: new Date(0),
   };
   const prisma = {
+    deploymentSettings: { findUnique: vi.fn(async () => null) },
     userModelCredential: { findMany: vi.fn(async () => [credential]) },
     userModelPreference: { findMany: vi.fn(async () => []) },
     secret: { findMany: vi.fn(async () => [{ id: "secret-google", ciphertext: "fake" }]) },

@@ -196,6 +196,7 @@ export * from "./pi-session.js";
 export { shutdownPiTelemetry } from "./pi-telemetry.js";
 export * from "./pipedream-connector.js";
 export * from "./plan-limits.js";
+export * from "./platform-model-provider.js";
 export * from "./plugin-connectors.js";
 export * from "./plugin-marketplace.js";
 export * from "./product-analytics.js";

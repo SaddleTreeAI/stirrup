@@ -4,7 +4,7 @@ import { appContract } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { ROSTER_PROCEDURES, rosterChangeFor } from "./roster-procedures.js";
 import type { RouterDeps } from "./router.js";
-import { createRouter } from "./router.js";
+import { createRouter } from "./router-test-support.js";
 
 const actor: Actor = {
   spaceId: "space-1",

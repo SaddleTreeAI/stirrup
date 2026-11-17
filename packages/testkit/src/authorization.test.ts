@@ -36,7 +36,8 @@ type RpcPath<T, Prefix extends string = ""> = T extends { "~orpc": unknown }
         [Key in keyof T & string]: RpcPath<T[Key], Prefix extends "" ? Key : `${Prefix}/${Key}`>;
       }[keyof T & string]
     : never;
-type ProtectedRpcPath = Exclude<RpcPath<typeof appContract>, "health">;
+// Invite preview uses bearer-token authorization before sign-in.
+type ProtectedRpcPath = Exclude<RpcPath<typeof appContract>, "health" | "platformInvite/preview">;
 
 process.env.WAKEUP_DRIVER = "memory";
 process.env.SANDBOX_PROVIDER = "fake";
@@ -237,6 +238,34 @@ describeWithDatabase("API authorization and resource isolation", () => {
   it("rejects unauthenticated calls to every protected RPC family", async () => {
     const calls = exhaustiveProtectedCalls([
       ["me"],
+      ["platformAdmin/overview"],
+      ["platformAdmin/companySpace/get"],
+      ["platformAdmin/companySpace/setup"],
+      ["platformAdmin/bots/listForUser"],
+      ["platformAdmin/bots/inspect"],
+      ["platformAdmin/users/list"],
+      ["platformAdmin/users/createInvite"],
+      ["platformAdmin/users/createProvision"],
+      ["platformAdmin/users/setProvisionRole"],
+      ["platformAdmin/users/resendProvision"],
+      ["platformAdmin/users/deactivate"],
+      ["platformAdmin/users/reactivate"],
+      ["platformAdmin/users/setRole"],
+      ["platformAdmin/users/setBudget"],
+      ["platformAdmin/users/sendPasswordReset"],
+      ["platformAdmin/users/invites"],
+      ["platformAdmin/users/revokeInvite"],
+      ["platformAdmin/usage"],
+      ["platformAdmin/providers/list"],
+      ["platformAdmin/providers/available"],
+      ["platformAdmin/providers/catalog"],
+      ["platformAdmin/providers/saveConnection"],
+      ["platformAdmin/providers/setConnectionEnabled"],
+      ["platformAdmin/providers/deleteConnection"],
+      ["platformAdmin/providers/setGrant"],
+      ["bots/access/list"],
+      ["bots/access/set"],
+      ["bots/access/revoke"],
       ["deployment/get"],
       ["deployment/update", { signupsEnabled: true }],
       ["updater/status"],

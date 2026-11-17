@@ -49,5 +49,11 @@ describe("hosted model credit reservations", () => {
     expect(
       maximumModelCallCost({ input: 0, output: 1, cacheRead: 0, cacheWrite: 0 }, 0, 1_000_000),
     ).toBe(1);
+    expect(
+      maximumModelCallCost({ input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, undefined, 100),
+    ).toBeUndefined();
+    expect(
+      maximumModelCallCost({ input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, 100, undefined),
+    ).toBeUndefined();
   });
 });

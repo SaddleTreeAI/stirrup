@@ -71,6 +71,20 @@ export class ObjectArtifactStore implements ArtifactStore {
     return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   }
 
+  async *stream(id: string, context: AdapterContext): AsyncGenerator<Uint8Array> {
+    context.signal.throwIfAborted();
+    yield* openArtifact(
+      async (keyId) => {
+        const key = await this.keys.byId(keyId);
+        if (key.spaceId !== context.spaceId)
+          throw new ContentDecryptionError("Encrypted artifact belongs to another space");
+        return key;
+      },
+      id,
+      this.storage.get(this.key(id, context.spaceId)),
+    );
+  }
+
   async remove(id: string, context: AdapterContext) {
     await this.storage.delete([this.key(id, context.spaceId)]);
   }
@@ -95,6 +109,9 @@ export class DeploymentArtifactStore implements ArtifactStore {
   }
   async get(id: string, context: AdapterContext) {
     return this.forId(id).get(id, context);
+  }
+  stream(id: string, context: AdapterContext) {
+    return this.forId(id).stream(id, context);
   }
   async remove(id: string, context: AdapterContext) {
     return this.forId(id).remove(id, context);

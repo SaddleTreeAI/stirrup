@@ -17,6 +17,10 @@ type Preference = {
   credential?: { provider: string };
 };
 type MockClient = {
+  deploymentSettings?: {
+    findUnique?: (args: unknown) => Promise<unknown>;
+    [key: string]: unknown;
+  };
   userModelPreference?: {
     findFirst?: (args: unknown) => Promise<unknown>;
     findMany?: (args: unknown) => Promise<unknown>;
@@ -26,6 +30,19 @@ type MockClient = {
   spaceSettingOverride?: unknown;
   $transaction?: ((...args: unknown[]) => Promise<unknown>) & { modelRoles?: true };
 };
+
+/** A mocked client uses ordinary mode unless its fixture opts into platform mode. */
+export function withDefaultPlatformSettings<T>(prisma: T): T {
+  const client = prisma as MockClient | null;
+  if (!client || typeof client !== "object") return prisma;
+  if (!client.deploymentSettings?.findUnique) {
+    client.deploymentSettings = {
+      ...client.deploymentSettings,
+      findUnique: vi.fn(async () => null),
+    };
+  }
+  return prisma;
+}
 
 /** One account main-model row, as `withModelRoles` seeds it. */
 export function mainRole(
@@ -46,6 +63,7 @@ export function mainRole(
 export function withModelRoles<T>(prisma: T, rows: RoleRow[] = []): T {
   const client = prisma as MockClient | null;
   if (!client || typeof client !== "object") return prisma;
+  withDefaultPlatformSettings(prisma);
   const written = new Map<string, RoleRow[]>();
   const key = (where: RoleWhere) => JSON.stringify([where.userId, where.role]);
   for (const row of rows) written.set(key(row), [...(written.get(key(row)) ?? []), row]);

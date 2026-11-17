@@ -9,12 +9,13 @@ import type {
 import { memoryRetainTurnJob, SandboxUnresponsiveError } from "@rakazo/adapter-kit";
 import { deferred } from "@rakazo/core/test-async";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
-import { currentDbContext } from "@rakazo/db";
+import { currentDbContext, resolvePlatformBotTenantScope } from "@rakazo/db";
 import { createLogger, createTestSink, installLogger } from "@rakazo/logging";
 import { describe, expect, it, vi } from "vitest";
 import { createBackgroundJobHandlers } from "./background-job-handlers.js";
 import type * as ComputerControl from "./computer-control.js";
 import { expireComputerControl } from "./computer-control.js";
+import { performComputerUpdate } from "./computer-update.js";
 import {
   abandonRetainedConversation,
   retainRunConversation,
@@ -24,19 +25,49 @@ import { createRunExecutor } from "./executor.js";
 import { compactHistory } from "./history-compaction.js";
 import type { EncryptedSecretStore } from "./secrets.js";
 
+vi.mock("@rakazo/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@rakazo/db")>()),
+  // These are ordinary-Space worker tests; company grant resolution has separate coverage.
+  resolvePlatformBotTenantScope: vi.fn(async () => ({ kind: "not-company" })),
+}));
+
 vi.mock("./conversation-memory.js", () => ({
   abandonRetainedConversation: vi.fn(async () => undefined),
   retainRunConversation: vi.fn(async () => ({})),
   settleRetainedConversation: vi.fn(async () => ({ settled: true })),
 }));
 vi.mock("./history-compaction.js", () => ({ compactHistory: vi.fn(async () => undefined) }));
+vi.mock("./computer-update.js", () => ({ performComputerUpdate: vi.fn(async () => undefined) }));
 vi.mock("./computer-control.js", async (importOriginal) => ({
   ...(await importOriginal<typeof ComputerControl>()),
   expireComputerControl: vi.fn(async () => false),
 }));
 
 const owner = { spaceId: "space-1", userId: "user-1" };
-const owned = () => ({ findUnique: vi.fn(async () => owner) });
+const owned = () => ({
+  findUnique: vi.fn(
+    async (): Promise<Record<string, unknown>> => ({
+      ...owner,
+      botId: "bot-1",
+      group: null,
+    }),
+  ),
+});
+function nonCompanyBotPrisma(run = owned()) {
+  return {
+    run,
+    deploymentSettings: { findUnique: vi.fn(async () => ({ companySpaceId: null })) },
+    user: { findUnique: vi.fn(async () => ({ deactivatedAt: null, platformRole: "member" })) },
+    bot: {
+      findUnique: vi.fn(async () => ({
+        id: "bot-1",
+        spaceId: owner.spaceId,
+        userId: owner.userId,
+      })),
+    },
+    platformBotGrant: { findUnique: vi.fn(async () => null) },
+  };
+}
 
 it("runs post-clear memory purge as its captured tenant after source rows are deleted", async () => {
   const purgeHistory = vi.fn(async () => {
@@ -85,7 +116,7 @@ describe("createBackgroundJobHandlers", () => {
     };
     const handlers = createBackgroundJobHandlers({
       executor: { continueRun },
-      prisma: { run: owned() },
+      prisma: nonCompanyBotPrisma(),
       events: { publishSpaceChange },
       workerId: "worker-1",
       messagingDelivery: delivery,
@@ -190,6 +221,80 @@ describe("createBackgroundJobHandlers", () => {
     );
   });
 
+  it("checks every active company bot before compacting a group thread", async () => {
+    const resolve = vi.mocked(resolvePlatformBotTenantScope);
+    resolve.mockResolvedValueOnce({
+      kind: "granted",
+      scope: {
+        ...owner,
+        companySpaceId: owner.spaceId,
+        useBotIds: ["bot-a", "bot-b"],
+        editBotIds: [],
+        manageBotIds: [],
+        requiredPermission: "use",
+      },
+    });
+    const prisma = {
+      thread: {
+        findUnique: vi.fn(async () => ({
+          ...owner,
+          botId: null,
+          group: { members: [{ botId: "bot-a" }, { botId: "bot-b" }] },
+        })),
+      },
+    } as unknown as PrismaClient;
+    vi.mocked(compactHistory).mockImplementationOnce(async () => {
+      expect(currentDbContext()).toMatchObject({
+        kind: "tenant",
+        platformBots: { useBotIds: ["bot-a", "bot-b"], requiredPermission: "use" },
+      });
+    });
+    const runtime = {} as unknown as AgentRuntime;
+    const jobs = {} as unknown as JobPublisher;
+    const memoryProviders = { resolve: vi.fn(async () => null) };
+    const handlers = createBackgroundJobHandlers({
+      executor: { contextStrategy: "current" } as ReturnType<typeof createRunExecutor>,
+      prisma,
+      runtime,
+      jobs,
+      memoryProviders,
+    } as unknown as Parameters<typeof createBackgroundJobHandlers>[0]);
+
+    await handlers["history.compact"]({ threadId: "group-thread", userId: owner.userId });
+
+    expect(resolve).toHaveBeenCalledWith(expect.anything(), {
+      spaceId: owner.spaceId,
+      userId: owner.userId,
+      botId: "bot-a",
+      botIds: ["bot-a", "bot-b"],
+      requiredPermission: "use",
+    });
+    expect(compactHistory).toHaveBeenCalledOnce();
+  });
+
+  it("skips a legacy company compaction without an authenticated requester", async () => {
+    vi.mocked(compactHistory).mockClear();
+    vi.mocked(resolvePlatformBotTenantScope).mockClear();
+    const prisma = {
+      thread: {
+        findUnique: vi.fn(async () => ({ ...owner, botId: "bot-1", group: null })),
+      },
+      deploymentSettings: { findUnique: vi.fn(async () => ({ platformMode: true })) },
+    } as unknown as PrismaClient;
+    const handlers = createBackgroundJobHandlers({
+      executor: { contextStrategy: "current" } as ReturnType<typeof createRunExecutor>,
+      prisma,
+      runtime: {} as AgentRuntime,
+      jobs: {} as JobPublisher,
+      memoryProviders: { resolve: vi.fn(async () => null) },
+    } as unknown as Parameters<typeof createBackgroundJobHandlers>[0]);
+
+    await handlers["history.compact"]({ threadId: "legacy-company-thread" });
+
+    expect(compactHistory).not.toHaveBeenCalled();
+    expect(resolvePlatformBotTenantScope).not.toHaveBeenCalled();
+  });
+
   it.each([undefined, "retrieval", "snapshots", "cache-aware"] as const)(
     "does not spend on a queued legacy compaction after switching to %s",
     async (contextStrategy) => {
@@ -202,7 +307,10 @@ describe("createBackgroundJobHandlers", () => {
                 typeof createRunExecutor
               >[0])
             : ({ contextStrategy } as ReturnType<typeof createRunExecutor>),
-        prisma: { thread: owned() } as unknown as PrismaClient,
+        prisma: {
+          thread: owned(),
+          deploymentSettings: { findUnique: vi.fn(async () => ({ platformMode: false })) },
+        } as unknown as PrismaClient,
         sandbox: {} as unknown as SandboxProvider,
         home: {} as unknown as AgentHomeStore,
         artifacts: {} as unknown as ArtifactStore,
@@ -226,10 +334,12 @@ describe("createBackgroundJobHandlers", () => {
     const continueRun = vi.fn(async () => {
       seen.push(currentDbContext());
     });
-    const lookups = { findUnique: vi.fn(async () => owner) };
+    const lookups = {
+      findUnique: vi.fn(async () => ({ ...owner, id: "run-1", botId: "bot-1", taskId: "task-1" })),
+    };
     const handlers = createBackgroundJobHandlers({
       executor: { continueRun } as unknown as ReturnType<typeof createRunExecutor>,
-      prisma: { run: lookups } as unknown as PrismaClient,
+      prisma: nonCompanyBotPrisma(lookups) as unknown as PrismaClient,
       sandbox: {} as unknown as SandboxProvider,
       home: {} as unknown as AgentHomeStore,
       artifacts: {} as unknown as ArtifactStore,
@@ -245,7 +355,7 @@ describe("createBackgroundJobHandlers", () => {
     expect(seen).toEqual([{ kind: "tenant", ...owner }]);
     expect(lookups.findUnique).toHaveBeenCalledWith({
       where: { id: "run-1" },
-      select: { spaceId: true, userId: true },
+      select: { id: true, spaceId: true, userId: true, botId: true, taskId: true },
     });
 
     const onRunStarted = vi.fn();
@@ -255,6 +365,105 @@ describe("createBackgroundJobHandlers", () => {
     lookups.findUnique.mockResolvedValueOnce(null as never);
     await handlers["run.continue"]({ runId: "run-gone" });
     expect(continueRun).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancels a queued company computer update when its requester lost access", async () => {
+    const resolve = vi.mocked(resolvePlatformBotTenantScope);
+    resolve.mockResolvedValueOnce({ kind: "denied" });
+    const computerUpdate = {
+      findUnique: vi.fn(async () => ({
+        requestedByUserId: "requester-1",
+        computer: {
+          ...owner,
+          userId: "computer-owner",
+          bots: [{ id: "bot-a" }, { id: "bot-b" }],
+        },
+      })),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    };
+    const computer = { updateMany: vi.fn(async () => ({ count: 1 })) };
+    const prisma = {
+      computerUpdate,
+      computer,
+      $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
+    } as unknown as PrismaClient;
+    const publishSpaceChange = vi.fn(async () => undefined);
+    const handlers = createBackgroundJobHandlers({
+      prisma,
+      events: { publishSpaceChange } as unknown as ThreadEvents,
+    } as unknown as Parameters<typeof createBackgroundJobHandlers>[0]);
+
+    await handlers["computer.update"]({ updateId: "update-1" });
+
+    expect(resolve).toHaveBeenCalledWith(prisma, {
+      spaceId: owner.spaceId,
+      userId: "requester-1",
+      botId: "bot-a",
+      botIds: ["bot-b"],
+      requiredPermission: "manage",
+    });
+    expect(computerUpdate.updateMany).toHaveBeenCalledWith({
+      where: { id: "update-1", status: "queued" },
+      data: {
+        status: "failed",
+        failureReason:
+          "The requester no longer has access to every bot using this computer. The update was cancelled.",
+      },
+    });
+    expect(computer.updateMany).toHaveBeenCalledWith({
+      where: { maintenanceId: "update-1" },
+      data: { maintenanceId: null },
+    });
+    expect(publishSpaceChange).toHaveBeenCalledWith(owner.spaceId, "computerUpdates");
+    expect(performComputerUpdate).not.toHaveBeenCalled();
+  });
+
+  it("does not borrow the computer owner's authority for an unbound company update", async () => {
+    const resolve = vi.mocked(resolvePlatformBotTenantScope);
+    resolve.mockResolvedValueOnce({
+      kind: "granted",
+      scope: {
+        ...owner,
+        companySpaceId: owner.spaceId,
+        useBotIds: ["bot-a", "bot-b"],
+        editBotIds: ["bot-a", "bot-b"],
+        manageBotIds: ["bot-a", "bot-b"],
+        requiredPermission: "manage",
+      },
+    });
+    const computerUpdate = {
+      findUnique: vi.fn(async () => ({
+        requestedByUserId: null,
+        computer: {
+          ...owner,
+          userId: "computer-owner",
+          bots: [{ id: "bot-a" }, { id: "bot-b" }],
+        },
+      })),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    };
+    const computer = { updateMany: vi.fn(async () => ({ count: 1 })) };
+    const prisma = {
+      computerUpdate,
+      computer,
+      $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
+    } as unknown as PrismaClient;
+    const handlers = createBackgroundJobHandlers({
+      prisma,
+      events: { publishSpaceChange: vi.fn(async () => undefined) } as unknown as ThreadEvents,
+    } as unknown as Parameters<typeof createBackgroundJobHandlers>[0]);
+
+    await handlers["computer.update"]({ updateId: "legacy-update" });
+
+    expect(computerUpdate.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "failed",
+          failureReason: expect.stringContaining("no verified requester"),
+        }),
+      }),
+    );
+    expect(performComputerUpdate).not.toHaveBeenCalled();
   });
 
   it("tries a control release again later when the computer provider is unreachable", async () => {
@@ -300,7 +509,9 @@ describe("createBackgroundJobHandlers", () => {
       spaceSettingOverride: { findUnique: vi.fn(async () => null) },
       userModelRoleChoice: { findMany: vi.fn(async () => []) },
       userModelCredential: { findFirst: vi.fn(async () => null) },
-      deploymentSettings: { findUnique: vi.fn(async () => null) },
+      deploymentSettings: { findUnique: vi.fn(async () => ({ platformMode: false })) },
+      user: { findUnique: vi.fn(async () => ({ deactivatedAt: null, platformRole: "member" })) },
+      platformModelGrant: { findMany: vi.fn(async () => []) },
     } as unknown as PrismaClient;
     const executor = createRunExecutor({
       prisma,
@@ -326,8 +537,11 @@ describe("createBackgroundJobHandlers", () => {
       spaceSettingOverride: { findUnique: vi.fn(async () => null) },
       userModelRoleChoice: { findMany: vi.fn(async () => []) },
       userModelCredential: { findFirst: vi.fn(async () => null) },
+      user: { findUnique: vi.fn(async () => ({ deactivatedAt: null, platformRole: "member" })) },
+      platformModelGrant: { findMany: vi.fn(async () => []) },
       deploymentSettings: {
         findUnique: vi.fn(async () => ({
+          platformMode: false,
           defaultModelProvider: "local",
           defaultModelId: "qwen3:4b",
         })),

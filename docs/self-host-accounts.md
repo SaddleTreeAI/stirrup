@@ -15,7 +15,11 @@ SIGNUP_ALLOWLIST=you@example.com,@company.com
 Server configuration belongs in the operator's environment. App accounts cannot change signup policy,
 server integration credentials, or deployment updates, and cannot read deployment security logs.
 
-There is no app-admin role, first-user privilege, or `ADMINS` list. Workspace owners manage only their own workspace.
+On an ordinary self-hosted installation there is no app-admin role or first-user privilege.
+Single-company deployments can instead enable operator-assigned roles and invitation-only
+registration; see [Single-company deployment](./self-host-company.md). The separate
+`RAKAZO_ADMIN_EMAILS` list does not assign company roles; its limited plugin, integration and credit
+actions are described below.
 
 `RAKAZO_ADMIN_EMAILS` names accounts, comma-separated, that review plugin submissions, add stdio
 MCP servers ([integrations](self-host-integrations.md)), and, on deployments that sell model

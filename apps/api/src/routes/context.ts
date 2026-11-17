@@ -41,12 +41,21 @@ import {
   modelSupportsRole,
   OPENAI_COMPATIBLE_PROVIDER_ID,
 } from "@rakazo/contracts";
-import { createGroupRepos, createRepos, recordSecurityEvent, runAsTenant } from "@rakazo/db";
+import {
+  createGroupRepos,
+  createRepos,
+  recordSecurityEvent,
+  runAsTenant,
+  runAsTenantWithPlatformBots,
+} from "@rakazo/db";
 import { createAgentImportServices } from "../agent-import-services.js";
 import { createAgentSkillsService } from "../agent-skills.js";
 import { createBotRemoval } from "../bot-removal.js";
 import { createMcpServers } from "../mcp-servers.js";
 import { createModelConnector, prepareAllowedThinkingLevels } from "../model-credentials.js";
+import type { PlatformBotScope } from "../platform-bot-access.js";
+import { resolvePlatformBotScope } from "../platform-bot-access.js";
+import { ensurePlatformCompanyMembership } from "../platform-company-space.js";
 import { rosterChangeFor } from "../roster-procedures.js";
 import type { RouterDeps } from "../router.js";
 import { createRoutineAnnouncer } from "../routines.js";
@@ -63,17 +72,21 @@ import { meDto } from "./shared.js";
 export async function asTenant<T extends { output: unknown }>(
   actor: Actor,
   next: () => T | PromiseLike<T>,
+  platformBotScope?: PlatformBotScope | null,
+  refreshPlatformBotScope?: () => Promise<PlatformBotScope | null>,
 ): Promise<T> {
-  const result = await runAsTenant(actor, next);
+  const run = async <R>(work: () => R | PromiseLike<R>) => {
+    const scope = refreshPlatformBotScope ? await refreshPlatformBotScope() : platformBotScope;
+    return scope ? runAsTenantWithPlatformBots(scope, work) : runAsTenant(actor, work);
+  };
+  const result = await run(next);
   const output = result.output;
   if (!output || typeof output !== "object" || !(Symbol.asyncIterator in output)) return result;
   const iterator = output as AsyncIterator<unknown> & AsyncIterable<unknown>;
   const scoped: AsyncIterableIterator<unknown> = {
-    next: (...args) => runAsTenant(actor, () => iterator.next(...args)),
-    return: (value) =>
-      runAsTenant(actor, () => iterator.return?.(value) ?? { done: true as const, value }),
-    throw: (error) =>
-      runAsTenant(actor, () => (iterator.throw ? iterator.throw(error) : Promise.reject(error))),
+    next: (...args) => run(() => iterator.next(...args)),
+    return: (value) => run(() => iterator.return?.(value) ?? { done: true as const, value }),
+    throw: (error) => run(() => (iterator.throw ? iterator.throw(error) : Promise.reject(error))),
     [Symbol.asyncIterator]() {
       return scoped;
     },
@@ -89,6 +102,8 @@ export function createRouterContext(deps: RouterDeps) {
     signal?: AbortSignal;
     /** Re-runs the request's auth so a long-lived stream notices sign-out and revocation. */
     stillAuthorized?: () => Promise<boolean>;
+    /** The trusted deployment bot grant fence for the active Company Space request. */
+    platformBotScope?: PlatformBotScope | null;
   }>();
   const repos = createRepos(deps.prisma, {
     phoneCallsEnabled: deps.env?.phoneCallsEnabled,
@@ -422,10 +437,18 @@ export function createRouterContext(deps: RouterDeps) {
   });
   const agentSkills = createAgentSkillsService(deps.prisma);
 
-  const signedIn = os.middleware(async ({ context, next }) => {
+  const signedIn = os.middleware(async ({ context, next, path }) => {
     const actor = context.actor;
     if (!actor) throw new ORPCError("UNAUTHORIZED");
-    return asTenant(actor, () => next({ context: { ...context, actor } }));
+    await ensurePlatformCompanyMembership(deps.prisma, actor.userId);
+    const refreshPlatformBotScope = () => resolvePlatformBotScope(deps.prisma, actor, path);
+    const platformBotScope = await refreshPlatformBotScope();
+    return asTenant(
+      actor,
+      () => next({ context: { ...context, actor, platformBotScope } }),
+      platformBotScope,
+      refreshPlatformBotScope,
+    );
   });
 
   const authed = os.use(signedIn).use(async ({ context, next, path }, input) => {

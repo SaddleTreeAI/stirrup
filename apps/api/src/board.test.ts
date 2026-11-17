@@ -2,7 +2,7 @@ import { createRouterClient } from "@orpc/server";
 import type { Actor } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
-import { createRouter } from "./router.js";
+import { createRouter } from "./router-test-support.js";
 
 const actor: Actor = {
   spaceId: "space-1",
@@ -19,10 +19,14 @@ describe("ticket board off for the account", () => {
         throw new Error("Unexpected database access");
       });
       const findUnique = vi.fn(async () => ({ labs }));
+      const deploymentSettings = { findUnique: vi.fn(async () => null) };
       const follow = vi.fn();
       const prisma = new Proxy(
-        { user: { findUnique } },
-        { get: (target, key) => (key === "user" ? target.user : query) },
+        { user: { findUnique }, deploymentSettings },
+        {
+          get: (target, key) =>
+            key === "user" || key === "deploymentSettings" ? target[key] : query,
+        },
       );
       const client = createRouterClient(
         createRouter({ prisma, env: {}, boardEvents: { follow } } as unknown as RouterDeps),

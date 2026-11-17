@@ -31,12 +31,13 @@ function hostCredentials(active: boolean, provider: string) {
 }
 
 export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
-  const [user, setup, admin] = await Promise.all([
+  const [user, setup, admin, platformMode] = await Promise.all([
     deps.prisma.user.findUniqueOrThrow({
       where: { id: actor.userId },
       select: {
         email: true,
         name: true,
+        platformRole: true,
         timezone: true,
         locale: true,
         botAvatarSet: true,
@@ -46,6 +47,10 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     }),
     modelSetup(deps, actor),
     isAdmin(deps, actor.userId),
+    deps.prisma.deploymentSettings.findUnique({
+      where: { id: "default" },
+      select: { platformMode: true },
+    }),
   ]);
   // Where the deployment runs computers once an admin's choice in Settings applies.
   const sandboxProvider = effectiveSandboxProvider(setup.settings, deps.env.sandboxProvider);
@@ -65,6 +70,10 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     spaceId: actor.spaceId,
     isDeploymentOwner: false,
     isAdmin: admin,
+    platformRole: platformMode?.platformMode
+      ? (user.platformRole as Me["platformRole"])
+      : undefined,
+    platformMode: Boolean(platformMode?.platformMode),
     needsModel: setup.needsModel,
     defaultProvider: canonicalPiProviderId(setup.model?.provider ?? deps.env.defaultProvider),
     defaultModel: setup.model?.modelId ?? deps.env.defaultModel,
