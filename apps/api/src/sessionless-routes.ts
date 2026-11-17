@@ -29,6 +29,8 @@ export const SESSIONLESS_ROUTES: Readonly<Record<string, string>> = {
   "GET /api/v1/billing/return?client=mobile":
     "none: redirects to the mobile app's own link, a constant the request cannot change; no database",
   "GET /api/account/export": "a one-time token in the link, issued to the signed-in user",
+  "GET /api/platform-admin/bots/:botId/files/:artifactId":
+    "an active user session plus owner-only, audited bot-content authorization",
   "GET /api/v1/integration-claims/confirm": "a one-time token in the emailed link",
   "GET /api/v1/pages/shared/:token": "public to anyone holding the page's share link",
   "GET /api/v1/integration-claims": "public: approved claims, read when the marketing site builds",

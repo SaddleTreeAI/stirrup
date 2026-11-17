@@ -46,6 +46,7 @@ import {
   ToolsGroup,
   VoiceRow,
 } from "./bot-settings-sections";
+import { CompanyBotSharingPanel } from "./CompanyBotSharingPanel";
 
 const ScratchpadSection = lazyComponent(() =>
   import("../ScratchpadSection").then((module) => module.ScratchpadSection),
@@ -791,6 +792,7 @@ export function BotSettings({
                 }}
               />
             ) : null}
+            <CompanyBotSharingPanel botId={bot.id} />
           </div>
         </div>
         {error ? <p className="mt-2 text-body-sm text-destructive">{error}</p> : null}

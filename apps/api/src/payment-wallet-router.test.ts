@@ -5,7 +5,7 @@ import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
-import { createRouter } from "./router.js";
+import { createRouter } from "./router-test-support.js";
 
 // Offline boundary: a fake Prisma table and secret store drive the real router handlers and the
 // real wallet service against the deterministic emulator wallet.

@@ -510,6 +510,8 @@ export interface ArtifactStore {
   describe(): AdapterDescriptor<{ stream: boolean }>;
   put(artifact: ArtifactPut, context: AdapterContext): Promise<{ id: string; hash: string }>;
   get(id: string, context: AdapterContext): Promise<Uint8Array>;
+  /** Reads decrypted artifact bytes incrementally, without buffering the complete file. */
+  stream(id: string, context: AdapterContext): AsyncIterable<Uint8Array>;
   remove(id: string, context: AdapterContext): Promise<void>;
 }
 

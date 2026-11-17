@@ -47,6 +47,7 @@ describe("auth policy", () => {
     const log = vi.fn();
     const auth = createAuth(
       {
+        deploymentSettings: { findUnique: vi.fn(async () => null) },
         user: {
           findFirst: vi.fn().mockRejectedValue(error),
           findMany: vi.fn().mockRejectedValue(error),

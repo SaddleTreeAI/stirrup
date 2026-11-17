@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import type { PlatformInvitePreview } from "@rakazo/contracts";
 import { signInProviders } from "@rakazo/contracts";
 import {
   credentialIssue,
@@ -7,7 +8,15 @@ import {
   signupRequiresEmailVerification,
   suggestEmailCorrection,
 } from "@rakazo/core";
-import { Button, Input, InputOTP, InputOTPGroup, InputOTPSlot, Label } from "@rakazo/ui-web";
+import {
+  Button,
+  Checkbox,
+  Input,
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  Label,
+} from "@rakazo/ui-web";
 import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -17,7 +26,7 @@ import { authClient } from "../lib/auth";
 import type { AuthCapabilities } from "../lib/auth-capabilities";
 import { fetchAuthCapabilities } from "../lib/auth-capabilities";
 import { desktopBridge } from "../lib/desktop";
-import { clearSpaceSelection } from "../lib/rpc";
+import { clearSpaceSelection, rpc } from "../lib/rpc";
 import { newAccountDestination, signInNext } from "../lib/sign-in-next";
 import { runSsoFlow } from "../lib/sso-flow";
 import { authErrorText, credentialIssueText } from "../lib/user-error";
@@ -43,9 +52,16 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const platformInviteToken =
+    mode === "up" && location.pathname === "/invite" ? searchParams.get("platformToken") : null;
+  const [platformInvite, setPlatformInvite] = useState<PlatformInvitePreview | null>(null);
+  const [platformInviteLoading, setPlatformInviteLoading] = useState(Boolean(platformInviteToken));
+  const [platformInviteInvalid, setPlatformInviteInvalid] = useState(false);
+  const [monitoringAccepted, setMonitoringAccepted] = useState(false);
   const [emailBlurred, setEmailBlurred] = useState(false);
   const [warnedEmail, setWarnedEmail] = useState<string | null>(null);
-  const emailSuggestion = mode === "up" ? suggestEmailCorrection(email) : null;
+  const emailSuggestion =
+    mode === "up" && !platformInviteToken ? suggestEmailCorrection(email) : null;
   const [error, setError] = useState<string | null>(() => {
     const code = searchParams.get("error");
     if (!code) return null;
@@ -62,17 +78,28 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const [capabilityAttempt, setCapabilityAttempt] = useState(0);
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
-  const useCode = Boolean(reset?.passwordAuth && reset.emailCode) && mode !== "forgot";
+  const useCode =
+    Boolean(reset?.passwordAuth && reset.emailCode) && mode !== "forgot" && !platformInviteToken;
   // A blank password asks for an emailed code, so code-only accounts need no toggle.
   const codeMode = useCode && !password;
   const codeStep = useCode && codeSent;
   const providers = reset ? signInProviders(reset) : [];
   const chooser = Boolean(
-    reset?.passwordAuth && providers.length > 0 && !emailStep && mode !== "forgot" && !codeStep,
+    reset?.passwordAuth &&
+      providers.length > 0 &&
+      !emailStep &&
+      mode !== "forgot" &&
+      !codeStep &&
+      !platformInviteToken,
   );
   // The chooser and the email step share a card. A server with no providers keeps today's form.
   const presented = Boolean(
-    reset?.passwordAuth && providers.length > 0 && mode !== "forgot" && !sent && !codeStep,
+    reset?.passwordAuth &&
+      providers.length > 0 &&
+      mode !== "forgot" &&
+      !sent &&
+      !codeStep &&
+      !platformInviteToken,
   );
   const passwordFieldId = mode === "in" ? "current-password" : "new-password";
   const title =
@@ -83,7 +110,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     ) : mode === "in" ? (
       <Trans>Sign in to Stirrup</Trans>
     ) : mode === "up" ? (
-      <Trans>Create your account</Trans>
+      platformInviteToken ? (
+        <Trans>Accept your invitation</Trans>
+      ) : (
+        <Trans>Create your account</Trans>
+      )
     ) : (
       <Trans>Reset your password</Trans>
     );
@@ -108,9 +139,41 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     };
   }, [mode, capabilityAttempt]);
 
+  useEffect(() => {
+    if (!platformInviteToken) {
+      setPlatformInvite(null);
+      setPlatformInviteLoading(false);
+      setPlatformInviteInvalid(false);
+      return;
+    }
+    let active = true;
+    setPlatformInviteLoading(true);
+    setPlatformInvite(null);
+    setPlatformInviteInvalid(false);
+    setMonitoringAccepted(false);
+    void rpc.platformInvite
+      .preview({ token: platformInviteToken })
+      .then((invite) => {
+        if (!active) return;
+        setPlatformInvite(invite);
+        setEmail(invite.email);
+        setName(invite.name);
+      })
+      .catch(() => {
+        if (active) setPlatformInviteInvalid(true);
+      })
+      .finally(() => {
+        if (active) setPlatformInviteLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [platformInviteToken]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!reset?.passwordAuth) return;
+    if (platformInviteToken && (!platformInvite || !monitoringAccepted)) return;
     if (codeStep) {
       // An unfinished code would spend one of the code's three attempts.
       if (code.length === CODE_LENGTH) await verifyCode(code);
@@ -168,7 +231,13 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
               email: trimmedEmail,
               password,
               name: name || trimmedEmail.split("@")[0] || "User",
-            })
+              ...(platformInviteToken
+                ? {
+                    platformInviteToken,
+                    platformMonitoringConsent: monitoringAccepted,
+                  }
+                : {}),
+            } as Parameters<typeof authClient.signUp.email>[0])
           : await authClient.signIn.email({ email: trimmedEmail, password });
       if (result.error) {
         setError(authErrorText(result.error, t`Could not continue`));
@@ -370,6 +439,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           ) : null}
           {reset?.passwordAuth && !chooser ? (
             <>
+              {platformInviteToken && platformInviteLoading ? (
+                <p role="status" className="w-full text-center text-muted-foreground">
+                  <Trans>Checking invitation…</Trans>
+                </p>
+              ) : null}
               {mode === "up" && !codeStep ? (
                 <div className="mb-4 w-full">
                   <Label htmlFor="name" className="text-muted-foreground">
@@ -424,6 +498,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                       setEmail(e.target.value);
                       setEmailBlurred(false);
                     }}
+                    readOnly={Boolean(platformInviteToken)}
                     onBlur={() => setEmailBlurred(true)}
                     placeholder={t`Your email address`}
                     type="email"
@@ -479,10 +554,34 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                   {error}
                 </p>
               ) : null}
+              {platformInviteInvalid ? (
+                <p role="alert" className="mt-3 w-full text-body text-destructive">
+                  <Trans>This invitation is invalid or expired</Trans>
+                </p>
+              ) : null}
+              {platformInviteToken && platformInvite ? (
+                <div className="mt-4 flex w-full items-start gap-3 text-body-sm">
+                  <Checkbox
+                    id="platform-monitoring-consent"
+                    checked={monitoringAccepted}
+                    onCheckedChange={(checked) => setMonitoringAccepted(checked === true)}
+                    disabled={pending}
+                  />
+                  <Label htmlFor="platform-monitoring-consent" className="cursor-pointer leading-5">
+                    <Trans>
+                      I understand the workspace owner can review my account content and usage.
+                    </Trans>
+                  </Label>
+                </div>
+              ) : null}
               <Button
                 type="submit"
                 size="lg"
-                disabled={pending || (codeStep && code.length < CODE_LENGTH)}
+                disabled={Boolean(
+                  pending ||
+                    (codeStep && code.length < CODE_LENGTH) ||
+                    (platformInviteToken && (!platformInvite || !monitoringAccepted)),
+                )}
                 className={submitClass}
               >
                 {pending ? (

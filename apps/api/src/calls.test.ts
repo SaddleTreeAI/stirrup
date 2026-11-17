@@ -2,7 +2,7 @@ import { createRouterClient } from "@orpc/server";
 import type { Actor } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
-import { createRouter } from "./router.js";
+import { createRouter } from "./router-test-support.js";
 
 const actor: Actor = {
   spaceId: "space-1",
@@ -18,9 +18,16 @@ describe("call route gates", () => {
       const query = vi.fn(() => {
         throw new Error("Unexpected database access");
       });
+      const deploymentSettings = { findUnique: vi.fn(async () => null) };
+      const prisma = new Proxy(
+        { deploymentSettings },
+        {
+          get: (target, key) => (key === "deploymentSettings" ? target.deploymentSettings : query),
+        },
+      );
       const client = createRouterClient(
         createRouter({
-          prisma: new Proxy({}, { get: () => query }),
+          prisma,
           env: { phoneCallsEnabled },
         } as unknown as RouterDeps),
         { context: { actor } },
@@ -34,6 +41,7 @@ describe("call route gates", () => {
         await expect(call()).rejects.toMatchObject({ code: "NOT_FOUND" });
       }
       expect(query).not.toHaveBeenCalled();
+      expect(deploymentSettings.findUnique).toHaveBeenCalled();
     },
   );
 

@@ -3,7 +3,7 @@ import { AGENT_SECRET_NAME_PATTERN } from "./agent-secret-name.js";
 import { BotAvatarSetSchema, BotAvatarValueSchema } from "./bot-avatar.js";
 import { DisabledBuiltinToolsSchema } from "./builtin-tools.js";
 import { ComputerModeSchema, ComputerStatusSchema } from "./computer.js";
-import { BotSettingsValuesSchema, ThreadMessageSchema } from "./events.js";
+import { BotSettingsValuesSchema, MessageBlock, ThreadMessageSchema } from "./events.js";
 import { Id, MemoryScope, ReplyModeSchema, RunStatus, ThinkingLevelSchema } from "./ids.js";
 import { LabFeatureSchema } from "./labs.js";
 import { NavLinkSchema } from "./nav-links.js";
@@ -1220,6 +1220,214 @@ export const UsageSummarySchema = UsageTotalsSchema.extend({
 });
 export type UsageSummary = z.infer<typeof UsageSummarySchema>;
 
+export const PlatformRoleSchema = z.enum(["owner", "admin", "member"]);
+export type PlatformRole = z.infer<typeof PlatformRoleSchema>;
+
+export const PlatformBudgetAlertSchema = z.object({
+  thresholdPercent: z.union([z.literal(80), z.literal(100)]),
+  createdAt: z.string(),
+  sentAt: z.string().nullable(),
+});
+export type PlatformBudgetAlert = z.infer<typeof PlatformBudgetAlertSchema>;
+
+export const PlatformAdminUserSchema = z.object({
+  id: Id,
+  email: z.string(),
+  name: z.string(),
+  emailVerified: z.boolean(),
+  monitoringAccepted: z.boolean(),
+  role: PlatformRoleSchema,
+  active: z.boolean(),
+  pendingActivation: z.boolean(),
+  activationInviteId: Id.nullable(),
+  activationExpiresAt: z.string().nullable(),
+  createdAt: z.string(),
+  monthlyBudgetUsd: z.number().nonnegative(),
+  companyBudgetChargedUsd: z.number().nonnegative(),
+  companyBudgetReservedUsd: z.number().nonnegative(),
+  companyBudgetAlerts: z.array(PlatformBudgetAlertSchema).default([]),
+  monthToDateCostUsd: z.number().nullable(),
+  monthToDateInputTokens: z.number().nullable(),
+  monthToDateOutputTokens: z.number().nullable(),
+  monthToDateCalls: z.number().int().nonnegative(),
+});
+export type PlatformAdminUser = z.infer<typeof PlatformAdminUserSchema>;
+
+export const PlatformAdminOverviewSchema = z.object({
+  users: z.number().int().nonnegative(),
+  activeUsers: z.number().int().nonnegative(),
+  pendingInvites: z.number().int().nonnegative(),
+  monthToDateCostUsd: z.number().nullable(),
+  monthToDateInputTokens: z.number().nullable(),
+  monthToDateOutputTokens: z.number().nullable(),
+  monthToDateCalls: z.number().int().nonnegative(),
+});
+export type PlatformAdminOverview = z.infer<typeof PlatformAdminOverviewSchema>;
+
+export const BotPermissionSchema = z.enum(["use", "edit", "manage"]);
+export type BotPermission = z.infer<typeof BotPermissionSchema>;
+
+export const BotAccessMemberSchema = z.object({
+  userId: Id,
+  name: z.string(),
+  email: z.string().email(),
+  role: PlatformRoleSchema,
+  permission: BotPermissionSchema.nullable(),
+});
+export type BotAccessMember = z.infer<typeof BotAccessMemberSchema>;
+
+export const BotAccessStateSchema = z.object({
+  isCompanyBot: z.boolean(),
+  permission: BotPermissionSchema.nullable(),
+  canManage: z.boolean(),
+  members: z.array(BotAccessMemberSchema),
+});
+export type BotAccessState = z.infer<typeof BotAccessStateSchema>;
+
+export const PlatformCompanySpaceSchema = z.object({
+  id: Id,
+  name: z.string(),
+  memberCount: z.number().int().nonnegative(),
+  botCount: z.number().int().nonnegative(),
+});
+export type PlatformCompanySpace = z.infer<typeof PlatformCompanySpaceSchema>;
+
+export const PlatformAdminBotSummarySchema = z.object({
+  id: Id,
+  spaceId: Id,
+  spaceName: z.string(),
+  name: z.string(),
+  ownerUserId: Id,
+  ownerName: z.string(),
+  ownerEmail: z.string().email(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type PlatformAdminBotSummary = z.infer<typeof PlatformAdminBotSummarySchema>;
+
+export const PlatformAdminCursorSchema = z.object({
+  createdAt: z.string().datetime(),
+  id: Id,
+});
+export type PlatformAdminCursor = z.infer<typeof PlatformAdminCursorSchema>;
+
+export const PlatformAdminBotInspectionSchema = z.object({
+  bot: PlatformAdminBotSummarySchema.extend({
+    description: z.string(),
+    instructions: z.string(),
+    modelProvider: z.string().nullable(),
+    modelId: z.string().nullable(),
+    archivedAt: z.string().nullable(),
+  }),
+  threads: z.array(
+    z.object({
+      id: Id,
+      label: z.string(),
+      kind: z.enum(["bot", "helper", "group"]),
+      createdAt: z.string(),
+    }),
+  ),
+  selectedThreadId: Id.nullable(),
+  nextThreadsBefore: PlatformAdminCursorSchema.nullable(),
+  messages: z.array(
+    z.object({
+      id: Id,
+      threadId: Id,
+      seq: z.number().int().nonnegative(),
+      role: z.string(),
+      authorUserId: Id.nullable(),
+      blocks: z.array(MessageBlock),
+      createdAt: z.string(),
+    }),
+  ),
+  nextBefore: PlatformAdminCursorSchema.nullable(),
+  nextMemoriesBefore: PlatformAdminCursorSchema.nullable(),
+  memories: z.array(
+    z.object({
+      id: Id,
+      scope: MemoryScope,
+      path: z.string(),
+      content: z.string(),
+      revision: z.number().int(),
+      updatedAt: z.string(),
+    }),
+  ),
+  nextFilesBefore: PlatformAdminCursorSchema.nullable(),
+  files: z.array(
+    z.object({
+      id: Id,
+      name: z.string(),
+      description: z.string().nullable(),
+      mimeType: z.string(),
+      size: z.number().int().nonnegative(),
+      createdAt: z.string(),
+    }),
+  ),
+  usage: z.array(
+    z.object({
+      id: Id,
+      provider: z.string(),
+      model: z.string(),
+      inputTokens: z.number().int().nonnegative().nullable(),
+      outputTokens: z.number().int().nonnegative().nullable(),
+      costUsd: z.number().nonnegative().nullable(),
+      createdAt: z.string(),
+    }),
+  ),
+  nextUsageBefore: PlatformAdminCursorSchema.nullable(),
+});
+export type PlatformAdminBotInspection = z.infer<typeof PlatformAdminBotInspectionSchema>;
+
+export const PlatformInviteSchema = z.object({
+  id: Id,
+  kind: z.enum(["invite", "provision"]),
+  email: z.string(),
+  name: z.string(),
+  role: PlatformRoleSchema.exclude(["owner"]),
+  expiresAt: z.string(),
+  createdAt: z.string(),
+});
+export type PlatformInvite = z.infer<typeof PlatformInviteSchema>;
+
+export const PlatformInvitePreviewSchema = z.object({
+  email: z.string().email(),
+  name: z.string(),
+  expiresAt: z.string(),
+});
+export type PlatformInvitePreview = z.infer<typeof PlatformInvitePreviewSchema>;
+
+export const PlatformModelConnectionSchema = z.object({
+  id: Id,
+  provider: z.string().min(1),
+  label: z.string(),
+  enabled: z.boolean(),
+  secretConfigured: z.boolean(),
+  grants: z.array(
+    z.object({
+      id: Id,
+      userId: Id,
+      enabled: z.boolean(),
+      allowedModelIds: z.array(z.string()),
+      countsTowardUserBudget: z.boolean(),
+    }),
+  ),
+});
+export type PlatformModelConnection = z.infer<typeof PlatformModelConnectionSchema>;
+
+export const PlatformProviderCatalogSchema = z.object({
+  provider: z.string(),
+  providerName: z.string(),
+  models: z.array(z.object({ id: z.string(), label: z.string(), priced: z.boolean() })),
+});
+export type PlatformProviderCatalog = z.infer<typeof PlatformProviderCatalogSchema>;
+
+export const PlatformProviderOptionSchema = z.object({
+  provider: z.string(),
+  providerName: z.string(),
+  modelCount: z.number().int().nonnegative(),
+});
+export type PlatformProviderOption = z.infer<typeof PlatformProviderOptionSchema>;
+
 export const UsageDateRangeSchema = z.enum(["today", "7d", "30d", "all"]);
 export type UsageDateRange = z.infer<typeof UsageDateRangeSchema>;
 
@@ -1593,6 +1801,9 @@ export const MeSchema = z.object({
   isDeploymentOwner: z.boolean(),
   /** Listed in RAKAZO_ADMIN_EMAILS with a verified email: reviews plugins, adds stdio MCP servers, grants access. */
   isAdmin: z.boolean().default(false),
+  /** Persistent role in a privately bootstrapped company deployment. */
+  platformRole: PlatformRoleSchema.optional(),
+  platformMode: z.boolean().optional(),
   needsModel: z.boolean(),
   defaultProvider: z.string().nullable(),
   defaultModel: z.string().nullable(),

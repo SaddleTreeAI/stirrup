@@ -60,6 +60,9 @@ describe("object artifacts", () => {
     if (size) expect(object.includes(bytes)).toBe(false);
     const replica = new ObjectArtifactStore(storage, keys);
     expect(await replica.get(saved.id, context())).toEqual(new Uint8Array(bytes));
+    const streamed: Uint8Array[] = [];
+    for await (const chunk of replica.stream(saved.id, context())) streamed.push(chunk);
+    expect(Buffer.concat(streamed)).toEqual(bytes);
     await replica.remove(saved.id, context());
     expect(storage.objects.size).toBe(0);
     await replica.remove(saved.id, context());

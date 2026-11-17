@@ -72,6 +72,8 @@ import { createBotFromTemplate, listBotTemplates } from "../bot-templates.js";
 import { botIntroPrompt } from "../hidden-turns.prompt.js";
 import { requireIdentityConfirmation } from "../identity-confirmation.js";
 import { managedAppCatalog } from "../onboarding.js";
+import { listBotAccess, revokeBotAccess, setBotAccess } from "../platform-bot-sharing.js";
+import { getPlatformCompanySpace } from "../platform-company-space.js";
 import type { RouterDeps } from "../router.js";
 import { purgeClearedThreadMemory } from "../thread-memory.js";
 import { loadMessagePage } from "../thread-message-pages.js";
@@ -372,6 +374,7 @@ export function botsRoutes(ctx: RouterContext) {
       ),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
         const source = await repos.getBot(context.actor, input.botId);
+        const companySpace = await getPlatformCompanySpace(deps.prisma);
         const duplicate = await repos.createBot(context.actor, {
           name: duplicateBotName(source.name),
           description: source.description,
@@ -381,7 +384,12 @@ export function botsRoutes(ctx: RouterContext) {
           color: source.color,
           avatarSet: resolveBotAvatarSet(source.avatarSet),
           avatarSetPinned: source.avatarSetPinned,
-          computerMode: source.computer?.scope === "dedicated" ? "dedicated" : "team",
+          computerMode:
+            companySpace?.id === context.actor.spaceId
+              ? "dedicated"
+              : source.computer?.scope === "dedicated"
+                ? "dedicated"
+                : "team",
           modelProvider: source.modelProvider,
           modelId: source.modelId,
           thinkingLevel: source.thinkingLevel,
@@ -731,6 +739,27 @@ export function botsRoutes(ctx: RouterContext) {
         });
         return { secret };
       }),
+      access: {
+        list: authed.bots.access.list.handler(({ context, input }) =>
+          repos
+            .getBot(context.actor, input.botId)
+            .then(() => listBotAccess(deps.prisma, input.botId, context.actor.userId)),
+        ),
+        set: authed.bots.access.set.handler(async ({ context, input }) => {
+          await repos.getBot(context.actor, input.botId);
+          return setBotAccess(
+            deps.prisma,
+            context.actor.userId,
+            input.botId,
+            input.userId,
+            input.permission,
+          );
+        }),
+        revoke: authed.bots.access.revoke.handler(async ({ context, input }) => {
+          await repos.getBot(context.actor, input.botId);
+          return revokeBotAccess(deps.prisma, context.actor.userId, input.botId, input.userId);
+        }),
+      },
     },
     groups: {
       create: authed.groups.create.handler(async ({ context, input }) =>

@@ -11,7 +11,7 @@ vi.mock("./model-selection.js", async (importOriginal) => ({
 it("validates live-only models against the caller's account catalog before reading credentials", async () => {
   const catalog = { read: vi.fn() };
   const deps = {
-    prisma: {},
+    prisma: { deploymentSettings: { findUnique: vi.fn(async () => null) } },
     secretStore: {},
     billingEnabled: false,
     codexCatalog: catalog,

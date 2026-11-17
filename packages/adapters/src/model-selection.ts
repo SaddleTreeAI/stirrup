@@ -43,6 +43,7 @@ import {
 } from "./pi-models.js";
 import { CHATGPT_OAUTH_PROVIDER } from "./pi-oauth.js";
 import { OPENAI_COMPATIBLE_PROVIDER_ID } from "./pi-openai-compatible-provider.js";
+import { platformCompanyMode, platformCompanyModels } from "./platform-model-provider.js";
 
 export type ModelCredential = Awaited<ReturnType<typeof findModelCredential>>;
 
@@ -165,6 +166,8 @@ export type SpaceCatalogAuth = {
   secretIdByModel: Partial<Record<string, Partial<Record<string, string>>>>;
   /** Each read connection's per-model settings, so the catalog need not decrypt it again. */
   modelSettingsBySecretId?: Partial<Record<string, Record<string, ModelSettings>>>;
+  /** Models explicitly granted from company-owned API connections. */
+  companyModels?: ReadonlyMap<string, readonly string[]>;
 };
 
 /** Whether this space would run the model on Stirrup credits rather than a member's own connection. */
@@ -184,6 +187,10 @@ export function spaceCanRunCatalogModel(
   auth: SpaceCatalogAuth,
   entry: { provider: string; id: string },
 ): boolean {
+  const personalSecret =
+    auth.secretIdByModel[entry.provider]?.[entry.id] ?? auth.secretIdByProvider[entry.provider];
+  const companyModels = auth.companyModels?.get(entry.provider);
+  if (!personalSecret && companyModels && !companyModels.includes(entry.id)) return false;
   return !runsOnHostedCredits(auth, entry) || creditsCanPriceModel(entry);
 }
 
@@ -199,7 +206,10 @@ export async function modelCredentialAuthKindsForSpace(
   scope: Pick<Actor, "userId" | "spaceId">,
   hostedProvider?: string,
 ): Promise<SpaceCatalogAuth> {
-  const hosted = hostedProvider && (await hasHostedModelCredits(prisma, scope, hostedProvider));
+  const hosted =
+    !((await platformCompanyMode(prisma)) === true) &&
+    hostedProvider &&
+    (await hasHostedModelCredits(prisma, scope, hostedProvider));
   const [credentials, preferences] = await Promise.all([
     prisma.userModelCredential.findMany({
       where: { userId: scope.userId },
@@ -284,8 +294,15 @@ export async function modelCredentialAuthKindsForSpace(
     secretIdByProvider: {},
     secretIdByModel: {},
     modelSettingsBySecretId: {},
+    companyModels: new Map(),
   };
   if (hosted && hostedProvider) empty.byProvider[hostedProvider] = "api_key";
+  const companyModels = await platformCompanyModels(prisma, scope.userId);
+  empty.companyModels = companyModels;
+  for (const [provider, allowed] of companyModels) {
+    if (!connectedProviders.has(provider) && allowed.length > 0)
+      empty.byProvider[provider] = "api_key";
+  }
   if (selections.length === 0) return empty;
 
   const secrets = await prisma.secret.findMany({

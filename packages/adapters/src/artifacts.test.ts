@@ -119,6 +119,10 @@ describe("LocalArtifactStore with content keys", () => {
     expect(onDisk.includes(Buffer.from(bytes.subarray(0, 64)))).toBe(false);
     expect(stored.hash).toBe(String(bytes.byteLength));
     expect(Buffer.from(await store.get(stored.id, context)).equals(Buffer.from(bytes))).toBe(true);
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of store.stream(stored.id, context)) chunks.push(chunk);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(Buffer.concat(chunks).equals(Buffer.from(bytes))).toBe(true);
   });
 
   it("reads legacy plaintext files and rewrites them in place", async () => {
@@ -216,5 +220,11 @@ describe("LocalArtifactStore with content keys", () => {
     sealed[sealed.length - 1]! ^= 1;
     await writeFile(file, sealed);
     await expect(store.get(stored.id, context)).rejects.toThrow(/authentication/);
+    const consumeStream = async () => {
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of store.stream(stored.id, context)) chunks.push(chunk);
+      return Buffer.concat(chunks);
+    };
+    await expect(consumeStream()).rejects.toThrow(/authentication/);
   });
 });

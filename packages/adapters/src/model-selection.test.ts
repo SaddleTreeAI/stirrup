@@ -247,6 +247,7 @@ describe("space catalog auth", () => {
     const preferenceFindMany = vi.fn().mockResolvedValue(options.preferences);
     const secretFindMany = vi.fn().mockResolvedValue(options.secrets);
     const prisma = {
+      deploymentSettings: { findUnique: vi.fn(async () => null) },
       userModelCredential: {
         findMany: credentialFindMany,
         findFirst: vi.fn().mockResolvedValue(null),

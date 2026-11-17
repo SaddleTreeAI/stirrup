@@ -17,6 +17,11 @@ import { secretValuesToRedact } from "./model-secret.js";
 import { hasHostedModelCredits } from "./model-selection.js";
 import { connectionModelSettings } from "./model-settings.js";
 import {
+  platformCompanyMode,
+  platformModelCallObserver,
+  resolvePlatformModelProvider,
+} from "./platform-model-provider.js";
+import {
   cleanLine,
   renderTeamChatEngagementPrompt,
   teamChatEngagementInstructions,
@@ -188,6 +193,31 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
   private async resolveModel(bot: TeamChatEngagementInput["bot"]): Promise<{
     model: AgentRunModel;
   } | null> {
+    if (await platformCompanyMode(this.deps.prisma)) {
+      // Ambient messages have no authenticated requester. In company mode the judge
+      // therefore uses only an explicit company-provider grant on the bot owner; it
+      // never resolves that owner's personal credential or the deployment key.
+      const provider = this.deps.providerOverride ?? bot.modelProvider;
+      const modelId = this.deps.modelOverride ?? bot.modelId;
+      if (!provider || !modelId) return null;
+      const scope = { userId: bot.userId, spaceId: bot.spaceId, botId: bot.id };
+      const access = await resolvePlatformModelProvider(
+        this.deps.prisma,
+        this.deps.secrets,
+        scope,
+        provider,
+        modelId,
+      );
+      if (!access) return null;
+      return {
+        model: {
+          provider,
+          id: modelId,
+          apiKey: access.key,
+          callObserver: platformModelCallObserver(this.deps.prisma, access, scope),
+        },
+      };
+    }
     const settings = await this.deps.prisma.deploymentSettings.findUnique({
       where: { id: "default" },
     });

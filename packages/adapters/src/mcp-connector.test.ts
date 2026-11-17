@@ -1849,6 +1849,144 @@ describe("MCP connector session cache", () => {
     await connector.close();
   });
 
+  it("runs only a staff actor's assigned company MCP and never borrows the bot owner's private MCP secret", async () => {
+    const state = {
+      failNext: false,
+      initializations: 0,
+      calls: [] as string[],
+      headers: [] as Record<string, string>[],
+      tools: [{ name: "staff_tool", inputSchema: { type: "object" } }],
+    };
+    vi.stubGlobal("fetch", mcpFetch(state));
+    const staffServer = {
+      ...SERVER,
+      id: "staff-server",
+      slug: "staff-tools",
+      secretId: "staff-secret",
+      userId: "staff",
+      allBots: false,
+    };
+    const ownerServer = {
+      ...SERVER,
+      id: "owner-private-server",
+      slug: "owner-private",
+      secretId: "owner-private-secret",
+      userId: "owner",
+      allBots: true,
+    };
+    const staffAssignment = {
+      ...ASSIGNMENT,
+      botId: "company-bot-owned-by-owner",
+      serverId: staffServer.id,
+      userId: "staff",
+      server: staffServer,
+    };
+    const ownerAssignment = {
+      ...ASSIGNMENT,
+      botId: "company-bot-owned-by-owner",
+      serverId: ownerServer.id,
+      userId: "owner",
+      server: ownerServer,
+    };
+    const botMcpServer = {
+      findMany: vi.fn(async ({ where }: { where: { userId: string; botId: string } }) =>
+        [staffAssignment, ownerAssignment].filter(
+          (assignment) => assignment.userId === where.userId && assignment.botId === where.botId,
+        ),
+      ),
+      findFirst: vi.fn(
+        async ({ where }: { where: { userId: string; botId: string; serverId: string } }) =>
+          [staffAssignment, ownerAssignment].find(
+            (assignment) =>
+              assignment.userId === where.userId &&
+              assignment.botId === where.botId &&
+              assignment.serverId === where.serverId,
+          ) ?? null,
+      ),
+    };
+    const mcpServer = {
+      findMany: vi.fn(async ({ where }: { where: { userId: string; allBots: boolean } }) =>
+        [staffServer, ownerServer].filter(
+          (server) => server.userId === where.userId && server.allBots === where.allBots,
+        ),
+      ),
+      findFirst: vi.fn(
+        async ({ where }: { where: { id: string; userId: string } }) =>
+          [staffServer, ownerServer].find(
+            (server) => server.id === where.id && server.userId === where.userId,
+          ) ?? null,
+      ),
+    };
+    const secret = {
+      findFirst: vi.fn(async ({ where }: { where: { id: string; userId: string } }) =>
+        where.id === "staff-secret" && where.userId === "staff"
+          ? {
+              id: "staff-secret",
+              ciphertext: JSON.stringify({ headers: { Authorization: "Bearer staff-token" } }),
+            }
+          : null,
+      ),
+    };
+    const connector = new McpConnector(
+      { mcpServer, botMcpServer, secret } as never,
+      { load: async (value: string) => value } as never,
+      { network: TEST_NETWORK },
+    );
+    const context = {
+      spaceId: "company-space",
+      userId: "staff",
+      botId: "company-bot-owned-by-owner",
+      signal: new AbortController().signal,
+    } as never;
+
+    try {
+      const tools = await connector.discoverTools(context);
+      expect(tools.map((tool) => tool.name)).toEqual(["mcp__staff-tools__staff_tool"]);
+      expect(state.headers.at(-1)?.authorization).toBe("Bearer staff-token");
+      const [tool] = tools;
+      const events = [];
+      for await (const event of connector.execute(
+        {
+          tool: tool!.name,
+          args: {},
+          executionId: "staff-company-run",
+          route: tool!.route,
+        },
+        context,
+      ))
+        events.push(event);
+      expect(events).toMatchObject([{ type: "result" }]);
+      expect(state.calls).toEqual(["staff_tool"]);
+      expect(secret.findFirst).toHaveBeenCalledWith({
+        where: expect.objectContaining({ id: "staff-secret", userId: "staff" }),
+      });
+
+      const forgedOwnerCall = [];
+      for await (const event of connector.execute(
+        {
+          tool: "mcp__owner-private__private_tool",
+          args: {},
+          executionId: "staff-company-forged-owner-call",
+          route: {
+            connectorId: "mcp",
+            resourceId: ownerServer.id,
+            toolName: "private_tool",
+          },
+        },
+        context,
+      ))
+        forgedOwnerCall.push(event);
+      expect(forgedOwnerCall).toEqual([
+        { type: "error", message: "MCP tool is not assigned to this bot" },
+      ]);
+      expect(secret.findFirst).not.toHaveBeenCalledWith({
+        where: expect.objectContaining({ id: "owner-private-secret" }),
+      });
+    } finally {
+      await connector.close();
+    }
+  });
+
   it.each([
     ["renews it and connects", { access_token: "fake-renewed", token_type: "bearer" }, true],
     ["asks for a reconnect when it cannot be renewed", undefined, false],

@@ -122,6 +122,7 @@ function connected(providers: string[]) {
     updatedAt: new Date(0),
   }));
   const prisma = {
+    deploymentSettings: { findUnique: vi.fn(async () => null) },
     userModelCredential: { findMany: vi.fn(async () => credentials) },
     userModelPreference: { findMany: vi.fn(async () => []) },
     secret: {

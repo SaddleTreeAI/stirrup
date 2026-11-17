@@ -146,6 +146,48 @@ describe("skill tools", () => {
     });
   });
 
+  it("gives a staff actor their own skill catalog without borrowing the company bot owner's private skills", async () => {
+    prisma = makePrisma([
+      {
+        id: "staff-skill",
+        spaceId: "company-space",
+        userId: "staff-1",
+        name: "Staff procedure",
+        description: "A procedure owned by the signed-in staff actor",
+        content: buildSkillMd({
+          name: "Staff procedure",
+          description: "A procedure owned by the signed-in staff actor",
+          body: "Run the approved staff steps.",
+        }),
+        source: "user",
+      },
+      {
+        id: "owner-private-skill",
+        spaceId: "company-space",
+        userId: "bot-owner",
+        name: "Owner private procedure",
+        description: "Must not enter a staff actor's run",
+        content: buildSkillMd({
+          name: "Owner private procedure",
+          description: "Must not enter a staff actor's run",
+          body: "Owner-private steps.",
+        }),
+        source: "user",
+      },
+    ]);
+
+    const staffSkills = await listAgentSkillRecords(prisma as never, {
+      spaceId: "company-space",
+      userId: "staff-1",
+    });
+
+    expect(staffSkills.map((skill) => skill.name)).toContain("Staff procedure");
+    expect(staffSkills.map((skill) => skill.name)).not.toContain("Owner private procedure");
+    expect(prisma.agentSkill.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ userId: "staff-1" }) }),
+    );
+  });
+
   it("lists a skill's reference files and reads one by exact path only", async () => {
     const prisma = makePrisma([
       {

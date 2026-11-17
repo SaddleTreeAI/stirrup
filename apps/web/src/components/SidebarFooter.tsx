@@ -44,6 +44,7 @@ type Props = {
   onLink?: (link: NavLink) => void;
   onArtifacts: () => void;
   onSettings: () => void;
+  administration?: ReactNode;
   /** How much of the member's allowance is used; the Usage row shows only with one. */
   usage?: string | null;
   /** The breakdown the Usage row opens beside the menu. */
@@ -74,6 +75,7 @@ export function SidebarFooter({
   onLink,
   onArtifacts,
   onSettings,
+  administration,
   usage,
   usageDetails,
   onUsage,
@@ -188,6 +190,7 @@ export function SidebarFooter({
                 </PopoverContent>
               </Popover>
             ) : null}
+            {administration}
             <Button
               variant="ghost"
               className="h-9 w-full justify-start gap-2.5 font-normal"

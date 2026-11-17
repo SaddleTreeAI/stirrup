@@ -9,7 +9,7 @@ import type { AuthCapabilities } from "../lib/auth-capabilities";
 import { fetchAuthCapabilities } from "../lib/auth-capabilities";
 import type * as Passkeys from "../lib/passkeys";
 import { usePasskeysSupported } from "../lib/passkeys";
-import { clearSpaceSelection } from "../lib/rpc";
+import { clearSpaceSelection, rpc } from "../lib/rpc";
 import { AuthPage } from "./Auth";
 
 vi.mock("@lingui/react/macro", () => ({
@@ -53,6 +53,21 @@ vi.mock("@rakazo/ui-web", () => ({
       }}
     />
   ),
+  Checkbox: ({
+    checked,
+    onCheckedChange,
+    ...props
+  }: Omit<React.ComponentProps<"input">, "type" | "checked" | "onChange"> & {
+    checked?: boolean;
+    onCheckedChange?: (checked: boolean) => void;
+  }) => (
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={(event) => onCheckedChange?.(event.target.checked)}
+      {...props}
+    />
+  ),
   InputOTPGroup: () => null,
   InputOTPSlot: () => null,
   Tooltip: ({ children }: { children: ReactNode }) => children,
@@ -67,6 +82,7 @@ vi.mock("@rakazo/ui-web", () => ({
 vi.mock("../lib/auth-capabilities", () => ({ fetchAuthCapabilities: vi.fn() }));
 vi.mock("../lib/auth", () => ({
   authClient: {
+    signUp: { email: vi.fn() },
     signIn: {
       social: vi.fn(async () => ({})),
       email: vi.fn(),
@@ -76,7 +92,10 @@ vi.mock("../lib/auth", () => ({
     emailOtp: { sendVerificationOtp: vi.fn() },
   },
 }));
-vi.mock("../lib/rpc", () => ({ clearSpaceSelection: vi.fn() }));
+vi.mock("../lib/rpc", () => ({
+  clearSpaceSelection: vi.fn(),
+  rpc: { platformInvite: { preview: vi.fn() } },
+}));
 vi.mock("../lib/passkeys", async (importActual) => ({
   ...(await importActual<typeof Passkeys>()),
   usePasskeysSupported: vi.fn(() => false),
@@ -346,6 +365,44 @@ it("keeps an invite as the destination when switching to sign-in", async () => {
   await render("up", `/?next=${encodeURIComponent("/invite/token-1")}`);
   expect(host.querySelector('a[href^="/sign-in"]')?.getAttribute("href")).toBe(
     "/sign-in?next=%2Finvite%2Ftoken-1",
+  );
+});
+
+it("previews private-platform invites and requires monitoring consent before signup", async () => {
+  vi.mocked(fetchAuthCapabilities).mockResolvedValue(codeCapabilities);
+  vi.mocked(rpc.platformInvite.preview).mockResolvedValue({
+    email: "staff@example.test",
+    name: "Staff member",
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+  });
+  vi.mocked(authClient.signUp.email).mockResolvedValue({ data: {}, error: null } as never);
+  await render("up", "/invite?platformToken=0123456789abcdef0123456789abcdef");
+
+  await vi.waitFor(() =>
+    expect(host.querySelector<HTMLInputElement>('input[name="email"]')?.value).toBe(
+      "staff@example.test",
+    ),
+  );
+  expect(host.querySelector<HTMLInputElement>('input[name="name"]')?.value).toBe("Staff member");
+  expect(host.querySelector<HTMLInputElement>('input[name="email"]')?.readOnly).toBe(true);
+  expect(host.textContent).toContain("workspace owner can review my account content and usage");
+  expect(button("Continue")).toBeUndefined();
+  const submitButton = host.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+  expect(submitButton.disabled).toBe(true);
+
+  await enter(host.querySelector('input[name="password"]'), "test-password-123");
+  await act(async () => {
+    host.querySelector<HTMLInputElement>("#platform-monitoring-consent")!.click();
+  });
+  expect(submitButton.disabled).toBe(false);
+  await submit();
+  expect(authClient.signUp.email).toHaveBeenCalledWith(
+    expect.objectContaining({
+      email: "staff@example.test",
+      name: "Staff member",
+      platformInviteToken: "0123456789abcdef0123456789abcdef",
+      platformMonitoringConsent: true,
+    }),
   );
 });
 

@@ -72,6 +72,7 @@ function strategicPrisma(options: {
     }),
   };
   const prisma = {
+    deploymentSettings: { findUnique: vi.fn(async () => null) },
     bot: {
       findMany: vi.fn(async ({ where }: { where: { id?: unknown } }) =>
         where.id
@@ -515,6 +516,7 @@ it("runs the sweep without holding up the reconciler pass", async () => {
   const { jobs } = publisher();
   const reconcile = createStrategicInitiativeReconciler({ prisma, jobs, billingEnabled: false });
   await reconcile();
+  await vi.waitFor(() => expect(prisma.bot.findMany).toHaveBeenCalledTimes(1));
   await reconcile();
   expect(prisma.bot.findMany).toHaveBeenCalledTimes(1);
 });

@@ -45,6 +45,12 @@ import { assertAllowedOpenAiCompatibleUrl } from "./openai-compatible-url.js";
 import { codexLiveModel } from "./pi-codex-catalog.js";
 import { LOCAL_PROVIDER_ID } from "./pi-local-provider.js";
 import { CHATGPT_OAUTH_PROVIDER, isRetiredModelCredentialError } from "./pi-oauth.js";
+import {
+  platformCompanyMode,
+  platformCompanyModels,
+  platformModelCallObserver,
+  resolvePlatformModelProvider,
+} from "./platform-model-provider.js";
 
 export function runtimeFallbackModel(runtime: AgentRuntime) {
   return runtime.describe().capabilities.scripted ? { provider: "scripted", id: "scripted" } : null;
@@ -91,6 +97,7 @@ export async function fleetPrepareDeps(
           override: null,
           overrideCredential: null,
           main,
+          companyModels: await platformCompanyModels(deps.prisma, scope.userId),
           hostedProvider,
           defaults: {
             settings,
@@ -139,6 +146,7 @@ function assertCompatibleModelEnabled(
 export async function modelCreditBillingEnabled(
   deps: Pick<ExecutorDeps, "prisma" | "billingEnabled">,
 ): Promise<boolean> {
+  if (await platformCompanyMode(deps.prisma)) return false;
   if (deps.billingEnabled !== undefined) return deps.billingEnabled;
   return (
     (
@@ -152,6 +160,7 @@ export async function modelCreditBillingEnabled(
 
 export async function resolveModelKey(...args: Parameters<typeof resolveModelKeyMaterial>) {
   const [deps, userId, spaceId, , provider] = args;
+  const privatePlatform = await platformCompanyMode(deps.prisma);
   const billingEnabled = await modelCreditBillingEnabled(deps);
   const scope = { userId, spaceId };
   if (billingEnabled && (await hasHostedModelCredits(deps.prisma, scope, provider))) {
@@ -160,7 +169,21 @@ export async function resolveModelKey(...args: Parameters<typeof resolveModelKey
     args[7] = { ...args[7], requireStoredSecret: false };
   }
   const credential = args[3];
-  const material = await resolveModelKeyMaterial(...args);
+  let companyAccess: Awaited<ReturnType<typeof resolvePlatformModelProvider>> = null;
+  if (privatePlatform && !args[3]) {
+    companyAccess = await resolvePlatformModelProvider(
+      deps.prisma,
+      deps.secretStore,
+      { userId, spaceId },
+      provider,
+      args[5],
+    );
+    if (!companyAccess)
+      throw new UnavailableModelForAuthError("This company model is not granted to your account.");
+  }
+  const material = companyAccess
+    ? { apiKey: companyAccess.key, redact: [companyAccess.key] }
+    : await resolveModelKeyMaterial(...args);
   const deployment = resolveDeploymentModel();
   // Local and compatible endpoints can intentionally be keyless. Host auth is
   // allowed only for the deployment provider that explicitly opted into it.
@@ -171,14 +194,19 @@ export async function resolveModelKey(...args: Parameters<typeof resolveModelKey
     (!credential && deployment.provider === provider && deployment.hostCredentials);
   // Match Pi's OpenRouter fallback only when no explicit key overrides it.
   const runtimeKey =
-    material.apiKey === undefined && (provider === "openrouter" || provider === "scripted")
+    !privatePlatform &&
+    material.apiKey === undefined &&
+    (provider === "openrouter" || provider === "scripted")
       ? process.env.OPENROUTER_API_KEY
       : undefined;
   if (!material.apiKey?.trim() && !runtimeKey?.trim() && !keyless) {
     throw new UnavailableModelForAuthError(MISSING_MODEL_RUN_ERROR);
   }
-  const callObserver =
-    !credential && billingEnabled ? await hostedModelCreditObserver(deps.prisma, scope) : undefined;
+  const callObserver = companyAccess
+    ? platformModelCallObserver(deps.prisma, companyAccess, scope)
+    : !credential && billingEnabled
+      ? await hostedModelCreditObserver(deps.prisma, scope)
+      : undefined;
   return { ...material, apiKey: material.apiKey ?? runtimeKey, callObserver };
 }
 
@@ -415,7 +443,9 @@ export async function resolveConnectedModelKey(
     modelId,
     { hostedProvider, credentialId, codexCatalog: deps.codexCatalog },
   );
-  if (validationError) throw new Error(validationError);
+  const companyModels = await platformCompanyModels(deps.prisma, scope.userId);
+  const companyGrantMatches = companyModels.get(provider)?.includes(modelId) ?? false;
+  if (validationError && !companyGrantMatches) throw new Error(validationError);
   const credential = await findConnectedModelCredential(
     deps.prisma,
     deps.secretStore,
@@ -424,7 +454,8 @@ export async function resolveConnectedModelKey(
     modelId,
     { credentialId },
   );
-  if (!credential && provider !== hostedProvider) throw new Error(PINNED_PROVIDER_NOT_CONNECTED);
+  if (!credential && provider !== hostedProvider && !companyGrantMatches)
+    throw new Error(PINNED_PROVIDER_NOT_CONNECTED);
   const resolved = await resolveModelKey(
     deps,
     scope.userId,
@@ -489,6 +520,7 @@ export async function resolveRunModel(
       })
     : null;
   const hasOverride = Boolean(override?.modelProvider && override.modelId);
+  const companyModels = await platformCompanyModels(deps.prisma, scope.userId);
   const [overrideCredential, main, settings] = await Promise.all([
     hasOverride
       ? findConnectedModelCredential(
@@ -508,6 +540,7 @@ export async function resolveRunModel(
     override,
     overrideCredential,
     main,
+    companyModels,
     hostedProvider: (await modelCreditBillingEnabled(deps))
       ? resolveDeploymentModel().provider
       : undefined,

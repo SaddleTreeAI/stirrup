@@ -481,8 +481,13 @@ export function createRepos(
           disabledBuiltinTools = parent.disabledBuiltinTools;
         }
       }
-      const computerMode = input.computerMode ?? resolveDefaultComputerMode();
       const settings = await prisma.deploymentSettings.findUnique({ where: { id: "default" } });
+      // Company bots get a dedicated home by default. An explicit Team Computer choice is still
+      // possible, but company access policy then requires every computer member to share all bots
+      // attached to that home before any member can reach its tools or files.
+      const computerMode =
+        input.computerMode ??
+        (settings?.companySpaceId === actor.spaceId ? "dedicated" : resolveDefaultComputerMode());
       const envKind = process.env.SANDBOX_PROVIDER ?? "docker";
       const kind =
         envKind === "docker" && settings?.computerHost === "this-mac" ? "desktop" : envKind;

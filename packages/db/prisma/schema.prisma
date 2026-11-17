@@ -28,6 +28,16 @@ model User {
   name                        String
   email                       String
   emailVerified               Boolean                      @default(false)
+  /// Authority inside an explicitly bootstrapped private deployment; never inferred from signup order.
+  platformRole                String                       @default("member")
+  /// Initial company policy; usage enforcement reads this against the UTC calendar month.
+  platformMonthlyBudgetMicros  BigInt                       @default(100000000)
+  /// When a staff member accepted the private-workspace monitoring disclosure.
+  platformMonitoringAcceptedAt DateTime?
+  platformModelGrants         PlatformModelGrant[]
+  platformModelBudgetAlerts  PlatformModelBudgetAlert[]
+  platformBotGrants           PlatformBotGrant[]
+  computerUpdateRequests     ComputerUpdate[]             @relation("ComputerUpdateRequester")
   /// Validated first-touch campaign labels and the client that created the account. Deleted with it.
   signupSurface                String?
   signupUtmSource              String?
@@ -680,6 +690,7 @@ model Space {
   routines                    Routine[]
   scratchpadItems             ScratchpadItem[]
   botEmailMessages            BotEmailMessage[]
+  deploymentCompany           DeploymentSettings?          @relation("PlatformCompanySpace")
   taughtSkills                TaughtSkill[]
   agentSkills                 AgentSkill[]
   agentImports                AgentImport[]
@@ -805,6 +816,11 @@ model DeploymentSettings {
   id                              String   @id @default("default")
   /// Deprecated: retained for rolling-release compatibility; never authorizes app users.
   ownerUserId                     String?
+  /// Private company instance: only accounts with a valid platform invite may register.
+  platformMode                    Boolean  @default(false)
+  /// The one explicitly designated shared company Space, if configured.
+  companySpaceId                  String?  @unique
+  companySpace                    Space?   @relation("PlatformCompanySpace", fields: [companySpaceId], references: [id], onDelete: SetNull)
   defaultModelProvider            String?
   defaultModelId                  String?
   deploymentModelCredentialCipher String?
@@ -817,6 +833,138 @@ model DeploymentSettings {
   updatedAt                       DateTime @updatedAt
 
   @@map("deployment_settings")
+}
+
+/// A single-use invitation to a private platform account. The bearer token is never stored.
+/// Creator/acceptor IDs intentionally have no user FKs so invitation audit history survives
+/// account deletion, matching SecurityEvent retention semantics.
+model PlatformInvite {
+  id              String   @id @default(cuid())
+  email           String
+  name            String
+  kind            String   @default("invite")
+  role            String   @default("member")
+  tokenHash       String   @unique
+  createdByUserId String
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  acceptedByUserId String?
+  revokedAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+  @@map("platform_invites")
+}
+
+/// An owner-managed provider connection; the encrypted Secret is never returned to clients.
+model PlatformModelConnection {
+  id              String                @id @default(cuid())
+  provider        String                @unique
+  label           String
+  secretId        String                @unique
+  secret          Secret                @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  enabled         Boolean               @default(false)
+  createdByUserId String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  grants          PlatformModelGrant[]
+
+  @@index([enabled, provider])
+  @@map("platform_model_connections")
+}
+
+/// Access is deliberately deny-by-default and limited to explicit provider model ids.
+model PlatformModelGrant {
+  id                     String                 @id @default(cuid())
+  userId                 String
+  user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectionId           String
+  connection             PlatformModelConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  allowedModelIds        String[]               @default([])
+  enabled                Boolean                @default(false)
+  countsTowardUserBudget Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@unique([userId, connectionId])
+  @@index([userId, enabled])
+  @@map("platform_model_grants")
+}
+
+/// Per-user UTC-month lock row for all company grants explicitly counted toward their budget.
+model PlatformModelBudgetBucket {
+  id             String   @id @default(cuid())
+  userId         String
+  monthStart     DateTime
+  reservedMicros BigInt   @default(0)
+  chargedMicros  BigInt   @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, monthStart])
+  @@map("platform_model_budget_buckets")
+}
+
+/// Durable, deduplicated email alerts when a user's company-model budget is reached.
+model PlatformModelBudgetAlert {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monthStart         DateTime
+  thresholdPercent  Int
+  createdAt          DateTime @default(now())
+  sentAt             DateTime?
+
+  @@unique([userId, monthStart, thresholdPercent])
+  @@index([sentAt, createdAt])
+  @@map("platform_model_budget_alerts")
+}
+
+/// One provider call per explicit company grant. This ledger is the budget source of truth;
+/// estimated UsageRecord rows are for display and never authorize another call.
+model PlatformModelCall {
+  id                 String   @id @default(cuid())
+  callId             String   @unique
+  grantId            String
+  connectionId       String
+  userId             String
+  spaceId            String?
+  runId              String?
+  botId              String?
+  provider           String
+  model              String
+  monthStart         DateTime?
+  budgeted           Boolean  @default(false)
+  reservedMicros     BigInt   @default(0)
+  actualMicros       BigInt?
+  state              String   @default("pending")
+  providerRequestId  String?
+  createdAt          DateTime @default(now())
+  settledAt          DateTime?
+
+  @@index([userId, createdAt])
+  @@index([grantId, createdAt])
+  @@index([state, createdAt])
+  @@map("platform_model_calls")
+}
+
+/// Per-bot platform grants. Role inheritance is enforced by the server authorization helper.
+model PlatformBotGrant {
+  id              String   @id @default(cuid())
+  botId           String
+  bot             Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission      String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([botId, userId])
+  @@index([userId])
+  @@index([botId])
+  @@map("platform_bot_grants")
 }
 
 /// Append-only security audit trail. No foreign keys, so an account deletion
@@ -1052,6 +1200,7 @@ model Bot {
   assignedTickets   Ticket[]          @relation("TicketAssigneeBot")
   createdTickets    Ticket[]          @relation("TicketCreatorBot")
   ticketComments    TicketComment[]   @relation("TicketCommentAuthorBot")
+  platformGrants   PlatformBotGrant[]
 
   externalConversations ExternalConversation[]
   emailAddress      BotEmailAddress?
@@ -1837,6 +1986,9 @@ model ComputerUpdate {
   computerId String
   computer   Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
   botId      String
+  requestedByUserId String?
+  requestedBy User?  @relation("ComputerUpdateRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  failureReason String? @db.Text
   status     String   @default("queued")
   stage      String   @default("preparing")
   createdAt  DateTime @default(now())
@@ -2094,6 +2246,7 @@ model UsageRecord {
   createdAt          DateTime @default(now())
 
   @@index([spaceId, userId, createdAt])
+  @@index([createdAt, userId])
   @@map("usage_records")
 }
 
@@ -2139,6 +2292,7 @@ model Secret {
   spaceMemoryConfig SpaceMemoryConfig?
   agentSecret       AgentSecret?
   pageShare         Page?
+  platformModelConnection PlatformModelConnection?
 
   @@index([userId, spaceId])
   @@map("secrets")
