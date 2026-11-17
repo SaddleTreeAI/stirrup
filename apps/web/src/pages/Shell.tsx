@@ -128,6 +128,11 @@ function ProvideEdition({ children }: { children: ReactNode }) {
   return Provider ? <Provider>{children}</Provider> : children;
 }
 
+// edition-seam:W3 — stable identity so the default edition does not remount the shell each render.
+function PassThroughChrome({ children }: { children: ReactNode }) {
+  return children;
+}
+
 export function ShellPage() {
   // A new key per space switch, so nothing from the previous space survives it.
   const spaceEpoch = useSpaceEpoch();
@@ -1504,7 +1509,7 @@ function SpaceShell() {
 
   // Empty chrome until the first bot list lands would flash "Select a bot" before the chat.
   // edition-seam:W3
-  const ChromeFrame = edition.ChromeFrame ?? (({ children }: { children: ReactNode }) => children);
+  const ChromeFrame = edition.ChromeFrame ?? PassThroughChrome;
   return (
     <SpaceRpcProvider spaceId={shellSpaceId}>
       {initialBotsLoaded || initialLoadFailed ? (
