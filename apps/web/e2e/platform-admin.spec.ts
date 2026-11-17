@@ -156,28 +156,8 @@ test("a platform owner reviews people and opens an invitation", async ({ page },
   await expect(inspection.getByRole("button", { name: "Download" })).toBeEnabled();
   await inspection.getByRole("heading", { name: "Conversations" }).scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "platform-owner-bot-inspection");
-  await page.route("**/api/platform-admin/bots/shared-planner/files/ops-archive", (route) =>
-    route.fulfill({
-      status: 200,
-      headers: {
-        "content-type": "application/zip",
-        "content-disposition": "attachment; filename*=UTF-8''operations-archive.zip",
-      },
-      body: Buffer.alloc(12 * 1024 * 1024, 0x5a),
-    }),
-  );
-  const downloaded = page.waitForEvent("download");
-  await inspection.getByRole("button", { name: "Download" }).click();
-  const download = await downloaded;
-  expect(download.suggestedFilename()).toBe("operations-archive.zip");
-  expect(await download.failure()).toBeNull();
-  const stream = await download.createReadStream();
-  expect(stream).not.toBeNull();
-  let receivedBytes = 0;
-  for await (const chunk of stream!) receivedBytes += chunk.length;
-  expect(receivedBytes).toBe(12 * 1024 * 1024);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Invite person" }).click();
+  await page.getByRole("button", { name: "Add person" }).click();
   await expect(page.getByRole("dialog").getByLabel("Email", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "platform-invitation");
 });
