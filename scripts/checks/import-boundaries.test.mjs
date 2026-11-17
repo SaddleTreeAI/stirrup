@@ -30,6 +30,8 @@ const CLIENT_CODE = [
   "packages/page-kit",
   "packages/ui-web",
 ];
+// Edition packages sit beside packages/*; they may depend on packages but never on apps or infra.
+const EDITION_PACKAGES = ["editions/default", "editions/law", "editions/sdk"];
 const TESTKIT = "packages/testkit";
 // The testkit is the integration harness: its tests drive the whole API and the sandbox
 // supervisor, by name and through their exports maps. Tests that need an app live there.
@@ -76,7 +78,7 @@ const RULES = {
     fix: "Keep core free of server and UI packages: take the value as an argument, or move this code to the package that owns the dependency.",
   },
   app: {
-    title: "packages never import an app or an infra service",
+    title: "packages and editions never import an app or an infra service",
     fix: "Move the shared piece into a package and import it from both sides. A test that needs the whole API belongs in the testkit and imports it by name.",
   },
   testkit: {
@@ -294,7 +296,11 @@ function findViolations(sources, workspaces) {
       }
       if (LEAF_PACKAGES.includes(owner)) flag("leaf");
       if (owner === CORE && !CORE_MAY_IMPORT.includes(target)) flag("core");
-      if (owner.startsWith("packages/") && !target.startsWith("packages/")) {
+      if (
+        (owner.startsWith("packages/") || EDITION_PACKAGES.includes(owner)) &&
+        !target.startsWith("packages/") &&
+        !EDITION_PACKAGES.includes(target)
+      ) {
         const harness = owner === TESTKIT && !relative && TESTKIT_MAY_IMPORT.includes(target);
         if (!harness) flag("app");
       }

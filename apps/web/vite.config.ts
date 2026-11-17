@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { lingui } from "@lingui/vite-plugin";
 import { buildIdAt } from "@rakazo/contracts/client-build";
@@ -28,6 +29,16 @@ export default defineConfig(({ command, mode }) => {
   // Names this build in every API request; the dev server has none, so the handshake stays off.
   const buildId = command === "build" ? buildIdAt(new Date()) : "";
   const rootEnv = loadEnv(mode, path.resolve(import.meta.dirname, "../.."), "");
+  const editionId = process.env.STIRRUP_EDITION ?? rootEnv.STIRRUP_EDITION ?? "default";
+  const editionWebEntry = path.resolve(
+    import.meta.dirname,
+    `../../editions/${editionId}/src/web.ts`,
+  );
+  if (!fs.existsSync(editionWebEntry)) {
+    throw new Error(
+      `Unknown STIRRUP_EDITION "${editionId}": editions/${editionId} does not exist (expected ${editionWebEntry})`,
+    );
+  }
   const webPort = Number(process.env.WEB_PORT ?? rootEnv.WEB_PORT ?? 5173);
   const settings = webServerSettings(
     (name) => process.env[name] ?? rootEnv[name],
@@ -54,6 +65,10 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     define: { "import.meta.env.RAKAZO_BUILD": JSON.stringify(buildId) },
+    resolve: {
+      // edition-seam:A1-web
+      alias: { "@edition/web": editionWebEntry },
+    },
     plugins: [
       {
         // The API reads this to name the deployed build, and a tab fetches it to confirm the

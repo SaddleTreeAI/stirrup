@@ -7,6 +7,7 @@ import { defineConfig } from "vitest/config";
 const include = [
   ".agents/skills/*/*.test.ts",
   "packages/*/src/**/*.test.{ts,tsx}",
+  "editions/*/src/**/*.test.{ts,tsx}",
   "infra/sandboxes/supervisor/src/**/*.test.ts",
   "infra/updater/src/**/*.test.ts",
   "scripts/account-transfer/*.test.ts",
@@ -40,6 +41,10 @@ export default defineConfig({
   plugins: [lingui({ configPath: path.join(root, "lingui.config.ts") })],
   resolve: {
     alias: [
+      {
+        find: /^@edition\/web$/,
+        replacement: fileURLToPath(new URL("./editions/default/src/web.ts", import.meta.url)),
+      },
       {
         find: /^@rakazo\/adapters$/,
         replacement: fileURLToPath(new URL("./packages/adapters/src/index.ts", import.meta.url)),
