@@ -73,16 +73,6 @@ describe("followSpaceChanges", () => {
     expect(fanout.topics()).toEqual([]);
   });
 
-  it("ignores unknown payloads and hears the previous release's computer update topic", async () => {
-    const fanout = fakeFanout();
-    const iterator = followSpaceChanges(fanout as never, "space-1");
-    await opened(iterator);
-    await fanout.publish("space-changes:space-1", "billing");
-    await fanout.publish("computer-updates:space-1", "");
-    expect((await iterator.next()).value).toBe("computerUpdates");
-    await iterator.return(undefined);
-  });
-
   it("signals every kind when the fanout asks subscribers to catch up", async () => {
     const fanout = fakeFanout();
     const iterator = followSpaceChanges(fanout as never, "space-1");

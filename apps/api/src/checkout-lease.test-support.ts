@@ -1,12 +1,11 @@
 import { deferred } from "@rakazo/core/test-async";
 import type { Prisma, PrismaClient } from "@rakazo/db";
 
-type UpdateManyArgs = Parameters<PrismaClient["billingAccount"]["updateMany"]>[0];
 type Queries = Pick<PrismaClient, "$executeRaw">;
 
 /**
- * `prisma`, plus a promise that settles once a checkout attempt finds the lease, or the previous
- * release's claim, held by another attempt: that attempt is then queued behind the holder, so a
+ * `prisma`, plus a promise that settles once a checkout attempt finds the lease
+ * held by another attempt: that attempt is then queued behind the holder, so a
  * test can release the holder without guessing how long the queued attempt takes to get there.
  */
 export function watchCheckoutLeaseClaims(prisma: PrismaClient) {
@@ -21,30 +20,13 @@ export function watchCheckoutLeaseClaims(prisma: PrismaClient) {
           return rows;
         };
       }
-      if (property !== "billingAccount") return Reflect.get(target, property, receiver);
-      return new Proxy(target.billingAccount, {
-        get(accounts, method, accountsReceiver) {
-          if (method !== "updateMany") return Reflect.get(accounts, method, accountsReceiver);
-          return async (args: UpdateManyArgs) => {
-            const result = await accounts.updateMany(args);
-            // Only a claim writes a new claim id; a release clears it and a renewal keeps it.
-            if (typeof args.data.checkoutLeaseId === "string" && result.count === 0)
-              leaseRefused.resolve();
-            return result;
-          };
-        },
-      });
+      return Reflect.get(target, property, receiver);
     },
   });
   return { prisma: watched, leaseRefused: leaseRefused.promise };
 }
 
-/** Lets the organization's checkout lease and claim lapse, as a holder that stalled would. */
+/** Lets the organization's checkout lease lapse, as a stalled holder would. */
 export function expireCheckoutLease(prisma: Queries, organizationId: string) {
-  return prisma.$executeRaw`
-    WITH "claim" AS (
-      UPDATE "billing_accounts" SET "checkoutLeaseExpiresAt" = 'epoch'
-      WHERE "organizationId" = ${organizationId}
-    )
-    UPDATE "leases" SET "expiresAt" = 'epoch' WHERE "key" = ${`billing-checkout:${organizationId}`}`;
+  return prisma.$executeRaw`UPDATE "leases" SET "expiresAt" = 'epoch' WHERE "key" = ${`billing-checkout:${organizationId}`}`;
 }
