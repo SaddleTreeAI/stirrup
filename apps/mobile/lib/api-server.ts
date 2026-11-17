@@ -1,5 +1,17 @@
 import { t } from "@lingui/core/macro";
 import * as SecureStore from "expo-secure-store";
+import {
+  activeAccountProfile,
+  activeAccountProfileId,
+  addAccountProfile,
+  credentialsForProfile,
+  removeAccountProfile as deleteAccountProfile,
+  listAccountProfiles,
+  loadAccountProfiles,
+  persistActiveAccountProfile,
+  profileOrganizationSpacesStorageKey,
+  profileSpaceStorageKey,
+} from "./account-profiles";
 import type { PendingSignOut } from "./api";
 import {
   clearStoredValue,
@@ -7,10 +19,8 @@ import {
   currentSpaceSelectionGeneration,
   flushPendingSignOut,
   nextSpaceSelectionRequest,
-  promotePendingSignOut,
   queueEndpointChange,
   rawSelectedSpaceId,
-  removePendingSignOut,
   resumeSelectedSpaceNotifications,
   SPACE_KEY,
   SPACE_ROLLBACK_KEY,
@@ -23,17 +33,14 @@ import {
 } from "./api";
 import type { EndpointResult } from "./endpoint";
 import { defaultApiBase, normalizeApiBase } from "./endpoint";
-import { resumeLiveNotifications } from "./live-notifications";
 import { API_BASE_STORAGE_KEY as ENDPOINT_KEY } from "./server-config";
-import { loadServerHeaders, saveServerHeaders, serverHeaders } from "./server-headers";
 import {
-  clearSessionToken,
-  currentSessionGeneration,
-  restoreSessionToken,
-  sessionSaveInProgress,
-  snapshotSessionToken,
-  snapshotStoredSessionToken,
-} from "./session";
+  loadProfileServerHeaders,
+  loadServerHeaders,
+  saveServerHeaders,
+  serverHeaders,
+} from "./server-headers";
+import { activateSavedProfileSession } from "./session";
 
 /** The Space last used in each organization on this device, by organization id. */
 const ORGANIZATION_SPACES_KEY = "rakazo.org_spaces";
@@ -63,9 +70,40 @@ export async function loadApiBase() {
     // SecureStore is unavailable in some test / web hosts.
   }
   await loadServerHeaders(apiBase);
-  setCachedApiBase(apiBase);
+  let legacyToken = "";
   try {
-    const storedSpace = (await SecureStore.getItemAsync(SPACE_KEY)) ?? "";
+    legacyToken = (await SecureStore.getItemAsync("rakazo.session_token")) ?? "";
+  } catch {
+    // The old session remains unavailable, as before.
+  }
+  const active = await loadAccountProfiles({
+    serverUrl: apiBase,
+    token: legacyToken,
+    headers: serverHeaders(apiBase),
+  }).catch(() => null);
+  if (active) apiBase = active.serverUrl;
+  setCachedApiBase(apiBase);
+  if (active) {
+    await loadServerHeaders(apiBase);
+    const credentials = await credentialsForProfile(active.id);
+    try {
+      await SecureStore.setItemAsync("rakazo.api_base", active.serverUrl);
+      await SecureStore.setItemAsync("rakazo.session_token", credentials.token);
+      await SecureStore.setItemAsync(
+        "rakazo.server_headers",
+        JSON.stringify({ apiBase: active.serverUrl, headers: credentials.headers }),
+      );
+    } catch {
+      // Legacy keys are a compatibility mirror; per-profile credentials remain authoritative.
+    }
+  }
+  try {
+    const profileSpaceKey = active ? profileSpaceStorageKey(active.id) : null;
+    const profileSpace = profileSpaceKey ? await SecureStore.getItemAsync(profileSpaceKey) : null;
+    const storedSpace = profileSpace ?? (await SecureStore.getItemAsync(SPACE_KEY)) ?? "";
+    if (profileSpaceKey && profileSpace === null && storedSpace) {
+      await SecureStore.setItemAsync(profileSpaceKey, storedSpace).catch(() => undefined);
+    }
     setSelectedSpace(storedSpace);
     // A deletion fallback must override the now-invalid saved Space even when
     // the device failed to replace that value before the previous process exited.
@@ -92,6 +130,8 @@ export async function selectSpace(id: string) {
   const claimGeneration = currentSpaceSelectionGeneration();
   try {
     await SecureStore.setItemAsync(SPACE_KEY, id);
+    const profileId = activeAccountProfileId();
+    if (profileId) await SecureStore.setItemAsync(profileSpaceStorageKey(profileId), id);
     // Our write may have landed stale behind a newer overlapping selection's
     // write. Re-assert the live selection best-effort so durable converges
     // to it; each selector heals at most once, so overlapping chains settle
@@ -178,8 +218,13 @@ export async function selectInitialSpace(id: string) {
 }
 export async function loadOrganizationSpaces(): Promise<Record<string, string>> {
   try {
+    const profileId = activeAccountProfileId();
     const parsed: unknown = JSON.parse(
-      (await SecureStore.getItemAsync(ORGANIZATION_SPACES_KEY)) || "{}",
+      (profileId
+        ? await SecureStore.getItemAsync(profileOrganizationSpacesStorageKey(profileId))
+        : null) ||
+        (await SecureStore.getItemAsync(ORGANIZATION_SPACES_KEY)) ||
+        "{}",
     );
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? Object.fromEntries(
@@ -197,26 +242,25 @@ export async function rememberOrganizationSpace(
   spaceId: string,
 ): Promise<void> {
   const spaces = await loadOrganizationSpaces();
-  await writeStoredValue(
-    ORGANIZATION_SPACES_KEY,
-    JSON.stringify({ ...spaces, [organizationId]: spaceId }),
-  );
+  const next = JSON.stringify({ ...spaces, [organizationId]: spaceId });
+  const profileId = activeAccountProfileId();
+  if (profileId) {
+    await SecureStore.setItemAsync(profileOrganizationSpacesStorageKey(profileId), next);
+  }
+  await writeStoredValue(ORGANIZATION_SPACES_KEY, next);
 }
 export async function clearSpace(): Promise<boolean> {
+  const profileId = activeAccountProfileId();
+  if (profileId) {
+    await clearStoredValue(profileOrganizationSpacesStorageKey(profileId));
+    await clearStoredValue(profileSpaceStorageKey(profileId));
+  }
   const organizationsCleared = await clearStoredValue(ORGANIZATION_SPACES_KEY);
   const spaceCleared = await clearStoredValue(SPACE_KEY);
   const rollbackCleared = await clearStoredValue(SPACE_ROLLBACK_KEY);
   if (!organizationsCleared || !spaceCleared || !rollbackCleared) return false;
   setSelectedSpace("");
   return true;
-}
-async function snapshotSpace(): Promise<{ ok: true; value: string } | { ok: false }> {
-  if (rawSelectedSpaceId()) return { ok: true, value: rawSelectedSpaceId() };
-  try {
-    return { ok: true, value: (await SecureStore.getItemAsync(SPACE_KEY)) ?? "" };
-  } catch {
-    return { ok: false };
-  }
 }
 /**
  * Hangs up an active call while its session can still authorize the hang-up. Set by the call
@@ -227,153 +271,6 @@ let hangUpBeforeCredentialsCleared: (() => Promise<void>) | undefined;
 /** Registers (or clears) the hang-up that runs before an endpoint change clears credentials. */
 export function configureSessionEndHangUp(hangUp: (() => Promise<void>) | undefined): void {
   hangUpBeforeCredentialsCleared = hangUp;
-}
-type ClearedCredentials = {
-  previousToken: string;
-  previousSpace: string;
-  /** The revocation owed to the previous server, recorded before its credentials are discarded. */
-  pendingSignOut: PendingSignOut | undefined;
-};
-/**
- * Clears session + space for an endpoint change. Restores both if either wipe fails. The session it
- * clears is the one it records for revocation: a sign-in during the hang-up is read here, and any
- * session change after that read stops the switch before it clears anything.
- */
-async function clearCredentialsForEndpointChange(
-  previous: string,
-  previousHeaders: Record<string, string>,
-): Promise<({ ok: true } & ClearedCredentials) | { ok: false; result: EndpointResult }> {
-  // The old server's session authorizes the call's hang-up; send it while it still exists.
-  await hangUpBeforeCredentialsCleared?.().catch(() => undefined);
-  const generation = currentSessionGeneration();
-  // A save still running reads as no session; its token may land before the clear.
-  const previousToken = sessionSaveInProgress()
-    ? ({ ok: false } as const)
-    : await snapshotSessionToken();
-  // A failed save or wipe can leave a token stored that reads as no session. A restart would send
-  // it again, so the switch revokes it too, but restores only the session in use.
-  const revokedToken =
-    previousToken.ok && !previousToken.value ? await snapshotStoredSessionToken() : previousToken;
-  // An unreadable session is not an empty one: clearing now could strand a live session
-  // with no record to revoke it, so the switch stops before touching anything.
-  if (!previousToken.ok || !revokedToken.ok) {
-    return {
-      ok: false,
-      result: { ok: false, error: t`Could not save the previous server session` },
-    };
-  }
-  let pendingSignOut: PendingSignOut | undefined;
-  if (revokedToken.value) {
-    // Recorded before the old credentials are discarded, so a process kill cannot lose both —
-    // but provisionally: a retry must not revoke a session a rolled-back switch still uses.
-    pendingSignOut = {
-      apiBase: previous,
-      token: revokedToken.value,
-      headers: previousHeaders,
-      recordedAt: Date.now(),
-      provisional: true,
-    };
-    if (!(await savePendingSignOut(pendingSignOut))) {
-      // Without the record the old server keeps its session, so the switch cannot proceed.
-      return {
-        ok: false,
-        result: { ok: false, error: t`Could not save the previous server session` },
-      };
-    }
-  }
-  // `restoredToken` is the session the device still has; until the clear, that is the recorded one.
-  const failed = async (restoredToken = revokedToken.value) => {
-    await settleRolledBackSignOut(pendingSignOut, restoredToken);
-    return {
-      ok: false as const,
-      result: { ok: false as const, error: t`Could not clear the previous server session` },
-    };
-  };
-  // Captured before the read, so a selection made during it cannot pass as the one read.
-  const spaceGeneration = currentSpaceSelectionGeneration();
-  const previousSpace = await snapshotSpace();
-  if (!previousSpace.ok) return failed();
-  const rollbackReady = previousSpace.value
-    ? await saveSpaceRollback(previousSpace.value)
-    : await clearStoredValue(SPACE_ROLLBACK_KEY);
-  if (!rollbackReady) return failed();
-  // Checked in the same tick as the clear: a session saved after the read has no record.
-  if (generation !== currentSessionGeneration()) {
-    // An earlier failed switch may have left the rollback as the selection's only stored copy.
-    let kept = true;
-    if (previousSpace.value && currentSpaceSelectionGeneration() === spaceGeneration) {
-      kept = await writeStoredValue(SPACE_KEY, previousSpace.value);
-      // A selection made during a write may have landed first; store the live one again until a
-      // write completes with no selection made during it.
-      let written = spaceGeneration;
-      while (currentSpaceSelectionGeneration() !== written) {
-        written = currentSpaceSelectionGeneration();
-        kept = rawSelectedSpaceId()
-          ? await writeStoredValue(SPACE_KEY, rawSelectedSpaceId())
-          : await clearStoredValue(SPACE_KEY);
-      }
-    }
-    if (kept) await clearStoredValue(SPACE_ROLLBACK_KEY);
-    return failed();
-  }
-  const sessionCleared = await clearSessionToken();
-  setSelectedSpace("");
-  const spaceCleared = await clearStoredValue(SPACE_KEY);
-  // The clear is the only session change allowed. A sign-in during it saved a session for the old
-  // server: the switch must not carry it to the new one, and a restore would overwrite it. The
-  // cleared session is gone from the device, so its record stays.
-  if (currentSessionGeneration() !== generation + 1) return failed("");
-  if (sessionCleared && spaceCleared) {
-    return {
-      ok: true,
-      previousToken: previousToken.value,
-      previousSpace: previousSpace.value,
-      pendingSignOut,
-    };
-  }
-
-  return failed(await restoreCredentials(previousToken.value, previousSpace.value));
-}
-/**
- * Settles a rolled-back switch's revocation record. The rollback restores only the session in use,
- * and only a restore that stored it removes the record. Any other record stays provisional: the
- * next retry delivers it, unless that token is the active session again.
- */
-async function settleRolledBackSignOut(
-  record: PendingSignOut | undefined,
-  restoredToken: string,
-): Promise<void> {
-  if (record && record.token === restoredToken) await removePendingSignOut(record);
-}
-/** Rolls back an endpoint change that cleared credentials, settling its revocation record. */
-async function rollBackEndpointChange(cleared: ClearedCredentials | undefined): Promise<void> {
-  if (!cleared) return;
-  const restoredToken = await restoreCredentials(cleared.previousToken, cleared.previousSpace);
-  await settleRolledBackSignOut(cleared.pendingSignOut, restoredToken);
-}
-/** Returns the restored token, or "" when it is kept only in memory and a restart would lose it. */
-async function restoreCredentials(previousToken: string, previousSpace: string): Promise<string> {
-  let persisted = !previousToken || (await restoreSessionToken(previousToken));
-  if (!persisted) {
-    // A clear that failed too may have left the token stored, where a restart still finds it.
-    const stored = await snapshotStoredSessionToken();
-    persisted = stored.ok && stored.value === previousToken;
-  }
-  if (previousSpace) {
-    setSelectedSpace(previousSpace);
-    try {
-      await SecureStore.setItemAsync(SPACE_KEY, previousSpace);
-      await clearStoredValue(SPACE_ROLLBACK_KEY);
-    } catch {
-      // The endpoint-bound rollback record restores this selection after restart.
-    }
-  }
-  if (previousToken) {
-    await resumeLiveNotifications(currentApiBase(), previousToken, previousSpace).catch(
-      () => undefined,
-    );
-  }
-  return persisted ? previousToken : "";
 }
 async function saveSpaceRollback(spaceId: string): Promise<boolean> {
   return writeStoredValue(
@@ -412,69 +309,126 @@ async function recoverSpaceRollback(apiBase: string) {
 export async function saveApiBase(
   input: string,
   headers: Record<string, string> = {},
+  options: { label?: string; createProfile?: boolean } = {},
 ): Promise<EndpointResult> {
   const parsed = normalizeApiBase(input);
   if (!parsed.ok) return parsed;
+  if (options.createProfile || parsed.url !== currentApiBase()) {
+    const profile = await addAccountProfile(
+      parsed.url,
+      options.label || new URL(parsed.url).host,
+      headers,
+    );
+    const switched = await activateAccountProfile(profile.id);
+    return switched.ok ? parsed : switched;
+  }
   if (parsed.url === defaultApiBase() && Object.keys(headers).length === 0) return resetApiBase();
-  return queueEndpointChange(parsed.url, async (previous, switching) => {
-    const previousHeaders = serverHeaders(previous);
-    let cleared: ClearedCredentials | undefined;
-    if (switching) {
-      const result = await clearCredentialsForEndpointChange(previous, previousHeaders);
-      if (!result.ok) return result.result;
-      cleared = result;
+  if (!(await saveServerHeaders(parsed.url, headers))) {
+    return { ok: false, error: t`Could not save the server URL` };
+  }
+  return parsed;
+}
+
+/** Switches profile credentials and server as one in-memory request epoch. */
+export async function activateAccountProfile(profileId: string): Promise<EndpointResult> {
+  const profile = listAccountProfiles().find((item) => item.id === profileId);
+  if (!profile) return { ok: false, error: t`That account is no longer available.` };
+  if (profileId === activeAccountProfileId()) return { ok: true, url: profile.serverUrl };
+  return queueEndpointChange(profile.serverUrl, async () => {
+    await hangUpBeforeCredentialsCleared?.().catch(() => undefined);
+    const previousProfile = activeAccountProfile();
+    if (previousProfile) {
+      const previousSpace = rawSelectedSpaceId();
+      if (previousSpace) {
+        await writeStoredValue(profileSpaceStorageKey(previousProfile.id), previousSpace);
+      }
+      try {
+        const organizations = await SecureStore.getItemAsync(ORGANIZATION_SPACES_KEY);
+        if (organizations) {
+          await SecureStore.setItemAsync(
+            profileOrganizationSpacesStorageKey(previousProfile.id),
+            organizations,
+          );
+        }
+      } catch {
+        // Space preferences are best-effort; credentials are still switched atomically below.
+      }
     }
-    if (!(await saveServerHeaders(parsed.url, headers))) {
-      await rollBackEndpointChange(cleared);
-      return { ok: false, error: t`Could not save the server URL` };
-    }
+    const nextSpace = await SecureStore.getItemAsync(profileSpaceStorageKey(profileId)).catch(
+      () => null,
+    );
+    const nextOrganizations = await SecureStore.getItemAsync(
+      profileOrganizationSpacesStorageKey(profileId),
+    ).catch(() => null);
+    await loadProfileServerHeaders(profileId, profile.serverUrl);
+    let selected: Awaited<ReturnType<typeof persistActiveAccountProfile>>;
     try {
-      await SecureStore.setItemAsync(ENDPOINT_KEY, parsed.url);
+      selected = await persistActiveAccountProfile(profileId);
     } catch {
-      await saveServerHeaders(previous, previousHeaders);
-      await rollBackEndpointChange(cleared);
-      return { ok: false, error: t`Could not save the server URL` };
+      await loadServerHeaders(currentApiBase());
+      return { ok: false, error: t`Could not save the account selection.` };
     }
-    setCachedApiBase(parsed.url);
+    if (!selected) {
+      await loadServerHeaders(currentApiBase());
+      return { ok: false, error: t`That account is no longer available.` };
+    }
+    setCachedApiBase(selected.serverUrl);
+    setSelectedSpace(nextSpace ?? "");
+    // This synchronously advances the request epoch before the first await, so
+    // no request can mix the new token with the previous profile's cache state.
+    const sessionSwitch = activateSavedProfileSession(selected.id);
+    await writeStoredValue(SPACE_KEY, nextSpace ?? "");
+    if (nextOrganizations) {
+      await writeStoredValue(ORGANIZATION_SPACES_KEY, nextOrganizations);
+    } else {
+      await clearStoredValue(ORGANIZATION_SPACES_KEY);
+    }
     await clearStoredValue(SPACE_ROLLBACK_KEY);
-    if (cleared?.pendingSignOut) await promotePendingSignOut(cleared.pendingSignOut);
-    if (cleared) await clearStoredValue(ORGANIZATION_SPACES_KEY);
-    return parsed;
+    await sessionSwitch;
+    const credentials = await credentialsForProfile(selected.id);
+    try {
+      await SecureStore.setItemAsync("rakazo.api_base", selected.serverUrl);
+      await SecureStore.setItemAsync("rakazo.session_token", credentials.token);
+      await SecureStore.setItemAsync(
+        "rakazo.server_headers",
+        JSON.stringify({ apiBase: selected.serverUrl, headers: credentials.headers }),
+      );
+    } catch {
+      // Legacy mirrors support native extensions; the profile store remains authoritative.
+    }
+    if (nextSpace) {
+      await resumeSelectedSpaceNotifications(nextSpace, currentSpaceSelectionGeneration());
+    }
+    return { ok: true, url: selected.serverUrl };
   });
+}
+
+export async function removeSavedAccountProfile(profileId: string): Promise<boolean> {
+  const profiles = listAccountProfiles();
+  if (profiles.length < 2) return false;
+  const removed = profiles.find((profile) => profile.id === profileId);
+  if (!removed) return false;
+  if (profileId === activeAccountProfileId()) {
+    const replacement = profiles.find((profile) => profile.id !== profileId);
+    if (!replacement || !(await activateAccountProfile(replacement.id)).ok) return false;
+  }
+  const credentials = await credentialsForProfile(profileId);
+  if (credentials.token) {
+    const pendingSignOut: PendingSignOut = {
+      apiBase: removed.serverUrl,
+      token: credentials.token,
+      headers: credentials.headers,
+      recordedAt: Date.now(),
+    };
+    if (!(await savePendingSignOut(pendingSignOut))) return false;
+    void flushPendingSignOut().catch(() => undefined);
+  }
+  return (await deleteAccountProfile(profileId)) !== null;
 }
 export async function resetApiBase(): Promise<EndpointResult> {
   const url = defaultApiBase();
-  return queueEndpointChange(url, async (previous, switching) => {
-    let cleared: ClearedCredentials | undefined;
-    if (switching) {
-      const result = await clearCredentialsForEndpointChange(previous, serverHeaders(previous));
-      if (!result.ok) return result.result;
-      cleared = result;
-    }
-    try {
-      await SecureStore.deleteItemAsync(ENDPOINT_KEY);
-    } catch {
-      if (cleared) {
-        await rollBackEndpointChange(cleared);
-        return { ok: false, error: t`Could not clear the custom server URL` };
-      }
-    }
-    if (!(await saveServerHeaders(url, {}))) {
-      if (await writeStoredValue(ENDPOINT_KEY, previous)) {
-        await rollBackEndpointChange(cleared);
-      } else {
-        // Without the old server URL stored again, the next launch opens the default server, so
-        // this launch follows it too: the old session is not restored, its record stays for the
-        // next retry to revoke, and a later sign-in's token is never sent to another server.
-        setCachedApiBase(url);
-        if (cleared) await clearStoredValue(ORGANIZATION_SPACES_KEY);
-      }
-      return { ok: false, error: t`Could not clear the custom server URL` };
-    }
-    setCachedApiBase(url);
-    await clearStoredValue(SPACE_ROLLBACK_KEY);
-    if (cleared?.pendingSignOut) await promotePendingSignOut(cleared.pendingSignOut);
-    if (cleared) await clearStoredValue(ORGANIZATION_SPACES_KEY);
-    return { ok: true, url };
-  });
+  const existing = listAccountProfiles().find((profile) => profile.serverUrl === url);
+  if (existing) return activateAccountProfile(existing.id);
+  const profile = await addAccountProfile(url, new URL(url).host, {});
+  return activateAccountProfile(profile.id);
 }

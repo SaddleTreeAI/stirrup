@@ -33,6 +33,24 @@ internal object SenderPush {
   /** Its own ID per thread, as Expo's had, so the poller's fallback post never replaces it. */
   fun notificationId(threadId: String) = "push:$threadId".hashCode()
 
+  fun targetLink(
+    botId: String,
+    groupId: String?,
+    spaceId: String,
+    threadId: String,
+    profileId: String,
+    serverOrigin: String,
+  ): String {
+    val owner = groupId?.takeIf(String::isNotBlank)?.let { "groupId=${Uri.encode(it)}" }
+      ?: "botId=${Uri.encode(botId)}"
+    val binding = if (profileId.isNotBlank() && isValidServerOrigin(serverOrigin)) {
+      "&clientProfileId=${Uri.encode(profileId)}&serverOrigin=${Uri.encode(serverOrigin)}"
+    } else {
+      ""
+    }
+    return "rakazo://push-target?$owner&spaceId=${Uri.encode(spaceId)}&threadId=${Uri.encode(threadId)}$binding"
+  }
+
   /**
    * Decides a message push without Android calls, so the policy stays unit-testable. A Stirrup
    * push with no stored session belongs to an account that signed out or left for another
@@ -148,9 +166,14 @@ internal object SenderPush {
   }.getOrNull()
 
   private fun openThread(context: Context, data: JSONObject, botId: String, threadId: String): PendingIntent {
-    val groupId = data.optString("groupId")
-    val owner = if (groupId.isNotBlank()) "group-thread?groupId=${Uri.encode(groupId)}" else "thread?botId=${Uri.encode(botId)}"
-    val link = "rakazo://$owner&spaceId=${Uri.encode(data.optString("spaceId"))}&threadId=${Uri.encode(threadId)}"
+    val link = targetLink(
+      botId,
+      data.optString("groupId").takeIf(String::isNotBlank),
+      data.optString("spaceId"),
+      threadId,
+      data.optString("clientProfileId"),
+      data.optString("serverOrigin"),
+    )
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link)).setPackage(context.packageName).apply {
       flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
     }
@@ -161,6 +184,12 @@ internal object SenderPush {
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
   }
+
+  private fun isValidServerOrigin(value: String): Boolean = runCatching {
+    val uri = Uri.parse(value)
+    (uri.scheme == "https" || uri.scheme == "http") && uri.host != null && uri.path.isNullOrEmpty() &&
+      uri.query == null && uri.fragment == null && uri.toString() == value
+  }.getOrDefault(false)
 
   private fun inForeground(): Boolean {
     val process = ActivityManager.RunningAppProcessInfo()

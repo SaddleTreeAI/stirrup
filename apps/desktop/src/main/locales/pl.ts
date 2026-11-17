@@ -123,6 +123,7 @@ export const PL_MESSAGES: Record<string, string> = {
 
   // Connecting to a server
   "Enter a server address.": "Wpisz adres serwera.",
+  "You have reached the saved account limit.": "Osiągnięto limit zapisanych kont.",
   "Enter a valid http:// or https:// address.": "Wpisz poprawny adres http:// lub https://.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "Wpisz poprawny adres serwera. Serwery publiczne wymagają HTTPS. Nowa lokalna instancja musi używać localhost.",

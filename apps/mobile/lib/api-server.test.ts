@@ -6,30 +6,24 @@ import { deferred } from "@rakazo/core/test-async";
 import * as SecureStore from "expo-secure-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  authHeaders,
-  currentApiBase,
-  flushPendingSignOut,
-  rpc,
-  selectedSpaceId,
-  spaceSelectionSeq,
-} from "./api.js";
-import { signIn, signOut } from "./api-auth.js";
+  activeAccountProfileId,
+  addAccountProfile,
+  credentialsForProfile,
+  listAccountProfiles,
+  profileCredentialStorageKey,
+  saveProfileToken,
+} from "./account-profiles";
+import { authHeaders, currentApiBase, rpc, selectedSpaceId, spaceSelectionSeq } from "./api.js";
 import {
+  activateAccountProfile,
   adoptDeletedSpaceFallback,
-  clearSpace,
-  configureSessionEndHangUp,
   loadApiBase,
-  resetApiBase,
+  removeSavedAccountProfile,
   saveApiBase,
   selectSpace,
 } from "./api-server.js";
-import { resumeLiveNotifications, stopLiveNotifications } from "./live-notifications.js";
-import {
-  clearSessionToken,
-  restoreSessionToken,
-  saveSessionToken,
-  snapshotSessionToken,
-} from "./session.js";
+import { resumeLiveNotifications } from "./live-notifications.js";
+import { restoreSessionToken } from "./session.js";
 
 vi.mock("expo-secure-store", () => ({
   getItemAsync: vi.fn(),
@@ -54,6 +48,11 @@ import {
   rpcErrorResponse,
 } from "./api-test-helpers";
 
+async function mockProfileStore(store: Map<string, string>): Promise<void> {
+  mockSecureStore(store);
+  await loadApiBase();
+}
+
 describe("mobile API server and Space selection", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
@@ -61,11 +60,12 @@ describe("mobile API server and Space selection", () => {
     vi.mocked(SecureStore.setItemAsync).mockReset();
     vi.mocked(SecureStore.deleteItemAsync).mockReset();
     vi.mocked(resumeLiveNotifications).mockClear();
+    await mockProfileStore(new Map());
     await restoreSessionToken("");
   });
 
   it("shares the selected space with direct API requests", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("session-token");
+    await restoreSessionToken("session-token");
     await selectSpace("space-support");
 
     await expect(authHeaders()).resolves.toEqual({
@@ -105,1152 +105,111 @@ describe("mobile API server and Space selection", () => {
     await selectSpace("");
   });
 
-  it("clears server-specific session and space state when the API endpoint changes", async () => {
-    await selectSpace("space-support");
-    vi.mocked(SecureStore.deleteItemAsync).mockClear();
+  // These profile regressions replace the old endpoint-switch/revoke race cases:
+  // a server/account switch must keep both credential sets; only explicit removal
+  // schedules revocation, and it must use the removed profile's origin and headers.
+  it("keeps credentials and Space preferences isolated across same-host accounts", async () => {
+    const firstId = activeAccountProfileId();
+    if (!firstId) throw new Error("The migrated profile is missing");
+    await saveProfileToken(firstId, "first-token");
+    await selectSpace("space-first");
+    const second = await addAccountProfile(currentApiBase(), "Second login", {
+      "CF-Access-Client-Id": "second-access",
+    });
+    await saveProfileToken(second.id, "second-token");
+    await activateAccountProfile(second.id);
+    await selectSpace("space-second");
 
-    await expect(saveApiBase("https://second-server.example")).resolves.toMatchObject({ ok: true });
-
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("rakazo.session_token");
-    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("rakazo.space_id");
-    await resetApiBase();
+    await expect(activateAccountProfile(firstId)).resolves.toMatchObject({ ok: true });
+    await expect(authHeaders()).resolves.toMatchObject({
+      authorization: "Bearer first-token",
+      "x-rakazo-space-id": "space-first",
+    });
+    await expect(activateAccountProfile(second.id)).resolves.toMatchObject({ ok: true });
+    await expect(authHeaders()).resolves.toMatchObject({
+      authorization: "Bearer second-token",
+      "CF-Access-Client-Id": "second-access",
+      "x-rakazo-space-id": "space-second",
+    });
+    expect(await credentialsForProfile(firstId)).toEqual({ token: "first-token", headers: {} });
   });
 
-  it("keeps the previous server's revocation pending when switching servers signed in", async () => {
-    const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toMatchObject({ ok: true });
-
-    // The old server keeps the session and the push registration after a local switch.
-    expect(pendingSignOutRecords(store)).toEqual([
-      { apiBase: "http://127.0.0.1:3100", token: "session-token" },
-    ]);
-    await resetApiBase();
-  });
-
-  it("records the switch's revocation before discarding the old session", async () => {
-    const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toMatchObject({ ok: true });
-
-    const recorded = vi
-      .mocked(SecureStore.setItemAsync)
-      .mock.calls.findIndex(([key]) => key === "rakazo.pending_sign_out");
-    const discarded = vi
-      .mocked(SecureStore.deleteItemAsync)
-      .mock.calls.findIndex((call) => call[0] === "rakazo.session_token");
-    expect(recorded).toBeGreaterThanOrEqual(0);
-    expect(discarded).toBeGreaterThanOrEqual(0);
-    // A process kill between the two leaves the revocation durable, not neither.
-    const recordedOrder = vi.mocked(SecureStore.setItemAsync).mock.invocationCallOrder[
-      recorded
-    ] as number;
-    const discardedOrder = vi.mocked(SecureStore.deleteItemAsync).mock.invocationCallOrder[
-      discarded
-    ] as number;
-    expect(recordedOrder).toBeLessThan(discardedOrder);
-    await resetApiBase();
-  });
-
-  it("a rolled-back server switch leaves no pending revocation", async () => {
-    for (const failure of ["clear", "endpoint"] as const) {
-      const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-      mockSecureStore(store);
-      if (failure === "clear") {
-        vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-          if (key === "rakazo.session_token") throw new Error("device locked");
-          store.delete(key);
-        });
-        vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-          if (key === "rakazo.session_token") throw new Error("device locked");
-          store.set(key, value);
-        });
-      } else {
-        vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-          if (key === "rakazo.api_base") throw new Error("device locked");
-          store.set(key, value);
-        });
-      }
-
-      const saved = saveApiBase("https://second-server.example");
-      await expect(saved).resolves.toMatchObject({ ok: false });
-      // The switch rolled back, so the session it recorded a revocation for stays in use.
-      expect(pendingSignOutRecords(store)).toEqual([]);
-    }
-  });
-
-  it("aborts a server switch when the revocation cannot be recorded", async () => {
+  it("switches hosts without ever sending the old token to the new host", async () => {
     const store = new Map<string, string>();
-    mockSecureStore(store);
-    await saveApiBase("https://second-server.example");
-    store.set("rakazo.session_token", "session-token");
+    await mockProfileStore(store);
+    const oldId = activeAccountProfileId();
+    if (!oldId) throw new Error("The migrated profile is missing");
+    await saveProfileToken(oldId, "old-host-token");
+
+    await expect(saveApiBase("https://second-server.example")).resolves.toMatchObject({ ok: true });
+
+    expect(currentApiBase()).toBe("https://second-server.example");
+    await expect(authHeaders()).resolves.toMatchObject({});
+    expect(await credentialsForProfile(oldId)).toEqual({ token: "old-host-token", headers: {} });
+    expect(pendingSignOutRecords(store)).toEqual([]);
+  });
+
+  it("leaves the active profile unchanged when the durable active-ID commit fails", async () => {
+    const store = new Map<string, string>();
+    await mockProfileStore(store);
+    const originalId = activeAccountProfileId();
+    if (!originalId) throw new Error("The migrated profile is missing");
+    const second = await addAccountProfile("https://second-server.example", "Second", {});
+    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
+      if (key === "rakazo.active_account_profile") throw new Error("device locked");
+      store.set(key, value);
+    });
+
+    await expect(activateAccountProfile(second.id)).resolves.toMatchObject({ ok: false });
+
+    expect(activeAccountProfileId()).toBe(originalId);
+    expect(currentApiBase()).not.toBe("https://second-server.example");
+  });
+
+  it("revokes a removed profile only against that profile's server and headers", async () => {
+    const store = new Map<string, string>();
+    await mockProfileStore(store);
+    const originalId = activeAccountProfileId();
+    if (!originalId) throw new Error("The migrated profile is missing");
+    const originalUrl = currentApiBase();
+    await saveProfileToken(originalId, "removed-token");
+    const profileHeaders = { "CF-Access-Client-Id": "removed-access" };
+    const removed = await addAccountProfile(
+      "https://second-server.example",
+      "Second",
+      profileHeaders,
+    );
+    await saveProfileToken(removed.id, "still-saved-token");
+    await activateAccountProfile(removed.id);
+    await removeSavedAccountProfile(removed.id);
+
+    expect(listAccountProfiles().some(({ id }) => id === removed.id)).toBe(false);
+    expect(pendingSignOutRecords(store)).toEqual([
+      { apiBase: "https://second-server.example", token: "still-saved-token" },
+    ]);
+    expect(currentApiBase()).toBe(originalUrl);
+    expect(await credentialsForProfile(originalId)).toEqual({
+      token: "removed-token",
+      headers: {},
+    });
+  });
+
+  it("does not remove a profile when its sign-out record cannot be persisted", async () => {
+    const store = new Map<string, string>();
+    await mockProfileStore(store);
+    const originalId = activeAccountProfileId();
+    if (!originalId) throw new Error("The migrated profile is missing");
+    const second = await addAccountProfile("https://second-server.example", "Second", {});
+    await saveProfileToken(second.id, "second-token");
     vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
       if (key === "rakazo.pending_sign_out") throw new Error("device locked");
       store.set(key, value);
     });
 
-    // Without the record the old server keeps its session forever, so the switch stops.
-    await expect(resetApiBase()).resolves.toEqual({
-      ok: false,
-      error: "Could not save the previous server session",
-    });
-    expect(store.get("rakazo.session_token")).toBe("session-token");
-    expect(store.get("rakazo.api_base")).toBe("https://second-server.example");
+    await expect(removeSavedAccountProfile(second.id)).resolves.toBe(false);
 
-    await expect(saveApiBase("https://third-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not save the previous server session",
-    });
-    expect(store.get("rakazo.session_token")).toBe("session-token");
-    // Restore writable storage so the cleanup switch can record its own revocation.
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      store.set(key, value);
-    });
-    await resetApiBase();
-  });
-
-  it("a flush racing a failing server switch cannot revoke the old session", async () => {
-    const store = new Map<string, string>([["rakazo.session_token", "token-a"]]);
-    mockSecureStore(store);
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token") throw new Error("device locked");
-      store.set(key, value);
-    });
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") {
-        // An answered request retries the record at the moment the switch starts clearing.
-        await flushPendingSignOut();
-        throw new Error("device locked");
-      }
-      store.delete(key);
-    });
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-    vi.stubGlobal("fetch", fetchMock);
-    const next =
-      currentApiBase() === "https://second-server.example"
-        ? "https://third-server.example"
-        : "https://second-server.example";
-
-    await expect(saveApiBase(next)).resolves.toMatchObject({ ok: false });
-
-    expect(fetchMock.mock.calls).toEqual([]);
-    expect(pendingSignOutRecords(store)).toEqual([]);
-    expect(store.get("rakazo.session_token")).toBe("token-a");
-  });
-
-  it("delivers a provisional record a failed promotion left behind", async () => {
-    const store = new Map<string, string>([["rakazo.session_token", "token-a"]]);
-    mockSecureStore(store);
-    let pendingWrites = 0;
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.pending_sign_out") {
-        pendingWrites += 1;
-        // The switch's own write lands; the promotion at commit does not.
-        if (pendingWrites === 2) throw new Error("device locked");
-        store.set(key, value);
-        return;
-      }
-      store.set(key, value);
-    });
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toMatchObject({ ok: true });
-    const stored = JSON.parse(store.get("rakazo.pending_sign_out") ?? "[]") as {
-      provisional?: boolean;
-    }[];
-    expect(stored.length).toBe(1);
-    expect(stored[0]?.provisional).toBe(true);
-
-    // An ordinary flush — not a launch — resolves the leftover record and delivers it.
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-    vi.stubGlobal("fetch", fetchMock);
-    await flushPendingSignOut();
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      "http://127.0.0.1:3100/api/auth/sign-out",
-    ]);
-    expect(pendingSignOutRecords(store)).toEqual([]);
-    await resetApiBase();
-  });
-
-  it("a reconcile suspended mid-read leaves a starting switch's record alone", async () => {
-    const store = new Map<string, string>([["rakazo.session_token", "token-a"]]);
-    store.set(
-      "rakazo.pending_sign_out",
-      JSON.stringify([
-        {
-          apiBase: "http://127.0.0.1:3100",
-          token: "token-a",
-          headers: {},
-          recordedAt: Date.now(),
-          provisional: true,
-        },
-      ]),
-    );
-    mockSecureStore(store);
-    let releaseSessionRead: Deferred | undefined;
-    let sessionReads = 0;
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") {
-        sessionReads += 1;
-        if (sessionReads === 1) {
-          releaseSessionRead = deferred();
-          await releaseSessionRead.promise;
-        }
-      }
-      return store.get(key) ?? null;
-    });
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") throw new Error("device locked");
-      store.delete(key);
-    });
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token") throw new Error("device locked");
-      store.set(key, value);
-    });
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-    vi.stubGlobal("fetch", fetchMock);
-
-    // The reconcile suspends reading the session; the switch starts while it waits.
-    const settling = flushPendingSignOut(true);
-    await vi.waitFor(() => expect(sessionReads).toBeGreaterThanOrEqual(1));
-    const switching = saveApiBase("https://second-server.example");
-    await vi.waitFor(() => expect(sessionReads).toBeGreaterThanOrEqual(2));
-    releaseSessionRead?.resolve();
-    await settling;
-    await expect(switching).resolves.toMatchObject({ ok: false });
-
-    expect(fetchMock.mock.calls).toEqual([]);
-    expect(pendingSignOutRecords(store)).toEqual([]);
-    expect(store.get("rakazo.session_token")).toBe("token-a");
-  });
-
-  it.each(["save", "reset"])(
-    "serializes a %s behind an earlier switch rollback",
-    async (change) => {
-      const store = new Map<string, string>();
-      mockSecureStore(store);
-      await saveApiBase("https://old-server.example");
-      await restoreSessionToken("token-a");
-      let failEndpointWrite: (() => void) | undefined;
-      let endpointWrites = 0;
-      vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-        if (key === "rakazo.api_base") {
-          endpointWrites += 1;
-          if (endpointWrites === 1) {
-            await new Promise((_resolve, reject) => {
-              failEndpointWrite = () => reject(new Error("device locked"));
-            });
-          }
-        }
-        store.set(key, value);
-      });
-      const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-      vi.stubGlobal("fetch", fetchMock);
-
-      // This switch clears the old credentials, then parks before committing.
-      const first = saveApiBase("https://second-server.example");
-      await vi.waitFor(() => expect(failEndpointWrite).toBeTruthy());
-      const second =
-        change === "save" ? saveApiBase("https://third-server.example") : resetApiBase();
-      try {
-        // Give the overlapping transaction and reconciliation the same storage window.
-        await flushPendingSignOut(true);
-        expect(fetchMock.mock.calls).toEqual([]);
-      } finally {
-        failEndpointWrite?.();
-      }
-      await expect(first).resolves.toMatchObject({ ok: false });
-      await expect(second).resolves.toMatchObject({ ok: true });
-      expect(currentApiBase()).toBe(
-        change === "save" ? "https://third-server.example" : "http://127.0.0.1:3100",
-      );
-      expect(store.has("rakazo.session_token")).toBe(false);
-      expect(pendingSignOutRecords(store)).toEqual([
-        { apiBase: "https://old-server.example", token: "token-a" },
-      ]);
-      await resetApiBase();
-    },
-  );
-
-  it.each(["save", "reset"])(
-    "a %s rollback preserves a newer explicit sign-out record",
-    async (change) => {
-      vi.spyOn(Date, "now").mockReturnValue(Date.now());
-      const store = new Map<string, string>();
-      mockSecureStore(store);
-      if (change === "reset") await saveApiBase("https://old-server.example");
-      const apiBase = currentApiBase();
-      await restoreSessionToken("token-a");
-      await selectSpace("space-old");
-      let releaseRollback!: Deferred;
-      const rollbackStarted = new Promise<void>((resolve) => {
-        vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-          if (key === "rakazo.space_rollback" && value) {
-            resolve();
-            releaseRollback = deferred();
-            await releaseRollback.promise;
-            throw new Error("device locked");
-          }
-          store.set(key, value);
-        });
-      });
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => {
-          throw new Error("offline");
-        }),
-      );
-
-      const switching =
-        change === "save" ? saveApiBase("https://second-server.example") : resetApiBase();
-      await rollbackStarted;
-      // The provisional record is durable; the old session has not been cleared yet.
-      const signingOut = signOut();
-      try {
-        await vi.waitFor(() => {
-          const records = JSON.parse(store.get("rakazo.pending_sign_out") ?? "[]");
-          expect(records).toHaveLength(1);
-          expect(records[0].provisional).toBeUndefined();
-        });
-      } finally {
-        releaseRollback.resolve();
-      }
-      await expect(switching).resolves.toMatchObject({ ok: false });
-      await signingOut;
-      expect(pendingSignOutRecords(store)).toEqual([{ apiBase, token: "token-a" }]);
-      vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-        store.set(key, value);
-      });
-      await resetApiBase();
-    },
-  );
-
-  it("aborts a server switch when the session cannot be read", async () => {
-    const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
-    mockSecureStore(store);
-    let sessionReads = 0;
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") {
-        sessionReads += 1;
-        // The switch's own read fails; a later read would see the session again.
-        if (sessionReads === 1) throw new Error("device locked");
-      }
-      return store.get(key) ?? null;
-    });
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not save the previous server session",
-    });
-    // Without knowing whether the old server has a session, the switch clears nothing.
-    expect(store.get("rakazo.session_token")).toBe("session-token");
-    expect(pendingSignOutRecords(store)).toEqual([]);
-    await resetApiBase();
-  });
-
-  it.each(["the call hang-up", "the space rollback write"])(
-    "a save never clears a session that replaced the recorded one during %s",
-    async (during) => {
-      const store = new Map<string, string>();
-      mockSecureStore(store);
-      await restoreSessionToken("token-a");
-      await selectSpace("space-old");
-      // An earlier failed switch left the selection stored only in its rollback record.
-      store.delete("rakazo.space_id");
-      const signIn = () => saveSessionToken("token-b");
-      if (during === "the call hang-up") {
-        configureSessionEndHangUp(signIn);
-      } else {
-        vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-          if (key === "rakazo.space_rollback" && value) await signIn();
-          store.set(key, value);
-        });
-      }
-      let result: Awaited<ReturnType<typeof saveApiBase>>;
-      try {
-        result = await saveApiBase("https://second-server.example");
-      } finally {
-        configureSessionEndHangUp(undefined);
-        mockSecureStore(store);
-      }
-
-      if (during === "the call hang-up") {
-        // The switch reads the session after the hang-up, so it revokes the session it clears.
-        expect(result).toMatchObject({ ok: true });
-        expect(store.has("rakazo.session_token")).toBe(false);
-        expect(pendingSignOutRecords(store).map((record) => record.token)).toEqual(["token-b"]);
-      } else {
-        // A session that changed after the read stops the switch before it clears anything.
-        expect(result).toMatchObject({ ok: false });
-        expect(store.get("rakazo.session_token")).toBe("token-b");
-        expect(pendingSignOutRecords(store)).toEqual([]);
-        expect(store.get("rakazo.space_id")).toBe("space-old");
-      }
-      await resetApiBase();
-    },
-  );
-
-  it("a save stops while a session save started during the hang-up is still running", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    await selectSpace("space-old");
-    const saveHeld = deferred();
-    let saving: Promise<void> | undefined;
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token" && value === "token-b") await saveHeld.promise;
-      // The save completes while the switch writes the Space rollback.
-      if (key === "rakazo.space_rollback" && value) {
-        saveHeld.resolve();
-        await saving;
-      }
-      store.set(key, value);
-    });
-    configureSessionEndHangUp(async () => {
-      saving = saveSessionToken("token-b");
-    });
-    let result: Awaited<ReturnType<typeof saveApiBase>>;
-    try {
-      result = await saveApiBase("https://second-server.example");
-    } finally {
-      configureSessionEndHangUp(undefined);
-      saveHeld.resolve();
-      await saving;
-      mockSecureStore(store);
-    }
-
-    expect(result).toMatchObject({ ok: false });
-    expect(store.get("rakazo.session_token")).toBe("token-b");
-    expect(pendingSignOutRecords(store)).toEqual([]);
-    await resetApiBase();
-  });
-
-  it("a save revokes a stored session that a failed save during the hang-up left unsent", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    await selectSpace("space-old");
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token" && value === "token-b") throw new Error("device locked");
-      store.set(key, value);
-    });
-    configureSessionEndHangUp(() => saveSessionToken("token-b"));
-    let result: Awaited<ReturnType<typeof saveApiBase>>;
-    try {
-      result = await saveApiBase("https://second-server.example");
-    } finally {
-      configureSessionEndHangUp(undefined);
-      mockSecureStore(store);
-    }
-
-    // The failed save left token-a stored; a restart would send it, so the switch revokes it.
-    expect(result).toMatchObject({ ok: true });
-    expect(store.has("rakazo.session_token")).toBe(false);
-    expect(pendingSignOutRecords(store).map((record) => record.token)).toEqual(["token-a"]);
-    await resetApiBase();
-  });
-
-  it.each(["save", "reset"])(
-    "a %s rolled back after clearing a stored session a failed save left unsent keeps its revocation",
-    async (change) => {
-      const store = new Map<string, string>();
-      mockSecureStore(store);
-      if (change === "reset") await saveApiBase("https://old-server.example");
-      await restoreSessionToken("token-a");
-      await selectSpace("space-old");
-      vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-        if (key === "rakazo.session_token" && value === "token-b") throw new Error("device locked");
-        if (change === "save" && key === "rakazo.api_base") throw new Error("device locked");
-        store.set(key, value);
-      });
-      vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-        if (change === "reset" && key === "rakazo.api_base") throw new Error("device locked");
-        store.delete(key);
-      });
-      configureSessionEndHangUp(() => saveSessionToken("token-b"));
-      let result: Awaited<ReturnType<typeof saveApiBase>>;
-      try {
-        result = await (change === "save"
-          ? saveApiBase("https://second-server.example")
-          : resetApiBase());
-      } finally {
-        configureSessionEndHangUp(undefined);
-        mockSecureStore(store);
-      }
-
-      // The rollback does not bring token-a back, so its revocation stays owed.
-      expect(result).toMatchObject({ ok: false });
-      expect(store.has("rakazo.session_token")).toBe(false);
-      expect(await authHeaders()).not.toHaveProperty("authorization");
-      expect(pendingSignOutRecords(store).map((record) => record.token)).toEqual(["token-a"]);
-      await resetApiBase();
-    },
-  );
-
-  it.each([
-    ["save", "nothing"],
-    ["save", "a sign-in during the rollback"],
-    ["save", "a sign-in after the rollback"],
-    ["reset", "nothing"],
-    ["reset", "a sign-in during the rollback"],
-    ["reset", "a sign-in after the rollback"],
-  ])(
-    "a %s rolled back after clearing an unsent stored session revokes it unless %s reactivates it",
-    async (change, reactivation) => {
-      const store = new Map<string, string>();
-      mockSecureStore(store);
-      if (change === "reset") await saveApiBase("https://old-server.example");
-      const previous = currentApiBase();
-      await restoreSessionToken("token-a");
-      await selectSpace("space-old");
-      let rollingBack = false;
-      vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-        if (key === "rakazo.session_token" && value === "token-b") throw new Error("device locked");
-        if (change === "save" && key === "rakazo.api_base") {
-          rollingBack = true;
-          throw new Error("device locked");
-        }
-        // The rollback restores the Space; a sign-in that returns token-a lands meanwhile.
-        if (
-          key === "rakazo.space_id" &&
-          rollingBack &&
-          reactivation === "a sign-in during the rollback"
-        ) {
-          rollingBack = false;
-          await saveSessionToken("token-a");
-        }
-        store.set(key, value);
-      });
-      vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-        if (change === "reset" && key === "rakazo.api_base") {
-          rollingBack = true;
-          throw new Error("device locked");
-        }
-        store.delete(key);
-      });
-      configureSessionEndHangUp(() => saveSessionToken("token-b"));
-      let result: Awaited<ReturnType<typeof saveApiBase>>;
-      try {
-        result = await (change === "save"
-          ? saveApiBase("https://second-server.example")
-          : resetApiBase());
-      } finally {
-        configureSessionEndHangUp(undefined);
-        mockSecureStore(store);
-      }
-      if (reactivation === "a sign-in after the rollback") await saveSessionToken("token-a");
-      const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-      vi.stubGlobal("fetch", fetchMock);
-      await flushPendingSignOut(true);
-
-      expect(result).toMatchObject({ ok: false });
-      const signOuts = fetchMock.mock.calls.filter(([url]) =>
-        String(url).endsWith("/api/auth/sign-out"),
-      );
-      if (reactivation === "nothing") {
-        expect(signOuts.map(([url]) => url)).toEqual([`${previous}/api/auth/sign-out`]);
-        const [, init] = signOuts[0] as [string, RequestInit];
-        expect(init.headers).toMatchObject({
-          authorization: "Bearer token-a",
-        });
-      } else {
-        // The session in use again is not revoked.
-        expect(signOuts).toEqual([]);
-        expect(store.get("rakazo.session_token")).toBe("token-a");
-      }
-      expect(pendingSignOutRecords(store)).toEqual([]);
-      await resetApiBase();
-    },
-  );
-
-  it("a save stopped by a session change stores a Space selected during its restoring write", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    await selectSpace("space-old");
-    let selecting: Promise<boolean> | undefined;
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.space_rollback" && value) await saveSessionToken("token-b");
-      if (key === "rakazo.space_id" && value === "space-old" && !selecting) {
-        // A new selection lands before the switch's restoring write.
-        selecting = selectSpace("space-new");
-        await selecting;
-      }
-      store.set(key, value);
-    });
-    let result: Awaited<ReturnType<typeof saveApiBase>>;
-    try {
-      result = await saveApiBase("https://second-server.example");
-    } finally {
-      mockSecureStore(store);
-    }
-
-    expect(selecting).toBeDefined();
-    expect(result).toMatchObject({ ok: false });
-    expect(selectedSpaceId()).toBe("space-new");
-    expect(store.get("rakazo.space_id")).toBe("space-new");
-    expect(store.has("rakazo.space_rollback")).toBe(false);
-    await resetApiBase();
-  });
-
-  it("a save stopped by a session change stores the last Space selected during its repair", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    await selectSpace("space-old");
-    let selecting: Promise<boolean> | undefined;
-    let reselecting: Promise<boolean> | undefined;
-    let newWrites = 0;
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.space_rollback" && value) await saveSessionToken("token-b");
-      if (key === "rakazo.space_id" && value === "space-old" && !selecting) {
-        selecting = selectSpace("space-new");
-        await selecting;
-      }
-      // The second write of space-new is the switch's repair; another selection lands first.
-      if (key === "rakazo.space_id" && value === "space-new" && ++newWrites === 2) {
-        reselecting = selectSpace("space-newest");
-        await reselecting;
-      }
-      store.set(key, value);
-    });
-    let result: Awaited<ReturnType<typeof saveApiBase>>;
-    try {
-      result = await saveApiBase("https://second-server.example");
-    } finally {
-      mockSecureStore(store);
-    }
-
-    expect(reselecting).toBeDefined();
-    expect(result).toMatchObject({ ok: false });
-    expect(selectedSpaceId()).toBe("space-newest");
-    expect(store.get("rakazo.space_id")).toBe("space-newest");
-    expect(store.has("rakazo.space_rollback")).toBe(false);
-    await resetApiBase();
-  });
-
-  it("a save stopped by a session change keeps a Space selected while it read the old one", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    await clearSpace();
-    // Stored but not yet cached, so the switch reads the selection from the store.
-    store.set("rakazo.space_id", "space-old");
-    let selecting: Promise<boolean> | undefined;
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      const value = store.get(key) ?? null;
-      if (key === "rakazo.space_id" && !selecting) {
-        // A new selection lands after the switch read the old one.
-        selecting = selectSpace("space-new");
-        await selecting;
-      }
-      return value;
-    });
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.space_rollback" && value) await saveSessionToken("token-b");
-      store.set(key, value);
-    });
-    let result: Awaited<ReturnType<typeof saveApiBase>>;
-    try {
-      result = await saveApiBase("https://second-server.example");
-    } finally {
-      mockSecureStore(store);
-    }
-
-    expect(selecting).toBeDefined();
-    expect(result).toMatchObject({ ok: false });
-    expect(store.get("rakazo.space_id")).toBe("space-new");
-    expect(store.has("rakazo.space_rollback")).toBe(false);
-    await resetApiBase();
-  });
-
-  it("a reset that cannot store the old server again keeps its session revoked, not restored", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await saveApiBase("https://old-server.example");
-    await restoreSessionToken("token-a");
-    await selectSpace("space-old");
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-      store.set(key, value);
-    });
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.server_headers") throw new Error("device locked");
-      store.delete(key);
-    });
-    let result: Awaited<ReturnType<typeof resetApiBase>>;
-    try {
-      result = await resetApiBase();
-    } finally {
-      mockSecureStore(store);
-    }
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-    vi.stubGlobal("fetch", fetchMock);
-    await flushPendingSignOut(true);
-
-    // The next launch opens the default server, so the old session is revoked, not restored.
-    expect(result).toMatchObject({ ok: false });
-    expect(store.has("rakazo.api_base")).toBe(false);
-    expect(store.has("rakazo.session_token")).toBe(false);
-    const signOuts = fetchMock.mock.calls.filter(([url]) =>
-      String(url).endsWith("/api/auth/sign-out"),
-    );
-    expect(signOuts.map(([url]) => url)).toEqual(["https://old-server.example/api/auth/sign-out"]);
-    const [, init] = signOuts[0] as [string, RequestInit];
-    expect(init.headers).toMatchObject({ authorization: "Bearer token-a" });
-    await resetApiBase();
-  });
-
-  it("a reset that cannot store the old server again signs in to the server the next launch opens", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await saveApiBase("https://old-server.example");
-    await restoreSessionToken("token-a");
-    await selectSpace("space-old");
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-      store.set(key, value);
-    });
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.server_headers") throw new Error("device locked");
-      store.delete(key);
-    });
-    let result: Awaited<ReturnType<typeof resetApiBase>>;
-    try {
-      result = await resetApiBase();
-    } finally {
-      mockSecureStore(store);
-    }
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async (url) =>
-      String(url).endsWith("/api/auth/sign-in/email")
-        ? jsonResponse({ token: "token-c" })
-        : jsonResponse({}),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    await signIn("ada@example.com", "correct horse");
-    await loadApiBase();
-
-    // The token comes from the server a restart opens, so it is never sent to another one.
-    expect(result).toMatchObject({ ok: false });
-    const signIns = fetchMock.mock.calls.filter(([url]) =>
-      String(url).endsWith("/api/auth/sign-in/email"),
-    );
-    expect(signIns.map(([url]) => url)).toEqual([`${currentApiBase()}/api/auth/sign-in/email`]);
-    expect(currentApiBase()).toBe("http://127.0.0.1:3100");
-    expect(await authHeaders(null)).toMatchObject({ authorization: "Bearer token-c" });
-    await resetApiBase();
-  });
-
-  it("a rolled-back switch keeps the revocation of a session it could only restore in memory", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-      if (key === "rakazo.session_token") throw new Error("device locked");
-      store.set(key, value);
-    });
-    let result: Awaited<ReturnType<typeof saveApiBase>>;
-    try {
-      result = await saveApiBase("https://second-server.example");
-    } finally {
-      mockSecureStore(store);
-    }
-
-    // A restart would not find token-a, so its revocation record stays for the next retry.
-    expect(result).toMatchObject({ ok: false });
-    expect(store.has("rakazo.session_token")).toBe(false);
-    expect(await authHeaders(null)).toMatchObject({ authorization: "Bearer token-a" });
-    expect(pendingSignOutRecords(store).map((record) => record.token)).toEqual(["token-a"]);
-  });
-
-  it("a flush keeps the revocation of a rolled-back session kept only in memory", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-      if (key === "rakazo.session_token") throw new Error("device locked");
-      store.set(key, value);
-    });
-    try {
-      await saveApiBase("https://second-server.example");
-    } finally {
-      mockSecureStore(store);
-    }
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-    vi.stubGlobal("fetch", fetchMock);
-    await flushPendingSignOut(true);
-
-    // token-a is still in use, so it is not revoked; a restart loses it, so the record stays.
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(pendingSignOutRecords(store).map((record) => record.token)).toEqual(["token-a"]);
-  });
-
-  it("a flush during a save of a memory-only session does not revoke it", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    await restoreSessionToken("token-a");
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-      if (key === "rakazo.session_token") throw new Error("device locked");
-      store.set(key, value);
-    });
-    try {
-      await saveApiBase("https://second-server.example");
-    } finally {
-      mockSecureStore(store);
-    }
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-    vi.stubGlobal("fetch", fetchMock);
-    await flushPendingSignOut(true);
-    const saveHeld = deferred();
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token") await saveHeld.promise;
-      store.set(key, value);
-    });
-    // The same token is saved again; a flush runs while its write is held.
-    const saving = saveSessionToken("token-a");
-    await flushPendingSignOut(true);
-    saveHeld.resolve();
-    await saving;
-    mockSecureStore(store);
-    await flushPendingSignOut(true);
-
-    // token-a is in use and now stored, so it is never revoked and its record is dropped.
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(store.get("rakazo.session_token")).toBe("token-a");
-    expect(pendingSignOutRecords(store)).toEqual([]);
-  });
-
-  it("a hung session save defers only the current server's switch records", async () => {
-    const record = (apiBase: string, token: string) => ({
-      apiBase,
-      token,
-      headers: {},
-      recordedAt: Date.now(),
-      provisional: true,
-    });
-    const store = new Map<string, string>([
-      [
-        "rakazo.pending_sign_out",
-        JSON.stringify([
-          record("https://old-server.example", "token-a"),
-          record(currentApiBase(), "token-c"),
-        ]),
-      ],
-    ]);
-    mockSecureStore(store);
-    const saveHeld = deferred();
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token") await saveHeld.promise;
-      store.set(key, value);
-    });
-    const fetchMock = vi.fn<typeof globalThis.fetch>(async () => jsonResponse({}));
-    vi.stubGlobal("fetch", fetchMock);
-    const signOuts = () =>
-      fetchMock.mock.calls
-        .filter(([url]) => String(url).endsWith("/api/auth/sign-out"))
-        .map(([url, init]) => [url, new Headers(init?.headers).get("authorization")]);
-    const saving = saveSessionToken("token-b");
-    await flushPendingSignOut(true);
-
-    // The other server's session cannot be the one being saved here, so it is revoked now.
-    expect(signOuts()).toEqual([
-      ["https://old-server.example/api/auth/sign-out", "Bearer token-a"],
-    ]);
-    expect(pendingSignOutRecords(store).map((entry) => entry.token)).toEqual(["token-c"]);
-
-    saveHeld.resolve();
-    await saving;
-    await flushPendingSignOut(true);
-    expect(signOuts()).toEqual([
-      ["https://old-server.example/api/auth/sign-out", "Bearer token-a"],
-      [`${currentApiBase()}/api/auth/sign-out`, "Bearer token-c"],
-    ]);
-  });
-
-  it("a server switch stops when a session is saved while it clears the old one", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-    const previous = currentApiBase();
-    await restoreSessionToken("token-a");
-    let signIn = true;
-    vi.mocked(stopLiveNotifications).mockImplementation(async () => {
-      // A sign-in on the old server saves its token while the clear stops notifications.
-      if (signIn) {
-        signIn = false;
-        await saveSessionToken("token-b");
-      }
-    });
-    let result: Awaited<ReturnType<typeof saveApiBase>>;
-    try {
-      result = await saveApiBase("https://second-server.example");
-    } finally {
-      vi.mocked(stopLiveNotifications).mockImplementation(async () => undefined);
-    }
-
-    // The old server's token is never sent to the new server.
-    expect(result).toEqual({ ok: false, error: "Could not clear the previous server session" });
-    expect(currentApiBase()).toBe(previous);
-    expect(store.get("rakazo.session_token")).toBe("token-b");
-    expect(await authHeaders(null)).toMatchObject({ authorization: "Bearer token-b" });
-    // The cleared session is gone from the device, so its revocation stays.
-    expect(pendingSignOutRecords(store).map((record) => record.token)).toEqual(["token-a"]);
-  });
-
-  it("records no revocation when switching servers without a session", async () => {
-    const store = new Map<string, string>();
-    mockSecureStore(store);
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toMatchObject({ ok: true });
-
-    expect(pendingSignOutRecords(store)).toEqual([]);
-    await resetApiBase();
-  });
-
-  it("refuses to switch endpoints when SecureStore cannot clear credentials", async () => {
-    await selectSpace("space-support");
-    vi.mocked(SecureStore.deleteItemAsync).mockRejectedValue(new Error("device locked"));
-    vi.mocked(SecureStore.setItemAsync).mockRejectedValue(new Error("device locked"));
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not clear the previous server session",
-    });
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
-      "rakazo.api_base",
-      "https://second-server.example",
-    );
-  });
-
-  it("restores notifications to the selected space when endpoint rollback succeeds", async () => {
-    const previousApiBase = currentApiBase();
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") return "session-token";
-      return null;
-    });
-    await selectSpace("space-social");
-    await selectSpace("space-support");
-    vi.mocked(resumeLiveNotifications).mockClear();
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.space_id") throw new Error("device locked");
-    });
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token" || (key === "rakazo.space_id" && value === "")) {
-        throw new Error("device locked");
-      }
-    });
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not clear the previous server session",
-    });
-    await expect(authHeaders()).resolves.toEqual({
-      authorization: "Bearer session-token",
-      "x-rakazo-space-id": "space-support",
-    });
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
-      "rakazo.api_base",
-      "https://second-server.example",
-    );
-    expect(resumeLiveNotifications).toHaveBeenCalledWith(
-      previousApiBase,
-      "session-token",
-      "space-support",
-    );
-  });
-
-  it("reports a failed clear when the remembered organization Spaces stay on the device", async () => {
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.org_spaces") throw new Error("device locked");
-    });
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.org_spaces") throw new Error("device locked");
-    });
-
-    await expect(clearSpace()).resolves.toBe(false);
-  });
-
-  it("restores credentials when the new endpoint cannot be persisted", async () => {
-    const previous = currentApiBase();
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") return "session-token";
-      return null;
-    });
-    await selectSpace("space-support");
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-    });
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not save the server URL",
-    });
-    expect(currentApiBase()).toBe(previous);
-    await expect(authHeaders()).resolves.toEqual({
-      authorization: "Bearer session-token",
-      "x-rakazo-space-id": "space-support",
-    });
-    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalledWith("rakazo.org_spaces");
-  });
-
-  it("restores a persisted space when its initial load failed", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
-    await loadApiBase();
-    const previous = currentApiBase();
-    let spaceReads = 0;
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key !== "rakazo.space_id") return null;
-      spaceReads += 1;
-      if (spaceReads === 1) throw new Error("device locked");
-      return "space-support";
-    });
-    await loadApiBase();
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-    });
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not save the server URL",
-    });
-    expect(currentApiBase()).toBe(previous);
-    await expect(authHeaders()).resolves.toEqual({
-      "x-rakazo-space-id": "space-support",
-    });
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("rakazo.space_id", "space-support");
-  });
-
-  it("refuses an endpoint switch when the active space cannot be snapshotted", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
-    await loadApiBase();
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.space_id") throw new Error("device locked");
-      return null;
-    });
-    await loadApiBase();
-    vi.mocked(SecureStore.deleteItemAsync).mockClear();
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not clear the previous server session",
-    });
-    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
-  });
-
-  it("preserves credentials when the active session cannot be snapshotted", async () => {
-    await saveSessionToken("session-token");
-    await selectSpace("space-support");
-    vi.mocked(SecureStore.getItemAsync).mockRejectedValue(new Error("device locked"));
-    vi.mocked(SecureStore.deleteItemAsync).mockClear();
-    const previous = currentApiBase();
-    const next =
-      previous === "https://second-server.example"
-        ? "https://third-server.example"
-        : "https://second-server.example";
-
-    await expect(saveApiBase(next)).resolves.toEqual({
-      ok: false,
-      error: "Could not save the previous server session",
-    });
-    expect(currentApiBase()).toBe(previous);
-    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
-
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) =>
-      key === "rakazo.session_token" ? "session-token" : null,
-    );
-    await expect(authHeaders()).resolves.toEqual({
-      authorization: "Bearer session-token",
-      "x-rakazo-space-id": "space-support",
-    });
-  });
-
-  it("keeps an invalidated empty session fail closed during credential rollback", async () => {
-    await saveSessionToken("session-token");
-    await selectSpace("space-support");
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") throw new Error("device locked");
-    });
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token" && value === "") throw new Error("device locked");
-    });
-    await expect(clearSessionToken()).resolves.toBe(false);
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue("stale-session-token");
-    const previous = currentApiBase();
-    const next =
-      previous === "https://second-server.example"
-        ? "https://third-server.example"
-        : "https://second-server.example";
-
-    await expect(saveApiBase(next)).resolves.toEqual({
-      ok: false,
-      error: "Could not clear the previous server session",
-    });
-    expect(currentApiBase()).toBe(previous);
-    await expect(snapshotSessionToken()).resolves.toEqual({ ok: true, value: "" });
-
-    await saveSessionToken("session-token");
-  });
-
-  it("keeps the in-memory session across consecutive failed endpoint switches", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") return "session-token";
-      return null;
-    });
-    await selectSpace("space-support");
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.space_id") throw new Error("device locked");
-    });
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.session_token" || (key === "rakazo.space_id" && value === "")) {
-        throw new Error("device locked");
-      }
-    });
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toMatchObject({
-      ok: false,
-    });
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
-    await expect(saveApiBase("https://third-server.example")).resolves.toMatchObject({ ok: false });
-
-    await expect(authHeaders()).resolves.toEqual({
-      authorization: "Bearer session-token",
-      "x-rakazo-space-id": "space-support",
-    });
-    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(
-      "rakazo.api_base",
-      expect.stringMatching(/second-server|third-server/),
-    );
-  });
-
-  it("restores credentials when resetting the endpoint cannot be persisted", async () => {
-    await saveApiBase("https://second-server.example");
-    const previous = currentApiBase();
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token") return "session-token";
-      return null;
-    });
-    await selectSpace("space-support");
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.api_base") throw new Error("device locked");
-    });
-
-    await expect(resetApiBase()).resolves.toEqual({
-      ok: false,
-      error: "Could not clear the custom server URL",
-    });
-    expect(currentApiBase()).toBe(previous);
-    await expect(authHeaders()).resolves.toEqual({
-      authorization: "Bearer session-token",
-      "x-rakazo-space-id": "space-support",
-    });
-
-    vi.mocked(SecureStore.getItemAsync).mockReset();
-    vi.mocked(SecureStore.setItemAsync).mockReset();
-    vi.mocked(SecureStore.deleteItemAsync).mockReset();
-    await resetApiBase();
+    expect(listAccountProfiles().some(({ id }) => id === second.id)).toBe(true);
+    expect(activeAccountProfileId()).toBe(originalId);
   });
 
   it("recovers a deleted-space fallback over a stale saved selection after restart", async () => {
@@ -1611,11 +570,16 @@ describe("mobile API server and Space selection", () => {
   });
 
   it("does not restore an obsolete selection after its token read finishes", async () => {
-    const storage = new Map<string, string>([["rakazo.session_token", "fake-token"]]);
+    const storage = new Map<string, string>();
+    await mockProfileStore(storage);
+    const profileId = activeAccountProfileId();
+    if (!profileId) throw new Error("The migrated profile is missing");
+    await saveProfileToken(profileId, "fake-token");
     let releaseToken!: Deferred;
     let tokenReadHeld = false;
+    let holdTokenRead = false;
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token" && !tokenReadHeld) {
+      if (key === profileCredentialStorageKey(profileId) && holdTokenRead && !tokenReadHeld) {
         tokenReadHeld = true;
         releaseToken = deferred();
         await releaseToken.promise;
@@ -1629,6 +593,7 @@ describe("mobile API server and Space selection", () => {
       storage.delete(key);
     });
     await loadApiBase();
+    holdTokenRead = true;
 
     const pendingA = selectSpace("space-a");
     await vi.waitFor(() => expect(tokenReadHeld).toBe(true));
@@ -1642,11 +607,16 @@ describe("mobile API server and Space selection", () => {
   });
 
   it("does not resume a deleted-space fallback after a newer Space is selected", async () => {
-    const storage = new Map<string, string>([["rakazo.session_token", "fake-token"]]);
+    const storage = new Map<string, string>();
+    await mockProfileStore(storage);
+    const profileId = activeAccountProfileId();
+    if (!profileId) throw new Error("The migrated profile is missing");
+    await saveProfileToken(profileId, "fake-token");
     let releaseToken!: Deferred;
     let tokenReadHeld = false;
+    let holdTokenRead = false;
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token" && !tokenReadHeld) {
+      if (key === profileCredentialStorageKey(profileId) && holdTokenRead && !tokenReadHeld) {
         tokenReadHeld = true;
         releaseToken = deferred();
         await releaseToken.promise;
@@ -1660,6 +630,7 @@ describe("mobile API server and Space selection", () => {
       storage.delete(key);
     });
     await loadApiBase();
+    holdTokenRead = true;
     vi.mocked(resumeLiveNotifications).mockClear();
 
     const pending = adoptDeletedSpaceFallback("space-fallback");
@@ -1673,11 +644,16 @@ describe("mobile API server and Space selection", () => {
   });
 
   it("resumes the fallback Space after failed auth recovery invalidates its pending resume", async () => {
-    const storage = new Map<string, string>([["rakazo.session_token", "fake-token"]]);
+    const storage = new Map<string, string>();
+    await mockProfileStore(storage);
+    const profileId = activeAccountProfileId();
+    if (!profileId) throw new Error("The migrated profile is missing");
+    await saveProfileToken(profileId, "fake-token");
     let releaseToken!: Deferred;
     let tokenReadHeld = false;
+    let holdTokenRead = false;
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
-      if (key === "rakazo.session_token" && !tokenReadHeld) {
+      if (key === profileCredentialStorageKey(profileId) && holdTokenRead && !tokenReadHeld) {
         tokenReadHeld = true;
         releaseToken = deferred();
         await releaseToken.promise;
@@ -1691,6 +667,7 @@ describe("mobile API server and Space selection", () => {
       storage.delete(key);
     });
     await loadApiBase();
+    holdTokenRead = true;
     vi.mocked(resumeLiveNotifications).mockClear();
 
     const pending = adoptDeletedSpaceFallback("space-fallback");
@@ -1827,47 +804,6 @@ describe("mobile API server and Space selection", () => {
     await expect(pendingRpc).resolves.toEqual({ spaces: [] });
     expect(selectedSpaceId()).toBe("space-c");
     expect(storage.get("rakazo.space_id")).toBe("space-c");
-  });
-
-  it("recovers the active space after rollback persistence fails", async () => {
-    vi.mocked(SecureStore.getItemAsync).mockResolvedValue(null);
-    await loadApiBase();
-    await selectSpace("space-support");
-
-    const storage = new Map<string, string>();
-    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => storage.get(key) ?? null);
-    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
-      storage.delete(key);
-    });
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      if (key === "rakazo.api_base" || (key === "rakazo.space_id" && value === "space-support")) {
-        throw new Error("device locked");
-      }
-      storage.set(key, value);
-    });
-
-    await expect(saveApiBase("https://second-server.example")).resolves.toEqual({
-      ok: false,
-      error: "Could not save the server URL",
-    });
-    await expect(authHeaders()).resolves.toEqual({
-      "x-rakazo-space-id": "space-support",
-    });
-    expect(storage.get("rakazo.space_rollback")).toBe(
-      JSON.stringify({ apiBase: "http://127.0.0.1:3100", spaceId: "space-support" }),
-    );
-
-    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
-      storage.set(key, value);
-    });
-    vi.resetModules();
-    const restartedApi = await import("./api.js");
-    const restartedApiServer = await import("./api-server.js");
-    await restartedApiServer.loadApiBase();
-
-    expect(restartedApi.selectedSpaceId()).toBe("space-support");
-    expect(storage.get("rakazo.space_id")).toBe("space-support");
-    expect(storage.has("rakazo.space_rollback")).toBe(false);
   });
 
   it("does not recover a space on a different endpoint", async () => {

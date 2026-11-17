@@ -109,6 +109,7 @@ export const TR_MESSAGES: Record<string, string> = {
   "Setup could not start. Quit Stirrup and try again.":
     "Kurulum başlatılamadı. Stirrup’dan çıkıp yeniden deneyin.",
   "Enter a server address.": "Bir sunucu adresi girin.",
+  "You have reached the saved account limit.": "Kaydedilen hesap sınırına ulaştınız.",
   "Enter a valid http:// or https:// address.": "Geçerli bir http:// veya https:// adresi girin.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "Geçerli bir sunucu adresi girin. Herkese açık sunucular HTTPS gerektirir; yeni bir yerel örnek localhost kullanmalıdır.",

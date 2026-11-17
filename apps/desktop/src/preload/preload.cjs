@@ -29,6 +29,13 @@ contextBridge.exposeInMainWorld("rakazoDesktop", {
   },
   server: {
     change: () => ipcRenderer.invoke("desktop.server.change"),
+    addProfile: () => ipcRenderer.invoke("desktop.server.addProfile"),
+  },
+  profiles: {
+    state: () => ipcRenderer.invoke("desktop.profiles.state"),
+    select: (profileId) => ipcRenderer.invoke("desktop.profiles.select", profileId),
+    rename: (profileId, label) => ipcRenderer.invoke("desktop.profiles.rename", profileId, label),
+    remove: (profileId) => ipcRenderer.invoke("desktop.profiles.remove", profileId),
   },
   settings: {
     onOpen: subscribe("desktop.settings.open"),

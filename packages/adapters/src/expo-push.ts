@@ -352,7 +352,10 @@ export class ExpoPushProvider implements NotificationProvider {
     // Android's installed sender code drops an avatar over 96px; iOS and plain pushes have no
     // pixel cap, so they carry the larger render when one fit.
     const largeAvatar = registration.presentation !== "android_sender";
-    const data = expoPushData(message, context.spaceId, randomUUID(), largeAvatar);
+    const data = {
+      ...expoPushData(message, context.spaceId, randomUUID(), largeAvatar),
+      ...registration.profile,
+    };
     const shared = {
       to: token,
       collapseId: message.threadId,

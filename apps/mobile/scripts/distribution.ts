@@ -27,6 +27,7 @@ export type MobileDistribution = {
   version: string;
   appStoreConnectAppId: string;
   apiUrl: string;
+  androidPackage?: string;
 };
 
 export function parseDistribution(value: string | undefined): MobileDistribution {
@@ -59,6 +60,14 @@ export function parseDistribution(value: string | undefined): MobileDistribution
   const config = Object.fromEntries(
     fields.map((field) => [field, source[field]]),
   ) as MobileDistribution;
+  if (source.androidPackage !== undefined) {
+    if (
+      typeof source.androidPackage !== "string" ||
+      !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/i.test(source.androidPackage)
+    )
+      throw new Error("Mobile distribution requires a valid Android package.");
+    config.androidPackage = source.androidPackage;
+  }
   if (
     config.name.length > 60 ||
     !/^[a-z0-9][a-z0-9_-]*$/i.test(config.slug) ||
@@ -138,6 +147,18 @@ export function configureDistribution(
   };
   build.submit ??= {};
   build.submit["fork-testflight"] = { ios: { ascAppId: config.appStoreConnectAppId } };
+  if (config.androidPackage) {
+    expo.android = { ...expo.android, package: config.androidPackage };
+    build.build["fork-android-apk"] = {
+      ...build.build.production,
+      distribution: "internal",
+      autoIncrement: true,
+      environment: "production",
+      channel: "fork-android-apk",
+      android: { buildType: "apk" },
+      env: { ...build.build.production.env, EXPO_PUBLIC_API_URL: config.apiUrl },
+    };
+  }
   return { app: result, eas: build };
 }
 
@@ -147,6 +168,7 @@ async function main() {
     JSON.stringify({
       ...stored,
       apiUrl: process.env.MOBILE_RELEASE_API_URL || stored.apiUrl,
+      androidPackage: process.env.MOBILE_ANDROID_PACKAGE || stored.androidPackage,
     }),
   );
   const root = path.resolve(import.meta.dirname, "..");

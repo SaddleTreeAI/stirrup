@@ -8,6 +8,7 @@ import {
   shouldNotifyBrowser,
 } from "../../lib/browser-notifications";
 import { computerUpdates } from "../../lib/computer-updates";
+import { activateProfileFromNotification } from "../../lib/desktop";
 import { followStream } from "../../lib/follow-stream";
 import { notificationIcon, prepareNotificationIcons } from "../../lib/notification-icon";
 import { organizationsChanged } from "../../lib/organizations";
@@ -71,6 +72,12 @@ function openChatOnClick(
   shown.add(notification);
   notification.onclose = () => shown.delete(notification);
   notification.onclick = () => {
+    const activation = activateProfileFromNotification();
+    if (activation) {
+      void activation;
+      notification.close();
+      return;
+    }
     window.focus();
     openChat();
     notification.close();

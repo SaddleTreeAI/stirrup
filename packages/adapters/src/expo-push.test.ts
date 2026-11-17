@@ -54,6 +54,36 @@ describe("expo push tickets", () => {
 });
 
 describe("expo push", () => {
+  it("carries the authenticated saved account binding into each account's device push", async () => {
+    const tokens = new MemoryPushTokenStore();
+    const profile = {
+      clientProfileId: "00000000-0000-4000-8000-000000000001",
+      serverOrigin: "https://example.test",
+    };
+    const other = { ...profile, clientProfileId: "00000000-0000-4000-8000-000000000002" };
+    await tokens.save("user-1", "ExponentPushToken[shared]", "first-session", undefined, profile);
+    await tokens.save("user-2", "ExponentPushToken[shared]", "second-session", undefined, other);
+    const fetchMock = vi.fn(async (_url: unknown, _init: RequestInit) =>
+      jsonResponse({ data: { status: "ok", id: "ticket" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const push = new ExpoPushProvider(tokens, {
+      sessionExpiresAt: async () => new Date(Date.now() + 60_000),
+    });
+    const message = {
+      kind: "completion",
+      title: "Done",
+      body: "",
+      botId: "bot",
+      threadId: "thread",
+    } as const;
+    await push.send(message, notifyContext);
+    await push.send(message, { ...notifyContext, userId: "user-2" });
+    expect(
+      fetchMock.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)).data),
+    ).toMatchObject([profile, other]);
+  });
+
   it("does not call Expo when the user has no token", async () => {
     const tokens = new MemoryPushTokenStore();
     const fetchMock = vi.fn();

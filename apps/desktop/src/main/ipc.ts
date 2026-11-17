@@ -13,6 +13,7 @@ import type {
 } from "./ipc-channels.js";
 import { ipcChannels, LIVE, REJECTS } from "./ipc-channels.js";
 import { reportDesktopError } from "./monitoring.js";
+import { trustedProfileForNotificationSender } from "./profile-notification-windows.js";
 
 export type IpcCaller = Pick<IpcMainInvokeEvent, "sender" | "senderFrame">;
 
@@ -31,6 +32,18 @@ export type IpcHandler<Name extends IpcChannelName> = (
  */
 export function sentFrom(window: IpcWindow, event: IpcCaller): boolean {
   try {
+    if (window === "notification") {
+      const store = desktop.profileStore;
+      return Boolean(
+        store &&
+          trustedProfileForNotificationSender(
+            store.profiles,
+            store.activeProfileId,
+            event.sender,
+            event.senderFrame,
+          ),
+      );
+    }
     if (window !== "setup")
       return (
         fromAppFrame(permissionTarget(), event) ||

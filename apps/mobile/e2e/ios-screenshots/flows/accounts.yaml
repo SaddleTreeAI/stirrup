@@ -1,0 +1,15 @@
+appId: com.rakazo.app
+name: Saved accounts
+---
+- runFlow:
+    file: ../subflows/sign-in.yaml
+    env:
+      RAKAZO_ACTIVE_EMAIL: ${RAKAZO_SCREENSHOT_EMAIL}
+- openLink: "rakazo:///accounts"
+- extendedWaitUntil:
+    visible: "Add account"
+    timeout: 15000
+- assertNotVisible: "(?is).*[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}.*"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: 01-saved-accounts

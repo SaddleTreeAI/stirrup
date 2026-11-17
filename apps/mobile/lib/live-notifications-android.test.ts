@@ -18,6 +18,12 @@ vi.mock("expo-notifications", () => ({
 }));
 vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
 vi.mock("./i18n", () => ({ getActiveUiLocale: () => "de" }));
+vi.mock("./account-profiles", () => ({
+  activeAccountProfileId: () => "profile-1",
+  activeAccountProfile: () => ({ id: "profile-1", serverUrl: "https://app.example.test" }),
+  credentialsForProfile: async () => ({ token: "token-1", headers: {} }),
+  saveActiveProfileCredentials: async () => true,
+}));
 const store = vi.hoisted(() => new Map<string, string>());
 vi.mock("expo-secure-store", () => ({
   getItemAsync: async (key: string) => store.get(key) ?? null,
@@ -47,6 +53,8 @@ describe("Android live notification resume", () => {
       "space-1",
       "de",
       "",
+      "profile-1",
+      "https://app.example.test",
     );
   });
 
@@ -60,6 +68,8 @@ describe("Android live notification resume", () => {
       "space-1",
       "de",
       JSON.stringify({ "CF-Access-Client-Id": "id" }),
+      "profile-1",
+      "https://app.example.test",
     );
   });
 
@@ -71,6 +81,13 @@ describe("Android live notification resume", () => {
     await expect(resumeLiveNotifications("https://app.example.test", "", "space-1")).resolves.toBe(
       false,
     );
+    expect(native.resume).not.toHaveBeenCalled();
+  });
+
+  it("does not give the native poller credentials that do not belong to the active profile", async () => {
+    await expect(
+      resumeLiveNotifications("https://app.example.test", "stale-token", "space-1"),
+    ).resolves.toBe(false);
     expect(native.resume).not.toHaveBeenCalled();
   });
 
@@ -92,6 +109,8 @@ describe("Android live notification resume", () => {
       "de",
       "",
       "bot-1",
+      "profile-1",
+      "https://app.example.test",
     );
     expect(native.resume).not.toHaveBeenCalled();
   });
@@ -119,6 +138,8 @@ describe("Android live notification resume", () => {
         "space-1",
         "de",
         "",
+        "profile-1",
+        "https://app.example.test",
       );
     } finally {
       native.resumeAfterMute = resumeAfterMute;

@@ -20,6 +20,26 @@ const read = (file: string) =>
   JSON.parse(readFileSync(path.resolve(import.meta.dirname, "..", file), "utf8"));
 
 describe("fork mobile distribution", () => {
+  it("builds an installable Android package only with an explicit fork identity", () => {
+    const app = read("app.json");
+    const eas = read("eas.json");
+    const config = parseDistribution(
+      JSON.stringify({ ...identity, androidPackage: "com.example.team" }),
+    );
+    const next = configureDistribution(app, eas, config);
+    expect(next.app.expo.android?.package).toBe("com.example.team");
+    expect(next.app.expo.ios?.bundleIdentifier).toBe(identity.bundleIdentifier);
+    expect(next.eas.build["fork-android-apk"]).toMatchObject({
+      distribution: "internal",
+      channel: "fork-android-apk",
+      android: { buildType: "apk" },
+      env: { EXPO_PUBLIC_API_URL: identity.apiUrl },
+    });
+    expect(configureDistribution(app, eas, identity).eas.build["fork-android-apk"]).toBeUndefined();
+    expect(() =>
+      parseDistribution(JSON.stringify({ ...identity, androidPackage: "invalid/package" })),
+    ).toThrow();
+  });
   it.each([true, false])(
     "the release command validates before writing configuration: valid=%s",
     (valid) => {

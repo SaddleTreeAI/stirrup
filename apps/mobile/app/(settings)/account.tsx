@@ -277,6 +277,15 @@ export default function Account() {
           {focus !== "usage" ? usageBlock : null}
           {focus !== "usage" ? creditsRow : null}
         </SettingsGroup>
+        <SettingsGroup>
+          <SettingsRow
+            accessibilityRole="button"
+            chevron="right"
+            leading={icon({ ios: "person.2", android: "people-outline" })}
+            onPress={() => openFromSettingsSheet(router, "/accounts")}
+            title={t`Accounts`}
+          />
+        </SettingsGroup>
         {focus !== "usage" ? planGroups : null}
 
         <SettingsGroup>{shortcuts.map(settingsLink)}</SettingsGroup>

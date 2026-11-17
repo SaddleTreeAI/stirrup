@@ -78,6 +78,12 @@
     ]
   },
   {
+    "id": "accounts",
+    "title": "Saved accounts",
+    "flow": "flows/accounts.yaml",
+    "screens": ["accounts"]
+  },
+  {
     "id": "models",
     "title": "Models",
     "flow": "flows/models.yaml",

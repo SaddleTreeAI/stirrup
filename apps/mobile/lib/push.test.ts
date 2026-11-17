@@ -47,18 +47,18 @@ vi.mock("expo-notifications", () => ({
 import { requireOptionalNativeModule } from "expo-modules-core";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { addAccountProfile, loadAccountProfiles, saveProfileToken } from "./account-profiles";
 import { rpc } from "./api";
 import { signOut } from "./api-auth";
 import { selectInitialSpace } from "./api-server";
-import { resumeLiveNotifications, stopLiveNotifications } from "./live-notifications.js";
+import { resumeLiveNotifications } from "./live-notifications.js";
 import { registerPushToken } from "./push";
-import * as session from "./session";
 import { restoreSessionToken } from "./session";
 
 const settled = <T>(promise: Promise<T>) =>
   Promise.race([promise, new Promise((done) => setTimeout(done, 100, "still waiting"))]);
 
-const fetch = vi.fn(async (url: string) => {
+const fetch = vi.fn(async (url: string, _init?: RequestInit) => {
   const json = url.endsWith("/rpc/me")
     ? { userId: "user-1", spaceId: "space-1" }
     : url.endsWith("/rpc/spaces/list")
@@ -84,6 +84,11 @@ beforeEach(async () => {
   vi.mocked(Notifications.requestPermissionsAsync).mockImplementation(
     () => native.run(() => undefined).then(() => permission.promise) as never,
   );
+  await loadAccountProfiles({
+    serverUrl: "http://127.0.0.1:3100",
+    token: "",
+    headers: {},
+  });
   await restoreSessionToken("fake-session");
 });
 
@@ -118,7 +123,7 @@ describe("push registration on iOS", () => {
       expect(fetch).toHaveBeenCalledWith(
         expect.stringMatching(/notifications\/registerPush$/),
         expect.objectContaining({
-          body: JSON.stringify({ json: { token: "ExponentPushToken[fake]" } }),
+          body: expect.stringContaining('"token":"ExponentPushToken[fake]"'),
         }),
       ),
     );
@@ -167,29 +172,13 @@ it("syncs the native session before the server can push", async () => {
   );
 });
 
-it("does not restore a signed-out session while push registration loads its token", async () => {
+it("does not register after sign-out while notification permission is pending", async () => {
   Platform.OS = "android";
-  vi.mocked(Notifications.getPermissionsAsync).mockResolvedValue({ granted: true } as never);
-  const loaded = deferred<void>();
-  const release = deferred<void>();
-  const loadToken = session.loadSessionToken;
-  vi.spyOn(session, "loadSessionToken").mockImplementationOnce(async () => {
-    const token = await loadToken();
-    loaded.resolve();
-    await release.promise;
-    return token;
-  });
-
+  vi.mocked(Notifications.getPermissionsAsync).mockResolvedValue({ granted: false } as never);
   const registration = registerPushToken();
-  try {
-    await loaded.promise;
-    await signOut();
-    expect(stopLiveNotifications).toHaveBeenCalledWith(true);
-    expect(native.store.has("rakazo.session_token")).toBe(false);
-  } finally {
-    release.resolve();
-    await registration;
-  }
+  await signOut();
+  permission.resolve({ granted: true });
+  await registration;
 
   expect(resumeLiveNotifications).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalledWith(
@@ -216,7 +205,7 @@ it("does not register the push token when the native session sync fails", async 
 it("does not register push while a sign-in has not saved its token yet", async () => {
   Platform.OS = "android";
   vi.mocked(Notifications.getPermissionsAsync).mockResolvedValue({ granted: true } as never);
-  vi.spyOn(session, "loadSessionToken").mockResolvedValueOnce("");
+  await signOut();
 
   await registerPushToken();
 
@@ -234,7 +223,11 @@ it("registers native sender delivery only when the installed Android module supp
   await registerPushToken();
   const call = fetch.mock.calls.find(([url]) => url.endsWith("/rpc/notifications/registerPush"));
   const options = (call as unknown as [string, RequestInit])[1];
-  expect(JSON.parse(String(options.body)).json).toMatchObject({ presentation: "android_sender" });
+  expect(JSON.parse(String(options.body)).json).toMatchObject({
+    presentation: "android_sender",
+    clientProfileId: expect.any(String),
+    serverOrigin: "http://127.0.0.1:3100",
+  });
 });
 
 it("registers plain delivery when the native module does not keep the session", async () => {
@@ -248,4 +241,43 @@ it("registers plain delivery when the native module does not keep the session", 
   const options = (call as unknown as [string, RequestInit])[1];
   // Sender delivery would drop every push as signed out; plain pushes are still shown.
   expect(JSON.parse(String(options.body)).json).not.toHaveProperty("presentation");
+});
+
+it("registers inactive profiles with their own host and credentials", async () => {
+  Platform.OS = "android";
+  vi.mocked(Notifications.getPermissionsAsync).mockResolvedValue({ granted: true } as never);
+  const activeId = (
+    await loadAccountProfiles({
+      serverUrl: "http://127.0.0.1:3100",
+      token: "fake-session",
+      headers: { "x-instance-key": "active-key" },
+    })
+  ).id;
+  const inactive = await addAccountProfile("https://other.example", "Other", {
+    "x-instance-key": "inactive-key",
+  });
+  await saveProfileToken(inactive.id, "other-session");
+
+  await registerPushToken();
+
+  const registrations = fetch.mock.calls
+    .filter(([url]) => url.endsWith("/rpc/notifications/registerPush"))
+    .map(([url, init]) => ({ url, body: JSON.parse(String(init?.body)).json }));
+  expect(registrations).toHaveLength(2);
+  expect(registrations.map(({ url }) => url)).toEqual([
+    "http://127.0.0.1:3100/rpc/notifications/registerPush",
+    "https://other.example/rpc/notifications/registerPush",
+  ]);
+  expect(registrations.map(({ body }) => body)).toMatchObject([
+    { clientProfileId: activeId, serverOrigin: "http://127.0.0.1:3100" },
+    { clientProfileId: inactive.id, serverOrigin: "https://other.example" },
+  ]);
+  expect(
+    fetch.mock.calls.map(([, init]) => new Headers(init?.headers).get("authorization")),
+  ).toContain("Bearer other-session");
+  expect(resumeLiveNotifications).toHaveBeenCalledExactlyOnceWith(
+    "http://127.0.0.1:3100",
+    "fake-session",
+    expect.any(String),
+  );
 });

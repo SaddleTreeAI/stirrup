@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { activeAccountProfileId, listAccountProfiles } from "./account-profiles";
 
 const KEY = "rakazo.artifact-cache-session";
 let revision = 0;
@@ -16,6 +17,11 @@ type Entry = {
   retired?: string;
 };
 let active: Entry | undefined;
+let activeOwnerId: string | null = null;
+
+function storageKey(profileId = activeAccountProfileId()): string {
+  return profileId ? `${KEY}.${profileId}` : KEY;
+}
 
 function enqueue<T>(task: () => Promise<T>): Promise<T> {
   const next = writes.then(task, task);
@@ -26,14 +32,17 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
 /** Rotate the disk namespace even when sign-out cannot wipe persistent storage. */
 export function invalidateArtifactCacheSession(): Promise<void> {
   revision += 1;
+  const profileId = activeAccountProfileId();
+  const key = storageKey(profileId);
   const cleared = { token: "", namespace: newNamespace() };
   active = { ...cleared, persisted: false };
+  activeOwnerId = profileId;
   return enqueue(async () => {
     try {
-      await SecureStore.deleteItemAsync(KEY);
+      await SecureStore.deleteItemAsync(key);
     } catch {
       try {
-        await SecureStore.setItemAsync(KEY, JSON.stringify(cleared));
+        await SecureStore.setItemAsync(key, JSON.stringify(cleared));
       } catch {
         // The next session read uses a fresh namespace even if persistence stays unavailable.
       }
@@ -46,9 +55,19 @@ function newNamespace(): string {
 }
 
 /** The saved entry, for `token` only when one is given. */
-async function storedEntry(token?: string): Promise<Entry | undefined> {
+async function storedEntry(
+  token?: string,
+  profileId = activeAccountProfileId(),
+): Promise<Entry | undefined> {
+  const key = storageKey(profileId);
   try {
-    return parseEntry(await SecureStore.getItemAsync(KEY), token);
+    const stored = await SecureStore.getItemAsync(key);
+    const entry = parseEntry(stored, token);
+    if (entry || !profileId || listAccountProfiles().length !== 1) return entry;
+    // The only legacy namespace belongs to the profile created during the singleton upgrade.
+    const legacy = parseEntry(await SecureStore.getItemAsync(KEY), token);
+    if (legacy) await SecureStore.setItemAsync(key, record(legacy));
+    return legacy;
   } catch {
     // Missing or invalid metadata is a cold cache.
     return undefined;
@@ -90,7 +109,7 @@ function record(entry: Entry): string {
  * record cannot be read, so the caller can tell an unread record from a missing one.
  */
 export async function rotatedArtifactCacheToken(stored: string): Promise<string | undefined> {
-  const entry = parseEntry(await SecureStore.getItemAsync(KEY));
+  const entry = parseEntry(await SecureStore.getItemAsync(storageKey()));
   return entry?.retired === stored ? entry.token : undefined;
 }
 
@@ -103,8 +122,11 @@ export async function rotatedArtifactCacheToken(stored: string): Promise<string 
 export function rotateArtifactCacheSession(previous: string, token: string): Promise<void> {
   if (previous !== token) revision += 1;
   const version = revision;
+  const profileId = activeAccountProfileId();
+  const key = storageKey(profileId);
   return enqueue(async () => {
-    let entry = active ?? (await storedEntry(previous));
+    let entry =
+      activeOwnerId === profileId && active ? active : await storedEntry(previous, profileId);
     if (version !== revision) throw new Error("Artifact session changed");
     if (entry?.token !== previous) entry = undefined;
     const next: Entry = {
@@ -115,7 +137,8 @@ export function rotateArtifactCacheSession(previous: string, token: string): Pro
       retired: previous === token ? entry?.retired : previous,
     };
     active = next;
-    await SecureStore.setItemAsync(KEY, record(next));
+    activeOwnerId = profileId;
+    await SecureStore.setItemAsync(key, record(next));
     next.persisted = true;
     next.unsaved = false;
   });
@@ -124,16 +147,19 @@ export function rotateArtifactCacheSession(previous: string, token: string): Pro
 /** Tokens remain in SecureStore; disk paths contain only an opaque namespace. */
 export function artifactCacheSession(token: string): Promise<string> {
   const version = revision;
+  const profileId = activeAccountProfileId();
+  const key = storageKey(profileId);
   return enqueue(async () => {
     if (!token || version !== revision) throw new Error("Artifact session changed");
-    let entry = active ?? (await storedEntry(token));
+    let entry =
+      activeOwnerId === profileId && active ? active : await storedEntry(token, profileId);
     if (version !== revision || entry?.retired === token)
       throw new Error("Artifact session changed");
     if (entry?.token === token && entry.unsaved) return entry.namespace;
     if (!entry || entry.token !== token)
       entry = { token, namespace: newNamespace(), persisted: false };
     try {
-      await SecureStore.setItemAsync(KEY, record(entry));
+      await SecureStore.setItemAsync(key, record(entry));
       entry.persisted = true;
     } catch {
       // Failed persistence must not authorize files from a previous process; this one already
@@ -143,6 +169,7 @@ export function artifactCacheSession(token: string): Promise<string> {
     }
     if (version !== revision) throw new Error("Artifact session changed");
     active = entry;
+    activeOwnerId = profileId;
     return entry.namespace;
   });
 }

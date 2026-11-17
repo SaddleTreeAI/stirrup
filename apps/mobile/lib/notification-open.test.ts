@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  notificationAccountBinding,
   notificationOpenTarget,
   notificationOpenTargetFromLink,
   notificationResponseRoute,
@@ -10,6 +11,33 @@ import {
 } from "./notification-open.js";
 
 const DEFAULT_ACTION = "expo.modules.notifications.actions.DEFAULT";
+
+describe("notification account binding", () => {
+  it("accepts a canonical profile and origin pair", () => {
+    expect(
+      notificationAccountBinding({
+        clientProfileId: "profile-1",
+        serverOrigin: "https://instance.example",
+      }),
+    ).toEqual({ clientProfileId: "profile-1", serverOrigin: "https://instance.example" });
+  });
+
+  it("rejects missing, partial, and noncanonical bindings", () => {
+    expect(notificationAccountBinding({ clientProfileId: "profile-1" })).toBeNull();
+    expect(
+      notificationAccountBinding({
+        clientProfileId: "profile-1",
+        serverOrigin: "https://instance.example/",
+      }),
+    ).toBeNull();
+    expect(
+      notificationAccountBinding({
+        "rakazo.clientProfileId": "profile-1",
+        "rakazo.serverOrigin": "file:///tmp",
+      }),
+    ).toBeNull();
+  });
+});
 
 describe("thread route identity", () => {
   it("reuses a chat screen for the same stirrup or group", () => {

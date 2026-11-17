@@ -1,3 +1,4 @@
+import type { PushProfileBinding } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { runAsSystem, withTransactionRetry } from "@rakazo/db";
 import { advisoryLock } from "./advisory-lock.js";
@@ -8,6 +9,7 @@ export interface PushRecord {
   token: string;
   sessionId?: string;
   presentation?: "android_sender";
+  profile?: PushProfileBinding;
 }
 
 export type CallPushRegistration = {
@@ -38,6 +40,7 @@ export interface PushTokenStore {
     token: string,
     sessionId: string,
     presentation?: "android_sender",
+    profile?: PushProfileBinding,
   ): Promise<void>;
   /** Import only when neither the account nor the device is registered already. */
   importLegacy(userId: string, token: string, sessionId: string): Promise<boolean>;
@@ -201,10 +204,21 @@ export class PrismaPushTokenStore implements PushTokenStore {
   async list(userId: string): Promise<PushRecord[]> {
     return runAsSystem("load an account's notification devices", async () => {
       const rows = await this.prisma.pushRegistration.findMany({ where: { userId } });
+      const profiles = await this.prisma.profilePushRegistration.findMany({ where: { userId } });
+      const profileTokens = new Set(profiles.map((row) => row.tokenDigest));
       return Promise.all(
-        rows.map(async (row) => ({
+        [
+          ...profiles.map((row) => ({
+            ...row,
+            profile: { clientProfileId: row.clientProfileId, serverOrigin: row.serverOrigin },
+          })),
+          ...rows
+            .filter((row) => !profileTokens.has(row.tokenDigest))
+            .map((row) => ({ ...row, profile: undefined })),
+        ].map(async (row) => ({
           token: await this.encryption.load(row.ciphertext, `push-token:${userId}`),
           sessionId: row.sessionId,
+          ...(row.profile ? { profile: row.profile } : {}),
           ...(row.presentation === "android_sender"
             ? { presentation: "android_sender" as const }
             : {}),
@@ -218,8 +232,9 @@ export class PrismaPushTokenStore implements PushTokenStore {
     token: string,
     sessionId: string,
     presentation?: "android_sender",
+    profile?: PushProfileBinding,
   ): Promise<void> {
-    await this.register(userId, token, sessionId, "register", presentation);
+    await this.register(userId, token, sessionId, "register", presentation, profile);
   }
 
   importLegacy(userId: string, token: string, sessionId: string): Promise<boolean> {
@@ -232,6 +247,7 @@ export class PrismaPushTokenStore implements PushTokenStore {
     sessionId: string,
     mode: "register" | "import",
     presentation?: "android_sender",
+    profile?: PushProfileBinding,
   ): Promise<boolean> {
     const value = token.trim();
     if (!value) throw new Error("Push token is empty");
@@ -258,10 +274,14 @@ export class PrismaPushTokenStore implements PushTokenStore {
           // Use the same locks as live registration so the check and insert are atomic.
           if (
             mode === "import" &&
-            (await tx.pushRegistration.findFirst({
+            ((await tx.pushRegistration.findFirst({
               where: { OR: [{ userId }, { tokenDigest }] },
               select: { userId: true },
-            }))
+            })) ||
+              (await tx.profilePushRegistration.findFirst({
+                where: { OR: [{ userId }, { tokenDigest }] },
+                select: { userId: true },
+              })))
           )
             return false;
           // Lock the session against deletion until registration commits. A late registration
@@ -275,6 +295,25 @@ export class PrismaPushTokenStore implements PushTokenStore {
             sessionId,
             presentation: presentation ?? null,
           };
+          if (profile) {
+            // A profile can rotate its token or session without changing another saved account.
+            await tx.profilePushRegistration.deleteMany({
+              where: {
+                userId,
+                tokenDigest: { not: tokenDigest },
+                OR: [{ sessionId }, { clientProfileId: profile.clientProfileId }],
+              },
+            });
+            await tx.profilePushRegistration.upsert({
+              where: { userId_tokenDigest: { userId, tokenDigest } },
+              create: { userId, tokenDigest, ...data, ...profile },
+              update: { ...data, ...profile },
+            });
+            await tx.pushRegistration.deleteMany({
+              where: { userId, OR: [{ sessionId }, { tokenDigest }] },
+            });
+            return true;
+          }
           if (mode === "import")
             await tx.pushRegistration.create({ data: { userId, tokenDigest, ...data } });
           else {
@@ -308,6 +347,9 @@ export class PrismaPushTokenStore implements PushTokenStore {
           await tx.pushRegistration.deleteMany({
             where: { userId, ...(tokenDigest ? { tokenDigest } : {}) },
           });
+          await tx.profilePushRegistration.deleteMany({
+            where: { userId, ...(tokenDigest ? { tokenDigest } : {}) },
+          });
         }),
       ),
     );
@@ -329,11 +371,19 @@ export class PrismaPushTokenStore implements PushTokenStore {
             if (!session) {
               await tx.callPushDevice.deleteMany({ where });
               await tx.pushRegistration.deleteMany({ where });
+              await tx.profilePushRegistration.deleteMany({ where });
               return;
             }
             await tx.callPushDevice.updateMany({ where, data: { sessionId: nextSessionId } });
             await tx.pushRegistration.updateMany({ where, data: { sessionId: nextSessionId } });
-          } else await tx.pushRegistration.deleteMany({ where });
+            await tx.profilePushRegistration.updateMany({
+              where,
+              data: { sessionId: nextSessionId },
+            });
+          } else {
+            await tx.pushRegistration.deleteMany({ where });
+            await tx.profilePushRegistration.deleteMany({ where });
+          }
         }),
       ),
     );

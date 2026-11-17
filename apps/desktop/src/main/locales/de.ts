@@ -113,6 +113,8 @@ export const DE_MESSAGES: Record<string, string> = {
   "Setup could not start. Quit Stirrup and try again.":
     "Die Einrichtung konnte nicht starten. Beende Stirrup und versuche es erneut.",
   "Enter a server address.": "Gib eine Serveradresse ein.",
+  "You have reached the saved account limit.":
+    "Du hast die Höchstzahl gespeicherter Konten erreicht.",
   "Enter a valid http:// or https:// address.":
     "Gib eine gültige http://- oder https://-Adresse ein.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":

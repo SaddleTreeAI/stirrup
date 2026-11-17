@@ -8,5 +8,10 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
   const isShare = linkScreen(path) === "expo-sharing";
   receiveIncomingShare(isShare, initial);
   if (!isSettingsLink(path)) closeSettingsSheet();
+  // Native Android push notifications use this gated route so the app can
+  // select the exact saved account before rendering a thread screen.
+  if (path.startsWith("rakazo://push-target?") || path.startsWith("rakazo:///push-target?")) {
+    return path.replace(/^rakazo:\/\/?\/?push-target/, "/push-target");
+  }
   return isShare ? "/share" : path;
 }

@@ -19,7 +19,6 @@ import {
   usesCustomApiBase,
 } from "../lib/endpoint";
 import { useMobileTokens } from "../lib/native";
-import { serverHeaders } from "../lib/server-headers";
 import { useSideInsets } from "../lib/side-insets";
 import { confirmUnsentSendLoss } from "../lib/unsent-send-warning";
 import { errorText } from "../lib/user-error";
@@ -32,9 +31,8 @@ export default function ServerScreen() {
   const router = useRouter();
   const current = currentApiBase();
   const [draft, setDraft] = useState(current);
-  const [headerRows, setHeaderRows] = useState<ModelHeaderRow[]>(() =>
-    Object.entries(serverHeaders(current)).map(([name, value]) => ({ name, value })),
-  );
+  const [label, setLabel] = useState("");
+  const [headerRows, setHeaderRows] = useState<ModelHeaderRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const active = useRef(true);
@@ -76,11 +74,9 @@ export default function ServerScreen() {
         setError(probed.error);
         return;
       }
-      // Asked once the switch can happen. Only a different server clears the device; the same
-      // address saves without a switch.
       if (probed.url !== current && !(await confirmUnsentSendLoss("server-switch"))) return;
       if (!active.current) return;
-      const saved = await saveApiBase(probed.url, headers);
+      const saved = await saveApiBase(probed.url, headers, { label, createProfile: true });
       if (!saved.ok) {
         setError(saved.error);
         return;
@@ -98,6 +94,7 @@ export default function ServerScreen() {
     saving.current = true;
     try {
       if (usesCustomApiBase(current) && !(await confirmUnsentSendLoss("server-switch"))) return;
+      if (!active.current) return;
       setPending(true);
       setError(null);
       const saved = await resetApiBase();
@@ -117,7 +114,7 @@ export default function ServerScreen() {
     <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: tokens.background }}>
       <Stack.Screen
         options={{
-          title: t`Server`,
+          title: t`Add account`,
           ...cancelHeaderOptions(t`Cancel`, close),
           ...trailingHeaderOptions(pending ? t`Checking…` : t`Save`, () => void save(), pending),
         }}
@@ -157,6 +154,23 @@ export default function ServerScreen() {
             }}
             textContentType="URL"
             value={draft}
+          />
+          <TextInput
+            accessibilityLabel={t`Account name`}
+            autoCapitalize="words"
+            autoCorrect={false}
+            onChangeText={setLabel}
+            placeholder={t`Account name`}
+            placeholderTextColor={tokens.mutedForeground}
+            style={{
+              backgroundColor: tokens.muted,
+              borderRadius: 13,
+              padding: 16,
+              color: tokens.foreground,
+              fontSize: 16,
+              marginTop: 12,
+            }}
+            value={label}
           />
           {warning ? (
             <Text style={{ color: tokens.mutedForeground, marginTop: 12, fontSize: 13 }}>

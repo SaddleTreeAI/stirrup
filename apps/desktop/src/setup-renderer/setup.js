@@ -499,7 +499,21 @@
       if (state === null) throw new Error("Setup is not active");
       defaultLocalUrl = state.defaultLocalUrl;
       cloudUrl = state.cloudUrl;
-      if (state.saved !== null) {
+      if (state.addingProfile) {
+        document.querySelector("h1.heading").textContent = t("Existing instance");
+        document.querySelector("p.subheading").textContent = t("Enter a server address.");
+        for (const id of ["mode-cloud", "mode-new"]) {
+          document.getElementById(id).closest(".choice").hidden = true;
+        }
+        document.getElementById("mode-existing").checked = true;
+        serverUrl.value = state.saved?.serverUrl ?? cloudUrl;
+        if (state.saved?.headers) {
+          serverHeaders.value = Object.entries(state.saved.headers)
+            .map(([name, value]) => `${name}: ${value}`)
+            .join("\n");
+          serverHeadersSection.open = true;
+        }
+      } else if (state.saved !== null) {
         const savedCloud = state.saved.mode === "existing" && state.saved.serverUrl === cloudUrl;
         const mode = savedCloud ? "cloud" : state.saved.mode;
         const modeInput = document.querySelector(`input[name="mode"][value="${mode}"]`);
