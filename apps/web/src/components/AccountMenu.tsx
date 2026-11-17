@@ -23,6 +23,7 @@ import { switchOrganization, useOrganizations } from "../lib/organizations";
 import { useQueryUserId } from "../lib/query";
 import { DeleteOrganizationDialog, removeOrganization } from "../pages/OrganizationSettingsPanel";
 import { DeleteAccountForm, hasDeleteRedirectError } from "./AccountAccess";
+import { DesktopAccountProfiles } from "./DesktopAccountProfiles";
 
 /**
  * The way out before the app opens (plan choice, onboarding): switch organization, delete an
@@ -92,6 +93,8 @@ export function AccountMenu({
               <DropdownMenuSeparator />
             </>
           ) : null}
+          <DesktopAccountProfiles />
+          {window.rakazoDesktop?.profiles ? <DropdownMenuSeparator /> : null}
           {deletableOrganization ? (
             <DropdownMenuItem onClick={() => setDeletingOrganization(true)}>
               <Trans>Delete organization</Trans>

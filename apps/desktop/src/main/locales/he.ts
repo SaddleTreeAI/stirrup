@@ -108,6 +108,7 @@ export const HE_MESSAGES: Record<string, string> = {
   "Setup could not start. Quit Stirrup and try again.":
     "לא ניתן היה להתחיל את ההגדרה. יש לצאת מ-Stirrup ולנסות שוב.",
   "Enter a server address.": "יש להזין כתובת שרת.",
+  "You have reached the saved account limit.": "הגעת למספר המרבי של חשבונות שמורים.",
   "Enter a valid http:// or https:// address.": "יש להזין כתובת http:// או https:// תקינה.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":
     "יש להזין כתובת שרת תקינה. שרתים ציבוריים מחייבים HTTPS; מופע מקומי חדש חייב להשתמש ב-localhost.",

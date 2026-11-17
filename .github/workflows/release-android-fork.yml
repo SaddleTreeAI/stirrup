@@ -1,0 +1,76 @@
+name: release-android-fork
+
+# Builds an explicitly configured fork APK; never submits to an application store.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-android-fork
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Build fork Android APK
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Configure owned application
+        env:
+          EXPO_TOKEN: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
+          MOBILE_DISTRIBUTION_CONFIG: ${{ secrets.MOBILE_DISTRIBUTION_CONFIG }}
+          MOBILE_ANDROID_PACKAGE: ${{ secrets.MOBILE_ANDROID_PACKAGE }}
+          MOBILE_RELEASE_API_URL: ${{ vars.MOBILE_RELEASE_API_URL }}
+        run: |
+          test -n "$EXPO_TOKEN" || { echo 'Set MOBILE_DISTRIBUTION_TOKEN before releasing.' >&2; exit 1; }
+          node apps/mobile/scripts/distribution.ts
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          const eas = JSON.parse(readFileSync('apps/mobile/eas.json', 'utf8'));
+          if (!eas.build['fork-android-apk']) throw new Error('Configure an explicit Android package before building.');
+          JS
+      - uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
+        env:
+          npm_config_ignore_scripts: "true"
+        with:
+          eas-version: 27.7.2
+          packager: npm
+          token: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @rakazo/mobile check
+      - name: Build and verify APK
+        working-directory: apps/mobile
+        run: |
+          if ! eas build --platform android --profile fork-android-apk --non-interactive --wait --json > "$RUNNER_TEMP/android-build.json" 2> "$RUNNER_TEMP/android-build.log"; then
+            echo 'Android build failed. Review the build service dashboard.' >&2
+            exit 1
+          fi
+          jq -e --arg project "$(node -p 'require("./app.json").expo.extra.eas.projectId')" \
+            --arg identifier "$(node -p 'require("./app.json").expo.android.package')" \
+            'length == 1 and (.[0] | .status == "FINISHED" and .platform == "ANDROID" and .buildProfile == "fork-android-apk" and .app.id == $project and .appIdentifier == $identifier)' \
+            "$RUNNER_TEMP/android-build.json" > /dev/null
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const [build] = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/android-build.json`, 'utf8'));
+          const url = new URL(build.artifacts.applicationArchiveUrl);
+          if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Invalid build artifact URL');
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Could not download verified APK');
+          writeFileSync(`${process.env.RUNNER_TEMP}/Stirrup.apk`, Buffer.from(await response.arrayBuffer()));
+          JS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stirrup-android-apk
+          path: ${{ runner.temp }}/Stirrup.apk
+          if-no-files-found: error
+          retention-days: 30

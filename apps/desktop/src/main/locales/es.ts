@@ -124,6 +124,7 @@ export const ES_MESSAGES: Record<string, string> = {
 
   // Connecting to a server
   "Enter a server address.": "Introduce la dirección de un servidor.",
+  "You have reached the saved account limit.": "Has alcanzado el límite de cuentas guardadas.",
   "Enter a valid http:// or https:// address.":
     "Introduce una dirección http:// o https:// válida.",
   "Enter a valid server address. Public servers require HTTPS; a new local instance must use localhost.":

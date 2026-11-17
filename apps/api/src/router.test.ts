@@ -648,10 +648,43 @@ describe("account preferences", () => {
     await expect(phone.notifications.unregisterPush()).resolves.toEqual({ ok: true });
     expect(calls).toEqual([`endSession ${actor.userId} session-phone`]);
 
-    // Without a session to end, the account-wide registration is still removed.
+    // Sessionless callers cannot remove other installations' registrations.
     const sessionless = createRouterClient(createRouter(deps), { context: { actor } as never });
-    await expect(sessionless.notifications.unregisterPush()).resolves.toEqual({ ok: true });
-    expect(calls).toEqual([`endSession ${actor.userId} session-phone`, `remove ${actor.userId}`]);
+    await expect(sessionless.notifications.unregisterPush()).rejects.toThrow("signed-in session");
+    expect(calls).toEqual([`endSession ${actor.userId} session-phone`]);
+  });
+
+  it("binds profile pushes to this server and rejects mismatched or incomplete profile claims", async () => {
+    const { deps, actor } = preferencesDeps("robot");
+    const save = vi.fn(async () => undefined);
+    deps.pushTokens = {
+      list: vi.fn(async () => []),
+      save,
+      importLegacy: vi.fn(async () => false),
+      endSession: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    };
+    const client = createRouterClient(createRouter(deps), {
+      context: { actor, sessionId: "session-phone" } as never,
+    });
+    const token = "ExponentPushToken[profile-test]";
+    const clientProfileId = "00000000-0000-4000-8000-000000000001";
+    const serverOrigin = new URL(deps.env.webOrigin).origin;
+    await client.notifications.registerPush({ token, clientProfileId, serverOrigin });
+    expect(save).toHaveBeenCalledWith(actor.userId, token, "session-phone", undefined, {
+      clientProfileId,
+      serverOrigin,
+    });
+    save.mockClear();
+    await expect(
+      client.notifications.registerPush({
+        token,
+        clientProfileId,
+        serverOrigin: "https://other.example.test",
+      }),
+    ).rejects.toThrow("host does not match");
+    await expect(client.notifications.registerPush({ token, clientProfileId })).rejects.toThrow();
+    expect(save).not.toHaveBeenCalled();
   });
 });
 

@@ -104,11 +104,19 @@ describe("settings links", () => {
     );
     expect(close).toHaveBeenCalledTimes(1);
     expect(redirectSystemPath({ path: "rakazo://expo-sharing", initial: true })).toBe("/share");
-    expect(close).toHaveBeenCalledTimes(2);
+    expect(
+      redirectSystemPath({
+        path: "rakazo://push-target?botId=bot-1&clientProfileId=profile-2&serverOrigin=https%3A%2F%2Fother.example",
+        initial: false,
+      }),
+    ).toBe(
+      "/push-target?botId=bot-1&clientProfileId=profile-2&serverOrigin=https%3A%2F%2Fother.example",
+    );
+    expect(close).toHaveBeenCalledTimes(3);
     expect(redirectSystemPath({ path: "rakazo:///artifacts", initial: false })).toBe(
       "rakazo:///artifacts",
     );
-    expect(close).toHaveBeenCalledTimes(3);
+    expect(close).toHaveBeenCalledTimes(4);
     unregister();
   });
 });

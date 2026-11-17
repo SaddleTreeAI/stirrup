@@ -6,6 +6,7 @@ import path from "node:path";
 import type { HostScreen } from "@rakazo/adapters/host-screen";
 import { startUserDeviceClient } from "@rakazo/adapters/user-device-client";
 import type {
+  AccountProfile,
   DesktopLocalStackState,
   DesktopReachability,
   DesktopSetup,
@@ -25,6 +26,13 @@ import {
   shell,
   systemPreferences,
 } from "electron";
+import type { DesktopProfileStore, StoredDesktopProfile } from "./account-profile-store.js";
+import {
+  profileFromSetup,
+  readDesktopProfileStore,
+  safeProfileLabel,
+  writeDesktopProfileStore,
+} from "./account-profile-store.js";
 import { applicationMenuInstaller, installUpdate } from "./app-menu.js";
 import { createAppOpener } from "./app-opener.js";
 import {
@@ -88,6 +96,11 @@ import {
 } from "./monitoring.js";
 import { NativeStackController } from "./native-stack.js";
 import { associatedPasskeyRpIds } from "./passkeys.js";
+import {
+  closeProfileNotificationWindows,
+  keepProfileNotifications,
+  profileForNotificationSender,
+} from "./profile-notification-windows.js";
 import { revealSecondInstanceWindow, secondInstanceWindow } from "./second-instance.js";
 import { installServerHeaders } from "./server-request-headers.js";
 import { installSessionPermissions } from "./session-permissions.js";
@@ -101,6 +114,7 @@ import {
   probeFailureMessage,
   readProbeJson,
   resolveStartupTarget,
+  sessionPartitionForServerUrl,
 } from "./setup-config.js";
 import { clearSetup, readSetup, readUiLocale, writeSetup, writeUiLocale } from "./setup-store.js";
 import { destroySetupWindow, registerSetupIpc, showSetupWindow } from "./setup-window.js";
@@ -115,6 +129,42 @@ installDesktopEarlyErrorReporting();
 const PERFORMANCE_USER_DATA = process.env.RAKAZO_PERFORMANCE_USER_DATA;
 /** Test hook: where the app-managed stack answers. Mode `new` still requires loopback. */
 const LOCAL_WEB_URL = process.env.RAKAZO_LOCAL_WEB_URL?.trim() || DEFAULT_LOCAL_WEB_URL;
+
+function activeProfile(store = desktop.profileStore): StoredDesktopProfile | undefined {
+  return store?.profiles.find((profile) => profile.id === store.activeProfileId);
+}
+
+function profileSessionId(profile = activeProfile()): string | undefined {
+  return !profile || profile.legacySession ? undefined : profile.id;
+}
+
+function ensureProfileStore(): DesktopProfileStore | null {
+  if (desktop.profileStore) return desktop.profileStore;
+  const url = desktop.currentSetup?.serverUrl ?? desktop.currentTargetUrl;
+  if (!url) return null;
+  const setup = desktop.currentSetup ?? { mode: "existing" as const, serverUrl: url };
+  const profile = profileFromSetup(setup, true);
+  desktop.profileStore = { version: 1, activeProfileId: profile.id, profiles: [profile] };
+  return desktop.profileStore;
+}
+
+function publicProfiles(store: DesktopProfileStore | null) {
+  return {
+    activeProfileId: store?.activeProfileId ?? null,
+    profiles: (store?.profiles ?? []).map(
+      ({ id, label, serverUrl }): AccountProfile => ({
+        id,
+        label,
+        serverUrl,
+      }),
+    ),
+  };
+}
+
+function syncProfileNotifications() {
+  const store = desktop.profileStore;
+  if (store) void keepProfileNotifications(store.profiles, store.activeProfileId);
+}
 const DESKTOP_STACK_PROBE_PATH = "/.well-known/rakazo-desktop-stack";
 const DESKTOP_STACK_TOKEN_HEADER = "x-rakazo-desktop-stack-token";
 let monitoringSession: Session | undefined;
@@ -338,17 +388,13 @@ function configureHeaderSession(value: Session | undefined) {
   )
     return;
   headerSession = value;
-  installServerHeaders(
-    value,
-    () => desktop.currentSetup,
-    () => desktop.mainWindow?.webContents.id,
-  );
+  installServerHeaders(value, desktop.currentSetup, () => desktop.mainWindow?.webContents.id);
 }
 async function openAppOnce(targetUrl: string, switching: boolean) {
   desktop.hostComputer?.activate(
     desktop.currentSetup?.mode === "new" && targetUrl === desktop.localStack.webUrl(),
   );
-  const target = await resolveSessionForTarget(targetUrl);
+  const target = await resolveSessionForTarget(targetUrl, profileSessionId());
   configureHeaderSession(target.value);
   // A failed switch must leave telemetry with the window that remains selected.
   if (desktop.mainWindow === null) activateDesktopMonitoring(targetUrl, target.value);
@@ -525,7 +571,7 @@ async function recoverFromCrashedSave(
     configureHeaderSession(undefined);
     desktop.currentTargetUrl = previousUrl;
     if (previousUrl) {
-      const restored = await resolveSessionForTarget(previousUrl);
+      const restored = await resolveSessionForTarget(previousUrl, profileSessionId());
       activateDesktopMonitoring(previousUrl, restored.value);
     } else activateDesktopMonitoring(undefined);
   }
@@ -634,7 +680,24 @@ app.whenReady().then(async () => {
         ...events,
       }),
   });
-  desktop.currentSetup = await readSetup(userDataDir);
+  const savedProfiles = await readDesktopProfileStore(userDataDir);
+  if (savedProfiles) {
+    desktop.profileStore = savedProfiles;
+    const profile = activeProfile(savedProfiles)!;
+    desktop.currentSetup = profile.setup;
+    desktop.currentProfileLegacySession = profile.legacySession;
+  } else {
+    desktop.currentSetup = await readSetup(userDataDir);
+    if (desktop.currentSetup) {
+      const legacy = profileFromSetup(desktop.currentSetup, true);
+      desktop.profileStore = {
+        version: 1,
+        activeProfileId: legacy.id,
+        profiles: [legacy],
+      };
+      desktop.currentProfileLegacySession = true;
+    }
+  }
   const userStackDir = stackDir(userDataDir);
   const resourceDir = stackResourceDir({
     packaged: app.isPackaged,
@@ -752,7 +815,7 @@ app.whenReady().then(async () => {
   if (process.env.RAKAZO_PERFORMANCE_CLEAR_CACHE === "1") {
     const cacheSessions = new Set<Session>([session.defaultSession]);
     if (target.kind === "app") {
-      cacheSessions.add((await resolveSessionForTarget(target.url)).value);
+      cacheSessions.add((await resolveSessionForTarget(target.url, profileSessionId())).value);
     }
     await Promise.all(
       [...cacheSessions].flatMap((value) => [value.clearCache(), value.clearCodeCaches({})]),
@@ -904,7 +967,106 @@ app.whenReady().then(async () => {
   );
   handleIpc("desktop.passkeys.rpIds", () => passkeyRpIds);
   handleIpc("desktop.monitoring.enabled", () => reportsErrors);
+  handleIpc("desktop.profiles.state", async () => {
+    const store = ensureProfileStore();
+    if (store) await writeDesktopProfileStore(userDataDir, store);
+    return publicProfiles(store);
+  });
+  const selectProfile = async (
+    profileId: unknown,
+    deferNotificationCleanup = false,
+  ): Promise<boolean> => {
+    const store = ensureProfileStore();
+    if (!store || typeof profileId !== "string") return false;
+    const selected = store.profiles.find((profile) => profile.id === profileId);
+    if (!selected) return false;
+    if (selected.id === store.activeProfileId) return true;
+    if (appOpener.busy()) return false;
+    const previousStore = store;
+    const previousSetup = desktop.currentSetup;
+    const previousUrl = desktop.currentTargetUrl;
+    const nextStore = { ...store, activeProfileId: selected.id };
+    desktop.profileStore = nextStore;
+    desktop.currentSetup = selected.setup;
+    desktop.currentProfileLegacySession = selected.legacySession;
+    const reachability = await probeServer(selected.serverUrl, undefined, selected.setup.headers);
+    if (!reachability.ok) {
+      desktop.profileStore = previousStore;
+      desktop.currentSetup = previousSetup;
+      desktop.currentProfileLegacySession = activeProfile(previousStore)?.legacySession ?? true;
+      return false;
+    }
+    const opened = await appOpener.open(selected.serverUrl, { switching: true });
+    if (!opened) {
+      desktop.profileStore = previousStore;
+      desktop.currentSetup = previousSetup;
+      desktop.currentProfileLegacySession = activeProfile(previousStore)?.legacySession ?? true;
+      configureHeaderSession(desktop.mainWindow?.webContents.session);
+      return false;
+    }
+    try {
+      await writeDesktopProfileStore(userDataDir, nextStore);
+      await writeSetup(userDataDir, selected.setup);
+    } catch {
+      desktop.profileStore = previousStore;
+      desktop.currentSetup = previousSetup;
+      desktop.currentProfileLegacySession = activeProfile(previousStore)?.legacySession ?? true;
+      await writeDesktopProfileStore(userDataDir, previousStore).catch(() => undefined);
+      if (previousSetup) await writeSetup(userDataDir, previousSetup).catch(() => undefined);
+      abandonPendingAppSwitch(previousSetup, previousUrl);
+      return false;
+    }
+    commitPendingAppSwitch();
+    if (deferNotificationCleanup) setTimeout(syncProfileNotifications, 0);
+    else syncProfileNotifications();
+    return true;
+  };
+  handleIpc("desktop.profiles.select", async (_event, profileId) => selectProfile(profileId));
+  handleIpc("desktop.notifications.activateProfile", async (event) => {
+    const profileId = profileForNotificationSender(event.sender);
+    const store = desktop.profileStore;
+    if (!profileId || !store?.profiles.some((profile) => profile.id === profileId)) return false;
+    return selectProfile(profileId, true);
+  });
+  handleIpc("desktop.profiles.rename", async (_event, profileId, value) => {
+    const store = ensureProfileStore();
+    const label = safeProfileLabel(value);
+    if (!store || typeof profileId !== "string" || !label) return false;
+    const profiles = store.profiles.map((profile) =>
+      profile.id === profileId ? { ...profile, label } : profile,
+    );
+    if (!profiles.some((profile) => profile.id === profileId)) return false;
+    const nextStore = { ...store, profiles };
+    await writeDesktopProfileStore(userDataDir, nextStore);
+    desktop.profileStore = nextStore;
+    return true;
+  });
+  handleIpc("desktop.profiles.remove", async (_event, profileId) => {
+    const store = ensureProfileStore();
+    if (!store || typeof profileId !== "string" || store.profiles.length < 2) return false;
+    const profile = store.profiles.find((candidate) => candidate.id === profileId);
+    if (!profile || profile.id === store.activeProfileId) return false;
+    const nextStore = {
+      ...store,
+      profiles: store.profiles.filter((candidate) => candidate.id !== profileId),
+    };
+    await writeDesktopProfileStore(userDataDir, nextStore);
+    desktop.profileStore = nextStore;
+    const targetSession = profile.legacySession
+      ? session.defaultSession
+      : session.fromPartition(sessionPartitionForServerUrl(profile.serverUrl, profile.id)!);
+    await targetSession.clearStorageData({ origin: profile.serverUrl });
+    await targetSession.clearCache();
+    syncProfileNotifications();
+    return true;
+  });
+  handleIpc("desktop.server.addProfile", () => {
+    if (!ensureProfileStore() || appOpener.busy()) return;
+    desktop.addingProfile = true;
+    showSetupWindow();
+  });
   handleIpc("desktop.server.change", () => {
+    desktop.addingProfile = false;
     showSetupWindow();
   });
   registerWindowControls();
@@ -922,6 +1084,7 @@ app.whenReady().then(async () => {
     commitPendingAppSwitch,
     abandonPendingAppSwitch,
     recoverFromCrashedSave,
+    syncProfileNotifications,
     stopStackLeftBehind: (previousMode) =>
       stopStackLeftBehind({
         mode: desktop.currentSetup?.mode,
@@ -950,7 +1113,10 @@ app.whenReady().then(async () => {
     if (desktop.currentTargetUrl === null) showSetupWindow(desktop.setupError);
     else
       void appOpener.open(desktop.currentTargetUrl).then((opened) => {
-        if (opened) commitPendingAppSwitch();
+        if (opened) {
+          commitPendingAppSwitch();
+          syncProfileNotifications();
+        }
       });
   });
 
@@ -963,6 +1129,7 @@ app.whenReady().then(async () => {
     if (managedStackReady && managedUrl !== null) {
       if (await appOpener.open(managedUrl)) {
         commitPendingAppSwitch();
+        syncProfileNotifications();
         destroySetupWindow();
       }
     } else {
@@ -976,6 +1143,7 @@ app.whenReady().then(async () => {
     if (reachability.ok) {
       if (await appOpener.open(target.url)) {
         commitPendingAppSwitch();
+        syncProfileNotifications();
         destroySetupWindow();
       }
     } else {
@@ -991,6 +1159,7 @@ app.whenReady().then(async () => {
   } else {
     if (await appOpener.open(target.url)) {
       commitPendingAppSwitch();
+      syncProfileNotifications();
       destroySetupWindow();
     }
   }
@@ -1005,6 +1174,7 @@ app.on("quit", (_event, exitCode) => {
   if (exitCode === 0) desktop.desktopUpdater?.installOnQuit();
 });
 app.on("before-quit", (event) => {
+  closeProfileNotificationWindows();
   desktop.quitting = true;
   // Server processes this app runs itself stop with it; quit again once they have.
   if (desktop.localStack instanceof NativeStackController && desktop.localStack.hasProcesses()) {

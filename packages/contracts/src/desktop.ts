@@ -1,3 +1,5 @@
+import type { AccountProfile } from "./account-profiles.js";
+
 /**
  * `unsupported` covers an unpackaged build and a repository with no published releases, which is
  * the normal state for a fork. It is not an error the user needs to act on. Automatic checks stay
@@ -135,6 +137,15 @@ export interface RakazoDesktop {
   server?: {
     /** Opens the desktop setup window to pick another Stirrup server. */
     change: () => Promise<void>;
+    /** Opens setup in add-profile mode, preserving the current server session. */
+    addProfile?: () => Promise<void>;
+  };
+  /** Device-local saved hosts and sign-ins; absent on older desktop releases. */
+  profiles?: {
+    state: () => Promise<{ activeProfileId: string | null; profiles: AccountProfile[] }>;
+    select: (profileId: string) => Promise<boolean>;
+    rename: (profileId: string, label: string) => Promise<boolean>;
+    remove: (profileId: string) => Promise<boolean>;
   };
   /** Absent on older desktop releases, which have no Settings… menu item. */
   settings?: {
@@ -210,6 +221,8 @@ export interface DesktopSetupState {
   /** Hosted Stirrup origin, saved as an `existing` server when chosen. */
   cloudUrl: string;
   saved: DesktopSetup | null;
+  /** Setup is adding another saved sign-in instead of replacing the active one. */
+  addingProfile?: boolean;
   /** Present when a saved or newly selected server could not be reopened. */
   error?: string;
 }

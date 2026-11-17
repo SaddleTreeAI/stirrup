@@ -18,6 +18,7 @@ import {
   serverHeadersFor,
   servesBundledRenderer,
   sessionPartitionForServerUrl,
+  usesLegacyDefaultSession,
 } from "./setup-config.js";
 
 describe("server address normalization", () => {
@@ -253,10 +254,20 @@ describe("bundled renderer eligibility", () => {
 });
 
 describe("remote-content isolation", () => {
+  it("keeps new accounts in profile partitions even on a host with legacy account data", () => {
+    expect(usesLegacyDefaultSession()).toBe(true);
+    expect(usesLegacyDefaultSession("same-host-account-one")).toBe(false);
+    expect(usesLegacyDefaultSession("same-host-account-two")).toBe(false);
+  });
+
   it("uses a stable, opaque session partition per server origin", () => {
     const first = sessionPartitionForServerUrl("https://one.example.com/path");
     expect(first).toBe(sessionPartitionForServerUrl("https://one.example.com/other"));
     expect(first).not.toBe(sessionPartitionForServerUrl("https://one.example.com:8443"));
+    expect(first).not.toBe(sessionPartitionForServerUrl("https://one.example.com", "profile-one"));
+    expect(sessionPartitionForServerUrl("https://one.example.com", "profile-one")).not.toBe(
+      sessionPartitionForServerUrl("https://one.example.com", "profile-two"),
+    );
     expect(first).toMatch(/^persist:rakazo-[a-f0-9]{24}$/);
     expect(first).not.toContain("one.example.com");
     expect(sessionPartitionForServerUrl("data:text/html,fixture")).toBeNull();

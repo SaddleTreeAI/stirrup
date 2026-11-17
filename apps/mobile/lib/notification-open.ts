@@ -8,6 +8,11 @@ export type NotificationRoute =
       params: { groupId: string; threadId?: string; spaceId?: string; name?: string };
     };
 
+export type NotificationAccountBinding = {
+  clientProfileId: string;
+  serverOrigin: string;
+};
+
 export type ThreadSpaceRequest =
   | { action: "show" }
   | { action: "switch"; spaceId: string }
@@ -32,6 +37,26 @@ function notificationField(data: Record<string, unknown>, key: string): string |
   const prefixed = data[`rakazo.${key}`];
   const value = typeof direct === "string" ? direct : prefixed;
   return typeof value === "string" ? singleRouteParam(value) : undefined;
+}
+
+/** The account and instance that created this push; both must match local profile metadata. */
+export function notificationAccountBinding(data: unknown): NotificationAccountBinding | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const record = data as Record<string, unknown>;
+  const clientProfileId = notificationField(record, "clientProfileId");
+  const serverOrigin = notificationField(record, "serverOrigin");
+  if (!clientProfileId || !serverOrigin) return null;
+  try {
+    const parsed = new URL(serverOrigin);
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      parsed.origin !== serverOrigin
+    )
+      return null;
+  } catch {
+    return null;
+  }
+  return { clientProfileId, serverOrigin };
 }
 
 /**

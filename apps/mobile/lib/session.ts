@@ -1,5 +1,12 @@
 import * as SecureStore from "expo-secure-store";
 import {
+  activeAccountProfileId,
+  credentialsForProfile,
+  readProfileCredentials,
+  saveActiveProfileToken,
+  saveProfileToken,
+} from "./account-profiles";
+import {
   invalidateArtifactCacheSession,
   rotateArtifactCacheSession,
   rotatedArtifactCacheToken,
@@ -32,12 +39,18 @@ function enqueueScopeWrite<T>(task: () => Promise<T>): Promise<T> {
 }
 
 const sessionDiskCaches = new Set<(sameAccount: boolean) => void | Promise<void>>();
+const sessionMemoryCaches = new Set<() => void | Promise<void>>();
 
 /** Registers a cache wipe; a verified same-account replacement can keep account-scoped data. */
 export function registerSessionDiskCache(
   clear: (sameAccount: boolean) => void | Promise<void>,
 ): void {
   sessionDiskCaches.add(clear);
+}
+
+/** Registers an in-memory cache that must be cleared when the active account changes. */
+export function registerSessionMemoryCache(clear: () => void | Promise<void>): void {
+  sessionMemoryCaches.add(clear);
 }
 
 /**
@@ -61,6 +74,13 @@ function invalidateSessionCaches(
       void Promise.resolve(clear(sameAccount)).catch(() => undefined);
     } catch {
       // A failed disk wipe must not block the session change or the other wipes.
+    }
+  }
+  for (const clear of sessionMemoryCaches) {
+    try {
+      void Promise.resolve(clear()).catch(() => undefined);
+    } catch {
+      // An optional in-memory cache cannot block credential writes.
     }
   }
   const clearingArtifacts = keepUnsent ? undefined : invalidateArtifactCacheSession();
@@ -195,6 +215,8 @@ export async function saveSessionToken(token: string) {
     const clearingScope = invalidateSessionCaches();
     // Marked before the token lands, so an account deletion that clears it afterwards also clears the mark.
     await rememberSignedIn();
+    const profileId = activeAccountProfileId();
+    if (profileId) await saveActiveProfileToken(profileId, token);
     await enqueueScopeWrite(() => SecureStore.setItemAsync(SESSION_KEY, token));
     await clearingScope;
   } finally {
@@ -225,6 +247,43 @@ export async function clearSessionToken(options: { keepUnsent?: boolean } = {}):
   return tokenCleared;
 }
 
+/** Changes the active profile's session epoch without signing either account out. */
+export async function activateSavedProfileSession(profileId: string): Promise<void> {
+  if (profileId !== activeAccountProfileId())
+    throw new Error("The account changed during switching");
+  const generation = ++sessionGeneration;
+  publishSessionGeneration(false);
+  sessionInvalidated = true;
+  sessionFallback = undefined;
+  scopeInvalidated = false;
+  clearNetworkCache();
+  forgetReferrals();
+  // Profile-scoped request keys and disk namespaces keep prior data isolated. Rebuild volatile
+  // reads so the new profile's screens cannot paint an answer from the one we just left.
+  for (const clear of sessionMemoryCaches) {
+    try {
+      void Promise.resolve(clear()).catch(() => undefined);
+    } catch {
+      // An optional cache cannot block account switching.
+    }
+  }
+  await stopLiveNotifications(false).catch(() => undefined);
+  const credentials = await credentialsForProfile(profileId);
+  try {
+    await enqueueScopeWrite(async () => {
+      if (generation !== sessionGeneration || profileId !== activeAccountProfileId()) return;
+      await SecureStore.setItemAsync(SESSION_KEY, credentials.token);
+    });
+  } catch {
+    // The legacy mirror is used by the intent extension; authenticated app requests read the
+    // profile credential directly and remain fail-closed if it cannot be read.
+  }
+  if (generation !== sessionGeneration) return;
+  sessionInvalidated = false;
+  sessionFallback = undefined;
+  publishSessionGeneration();
+}
+
 async function clearStoredSessionToken(generation: number): Promise<boolean> {
   return enqueueScopeWrite(async () => {
     let cleared = false;
@@ -242,6 +301,15 @@ async function clearStoredSessionToken(generation: number): Promise<boolean> {
     if (generation === sessionGeneration) {
       sessionInvalidated = !cleared;
       sessionFallback = undefined;
+    }
+    const profileId = activeAccountProfileId();
+    if (profileId) {
+      try {
+        await saveProfileToken(profileId, "");
+      } catch {
+        cleared = false;
+        if (generation === sessionGeneration) sessionInvalidated = true;
+      }
     }
     return cleared;
   });
@@ -370,7 +438,10 @@ async function recoverRotatedToken(): Promise<boolean> {
   const generation = sessionGeneration;
   let token: string | undefined;
   try {
-    const stored = await SecureStore.getItemAsync(SESSION_KEY);
+    const profileId = activeAccountProfileId();
+    const stored = profileId
+      ? (await readProfileCredentials(profileId)).token
+      : await SecureStore.getItemAsync(SESSION_KEY);
     // Only the token the change replaced is swapped; any other session ignores the record.
     token = stored ? await rotatedArtifactCacheToken(stored) : undefined;
   } catch {
@@ -390,7 +461,10 @@ async function recoverRotatedToken(): Promise<boolean> {
 /** Writes the token unless another session change started; that change then owns the store. */
 function saveRotatedToken(generation: number, token: string): Promise<void> {
   return enqueueScopeWrite(async () => {
-    if (generation === sessionGeneration) await SecureStore.setItemAsync(SESSION_KEY, token);
+    if (generation !== sessionGeneration) return;
+    const profileId = activeAccountProfileId();
+    if (profileId) await saveProfileToken(profileId, token);
+    await SecureStore.setItemAsync(SESSION_KEY, token);
   });
 }
 
@@ -406,11 +480,19 @@ export async function snapshotSessionToken(): Promise<{ ok: true; value: string 
   if (sessionFallback !== undefined) return { ok: true, value: sessionFallback };
   if (sessionInvalidated) return { ok: true, value: "" };
   const generation = sessionGeneration;
+  const profileId = activeAccountProfileId();
   try {
-    const value = (await SecureStore.getItemAsync(SESSION_KEY)) ?? "";
+    const value = profileId
+      ? (await readProfileCredentials(profileId)).token
+      : ((await SecureStore.getItemAsync(SESSION_KEY)) ?? "");
     return {
       ok: true,
-      value: generation === sessionGeneration && !sessionInvalidated ? value : "",
+      value:
+        generation === sessionGeneration &&
+        profileId === activeAccountProfileId() &&
+        !sessionInvalidated
+          ? value
+          : "",
     };
   } catch {
     return { ok: false };
@@ -425,7 +507,13 @@ export async function snapshotStoredSessionToken(): Promise<
   { ok: true; value: string } | { ok: false }
 > {
   try {
-    return { ok: true, value: (await SecureStore.getItemAsync(SESSION_KEY)) ?? "" };
+    const profileId = activeAccountProfileId();
+    return {
+      ok: true,
+      value: profileId
+        ? (await readProfileCredentials(profileId)).token
+        : ((await SecureStore.getItemAsync(SESSION_KEY)) ?? ""),
+    };
   } catch {
     return { ok: false };
   }

@@ -23,6 +23,7 @@ import {
   serverHeadersFor,
   servesBundledRenderer,
   sessionPartitionForServerUrl,
+  usesLegacyDefaultSession,
 } from "./setup-config.js";
 import {
   mcpOAuthPartition,
@@ -49,8 +50,8 @@ export function developmentIcon() {
   const icon = path.join(app.getAppPath(), "assets", developmentIconFile(process.platform));
   return existsSync(icon) ? icon : undefined;
 }
-function sessionPartitionKey(targetUrl: string) {
-  return sessionPartitionForServerUrl(targetUrl);
+function sessionPartitionKey(targetUrl: string, profileId?: string) {
+  return sessionPartitionForServerUrl(targetUrl, profileId);
 }
 function legacyDefaultSessionFlag(partition: string) {
   return path.join(
@@ -63,15 +64,16 @@ function legacyDefaultSessionFlag(partition: string) {
  * storage there, so upgrades keep localStorage/IndexedDB. Fresh origins get
  * an isolated partition.
  */
-export async function resolveSessionForTarget(targetUrl: string) {
-  const partition = sessionPartitionKey(targetUrl);
+export async function resolveSessionForTarget(targetUrl: string, profileId?: string) {
+  const partition = sessionPartitionKey(targetUrl, profileId);
   if (partition === null) {
     return { partition: null, value: session.defaultSession };
   }
-  if (existsSync(legacyDefaultSessionFlag(partition))) {
+  const legacyProfile = usesLegacyDefaultSession(profileId);
+  if (legacyProfile && existsSync(legacyDefaultSessionFlag(partition))) {
     return { partition: null, value: session.defaultSession };
   }
-  const origin = safeOrigin(targetUrl);
+  const origin = legacyProfile ? safeOrigin(targetUrl) : null;
   if (origin !== null) {
     try {
       const defaultCookies = await session.defaultSession.cookies.get({ url: origin });

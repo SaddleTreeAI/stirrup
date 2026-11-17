@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro";
 import { requireNativeModule } from "expo-modules-core";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { activeAccountProfile, credentialsForProfile } from "./account-profiles";
 import { apiBaseWarning, normalizeApiBase } from "./endpoint";
 import { getActiveUiLocale } from "./i18n";
 import { serverHeaders } from "./server-headers";
@@ -29,6 +30,8 @@ type NativeNotifications = {
     spaceId: string,
     locale: string,
     headers: string,
+    profileId: string,
+    serverOrigin: string,
   ): Promise<void>;
   resume(
     endpoint: string,
@@ -36,6 +39,8 @@ type NativeNotifications = {
     spaceId: string,
     locale: string,
     headers: string,
+    profileId: string,
+    serverOrigin: string,
   ): Promise<void>;
   /** Missing on native builds that predate pending reply invalidation. */
   resumeAfterMute?(
@@ -45,6 +50,8 @@ type NativeNotifications = {
     locale: string,
     headers: string,
     botId: string,
+    profileId: string,
+    serverOrigin: string,
   ): Promise<void>;
   stop(clearSession: boolean): Promise<void>;
   setOpenThread(botId: string | null, threadId: string | null): Promise<void>;
@@ -125,6 +132,7 @@ export async function setLiveNotificationSettings(
     const granted = existing.granted || (await Notifications.requestPermissionsAsync()).granted;
     if (!granted) throw new Error(t`Android blocked notifications.`);
   }
+  const binding = await nativeProfileBinding(parsed.url, token);
   await nativeNotifications.setSettings(
     settings,
     parsed.url,
@@ -132,6 +140,8 @@ export async function setLiveNotificationSettings(
     spaceId,
     getActiveUiLocale(),
     nativeServerHeaders(parsed.url),
+    binding.profileId,
+    binding.serverOrigin,
   );
 }
 
@@ -145,6 +155,8 @@ export async function resumeLiveNotifications(
   const parsed = normalizeApiBase(endpoint);
   if (!parsed.ok || apiBaseWarning(parsed.url)) return false;
   const headers = nativeServerHeaders(parsed.url);
+  const binding = await nativeProfileBinding(parsed.url, token);
+  if (!binding.profileId) return false;
   if (mutedBotId && nativeNotifications.resumeAfterMute) {
     await nativeNotifications.resumeAfterMute(
       parsed.url,
@@ -153,11 +165,39 @@ export async function resumeLiveNotifications(
       getActiveUiLocale(),
       headers,
       mutedBotId,
+      binding.profileId,
+      binding.serverOrigin,
     );
   } else {
-    await nativeNotifications.resume(parsed.url, token, spaceId, getActiveUiLocale(), headers);
+    await nativeNotifications.resume(
+      parsed.url,
+      token,
+      spaceId,
+      getActiveUiLocale(),
+      headers,
+      binding.profileId,
+      binding.serverOrigin,
+    );
   }
   return true;
+}
+
+async function nativeProfileBinding(
+  endpoint: string,
+  token: string,
+): Promise<{ profileId: string; serverOrigin: string }> {
+  const profile = activeAccountProfile();
+  if (!profile) return { profileId: "", serverOrigin: "" };
+  try {
+    const credentials = await credentialsForProfile(profile.id);
+    const profileOrigin = new URL(profile.serverUrl).origin;
+    if (credentials.token !== token || profileOrigin !== new URL(endpoint).origin) {
+      return { profileId: "", serverOrigin: "" };
+    }
+    return { profileId: profile.id, serverOrigin: profileOrigin };
+  } catch {
+    return { profileId: "", serverOrigin: "" };
+  }
 }
 
 /** The Android poller calls the server itself, so it needs the server's headers too. */

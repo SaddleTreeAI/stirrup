@@ -6,7 +6,7 @@ import type { RakazoDesktop, RakazoSetup } from "@rakazo/contracts";
  * takes the window a server switch is replacing: only for a channel whose handler acts on
  * the window that sent the call and on nothing else.
  */
-export type IpcWindow = "app" | "appOrReplaced" | "setup";
+export type IpcWindow = "app" | "appOrReplaced" | "notification" | "setup";
 
 type BridgeMethod = (...args: never[]) => unknown;
 
@@ -61,6 +61,12 @@ const setupPage = <Method extends BridgeMethod>(refused: Refused<Method>): IpcCh
   from: "setup",
   refused,
 });
+const notificationPage = <Method extends BridgeMethod>(
+  refused: Refused<Method>,
+): IpcChannel<Method> => ({
+  from: "notification",
+  refused,
+});
 /** `sendSync` cannot reject, so a refused caller reads null and the preload supplies English. */
 const setupPageSync = <Method extends BridgeMethod>(): IpcChannel<Method> & { sync: true } => ({
   from: "setup",
@@ -88,9 +94,19 @@ export const ipcChannels = {
   "desktop.locale.set": appPage<Desktop["locale"]["set"]>(undefined),
   "desktop.mcpBrowser.clear": appPage<Desktop["mcpBrowser"]["clear"]>(REJECTS),
   "desktop.monitoring.enabled": appPage<Desktop["monitoring"]["enabled"]>(false),
+  "desktop.notifications.activateProfile": notificationPage<() => Promise<boolean>>(false),
   "desktop.oauth.cancel": appPage<NonNullable<Desktop["oauth"]["cancel"]>>(undefined),
   "desktop.oauth.open": appPage<NonNullable<Desktop["oauth"]["open"]>>(REJECTS),
   "desktop.passkeys.rpIds": appPage<Desktop["passkeys"]["rpIds"]>([]),
+  "desktop.profiles.remove": appPage<NonNullable<Desktop["profiles"]>["remove"]>(false),
+  "desktop.profiles.rename": appPage<NonNullable<Desktop["profiles"]>["rename"]>(false),
+  "desktop.profiles.select": appPage<NonNullable<Desktop["profiles"]>["select"]>(false),
+  "desktop.profiles.state": appPage<NonNullable<Desktop["profiles"]>["state"]>({
+    activeProfileId: null,
+    profiles: [],
+  }),
+  "desktop.server.addProfile":
+    appPage<NonNullable<NonNullable<Desktop["server"]>["addProfile"]>>(undefined),
   "desktop.server.change": appPage<Desktop["server"]["change"]>(undefined),
   "desktop.speech.abort": appPage<Desktop["speech"]["abort"]>(undefined),
   "desktop.speech.start": appPage<Desktop["speech"]["start"]>(false),

@@ -104,6 +104,7 @@ model User {
   createdTickets              Ticket[]                     @relation("TicketCreatorUser")
   ticketComments              TicketComment[]              @relation("TicketCommentAuthorUser")
   pushRegistrations           PushRegistration[]
+  profilePushRegistrations    ProfilePushRegistration[]
   callPushDevices             CallPushDevice[]
   workActivityTokens          WorkActivityToken[]
   workActivityStartTokens     WorkActivityStartToken[]
@@ -153,6 +154,23 @@ model Session {
 
 /// One row per signed-in device; a device token belongs to one account at a time.
 /// No session FK: password changes delete a session before the replacement is created.
+/// Saved accounts may share a physical device token, unlike legacy registrations.
+model ProfilePushRegistration {
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenDigest String
+  sessionId String
+  ciphertext String
+  presentation String?
+  clientProfileId String
+  serverOrigin String
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, tokenDigest])
+  @@index([sessionId])
+  @@map("profile_push_registrations")
+}
+
 model PushRegistration {
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

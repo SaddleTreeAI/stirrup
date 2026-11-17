@@ -1,3 +1,4 @@
+import type { PushProfileBinding } from "@rakazo/contracts";
 import { credentialDigest } from "./credential-digest.js";
 import type { PushRecord, PushTokenStore } from "./push-token-store.js";
 
@@ -10,16 +11,32 @@ export class MemoryPushTokenStore implements PushTokenStore {
       .filter((row) => row.userId === userId)
       .map(({ userId: _, ...record }) => record);
   }
-  async save(userId: string, token: string, sessionId = "", presentation?: "android_sender") {
-    this.rows = this.rows.filter(
-      (row) =>
-        row.token !== token && !(sessionId && row.userId === userId && row.sessionId === sessionId),
-    );
+  async save(
+    userId: string,
+    token: string,
+    sessionId = "",
+    presentation?: "android_sender",
+    profile?: PushProfileBinding,
+  ) {
+    this.rows = this.rows.filter((row) => {
+      if (profile)
+        return (
+          row.userId !== userId ||
+          (row.token !== token &&
+            row.sessionId !== sessionId &&
+            row.profile?.clientProfileId !== profile.clientProfileId)
+        );
+      return (
+        (row.profile || row.token !== token) &&
+        !(sessionId && row.userId === userId && row.sessionId === sessionId && !row.profile)
+      );
+    });
     this.rows.push({
       userId,
       token,
       ...(sessionId ? { sessionId } : {}),
       ...(presentation ? { presentation } : {}),
+      ...(profile ? { profile } : {}),
     });
   }
   async importLegacy(userId: string, token: string, sessionId: string) {

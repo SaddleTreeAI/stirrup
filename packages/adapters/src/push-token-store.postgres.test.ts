@@ -45,9 +45,12 @@ suite("database push registrations", () => {
     });
   });
   beforeEach(async () => {
-    await runAsSystem("clear fixture push registrations", () =>
-      a.prisma.pushRegistration.deleteMany({ where: { userId: { startsWith: prefix } } }),
-    );
+    await runAsSystem("clear fixture push registrations", async () => {
+      await a.prisma.pushRegistration.deleteMany({ where: { userId: { startsWith: prefix } } });
+      await a.prisma.profilePushRegistration.deleteMany({
+        where: { userId: { startsWith: prefix } },
+      });
+    });
   });
   afterAll(async () => {
     if (!a) return;
@@ -89,6 +92,36 @@ suite("database push registrations", () => {
       api.list(user("c")),
     ]);
     expect(registrations.flat()).toHaveLength(1);
+  });
+
+  it("keeps saved accounts on the same device isolated through registration and logout", async () => {
+    const first = { clientProfileId: randomUUID(), serverOrigin: "https://example.test" };
+    const second = { clientProfileId: randomUUID(), serverOrigin: "https://example.test" };
+    await Promise.all([
+      api.save(user("a"), token("shared"), session("a"), undefined, first),
+      worker.save(user("b"), token("shared"), session("b"), undefined, second),
+    ]);
+    expect(await api.list(user("a"))).toEqual([
+      { token: token("shared"), sessionId: session("a"), profile: first },
+    ]);
+    expect(await worker.list(user("b"))).toEqual([
+      { token: token("shared"), sessionId: session("b"), profile: second },
+    ]);
+    await api.endSession(user("a"), session("a"));
+    expect(await api.list(user("a"))).toEqual([]);
+    expect((await worker.list(user("b")))[0]?.profile).toEqual(second);
+  });
+
+  it("rotates a saved profile token and preserves its binding through password session replacement", async () => {
+    const profile = { clientProfileId: randomUUID(), serverOrigin: "https://example.test" };
+    await api.save(user("a"), token("old"), session("a"), undefined, profile);
+    await api.save(user("a"), token("new"), session("a"), "android_sender", profile);
+    await api.endSession(user("a"), session("a"), session("a2"));
+    await api.endSession(user("a"), session("a"));
+    expect(await worker.list(user("a"))).toEqual([
+      { token: token("new"), sessionId: session("a2"), presentation: "android_sender", profile },
+    ]);
+    expect(await api.importLegacy(user("b"), token("new"), session("b"))).toBe(false);
   });
 
   it("keeps newer registrations when an old receipt or logout arrives", async () => {

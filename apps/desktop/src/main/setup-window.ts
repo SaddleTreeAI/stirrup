@@ -3,6 +3,12 @@ import type { DesktopReachability, DesktopSetup } from "@rakazo/contracts";
 import { parseServerHeaders } from "@rakazo/contracts";
 import type { Session } from "electron";
 import { app, BrowserWindow, screen, shell } from "electron";
+import type { DesktopProfileStore } from "./account-profile-store.js";
+import {
+  clearDesktopProfileStore,
+  profileFromSetup,
+  writeDesktopProfileStore,
+} from "./account-profile-store.js";
 import type { createAppOpener } from "./app-opener.js";
 import { developmentIcon, markOnce } from "./app-window.js";
 import { desktop } from "./desktop-state.js";
@@ -32,6 +38,7 @@ function createSetupWindow() {
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.once("closed", () => {
     if (desktop.setupWindow === win) desktop.setupWindow = null;
+    desktop.addingProfile = false;
     // Closing setup without saving restores a connected session (Change Server cancel).
     restoreAppWindowAfterSetup();
   });
@@ -107,6 +114,7 @@ type SetupIpcDeps = {
     previousSetup: DesktopSetup | null,
     previousUrl: string | null,
   ) => Promise<string>;
+  syncProfileNotifications: () => void;
   stopStackLeftBehind: (previousMode: DesktopSetup["mode"] | undefined) => void;
   /** Picks the stack This computer runs on, if launch left that open. */
   settleLocalStack: () => Promise<void>;
@@ -122,6 +130,7 @@ export function registerSetupIpc({
   commitPendingAppSwitch,
   abandonPendingAppSwitch,
   recoverFromCrashedSave,
+  syncProfileNotifications,
   stopStackLeftBehind,
   settleLocalStack,
 }: SetupIpcDeps) {
@@ -135,6 +144,7 @@ export function registerSetupIpc({
     defaultLocalUrl: desktop.localStack.webUrl(),
     cloudUrl: RAKAZO_CLOUD_URL,
     saved: desktop.currentSetup,
+    addingProfile: desktop.addingProfile,
     error: desktop.setupError ?? undefined,
   }));
 
@@ -152,6 +162,9 @@ export function registerSetupIpc({
     setupSaveInProgress = true;
     const previousSetup = desktop.currentSetup;
     const previousUrl = desktop.currentTargetUrl;
+    const previousProfileStore = desktop.profileStore;
+    const previousLegacySession = desktop.currentProfileLegacySession;
+    const previousAddingProfile = desktop.addingProfile;
     try {
       const setup = parseSetupInput(payload);
       if (setup === null) {
@@ -179,11 +192,48 @@ export function registerSetupIpc({
       const reachability = await probeServer(openSetup.serverUrl, undefined, openSetup.headers);
       if (!reachability.ok) return { ok: false, error: reachability.error };
 
+      let baseStore = previousProfileStore;
+      if (!baseStore && previousSetup) {
+        const legacy = profileFromSetup(previousSetup, true);
+        baseStore = { version: 1, activeProfileId: legacy.id, profiles: [legacy] };
+      }
+      const profile = previousAddingProfile
+        ? profileFromSetup(openSetup, false)
+        : (() => {
+            const current = baseStore?.profiles.find(
+              (item) => item.id === baseStore?.activeProfileId,
+            );
+            return current
+              ? { ...current, serverUrl: openSetup.serverUrl, setup: openSetup }
+              : profileFromSetup(openSetup, previousUrl !== null);
+          })();
+      if (previousAddingProfile && baseStore && baseStore.profiles.length >= 100)
+        return { ok: false, error: t("You have reached the saved account limit.") };
+      const nextProfileStore: DesktopProfileStore = previousAddingProfile
+        ? {
+            version: 1,
+            activeProfileId: profile.id,
+            profiles: [...(baseStore?.profiles ?? []), profile],
+          }
+        : baseStore
+          ? {
+              version: 1,
+              activeProfileId: profile.id,
+              profiles: baseStore.profiles.map((item) =>
+                item.id === baseStore!.activeProfileId ? profile : item,
+              ),
+            }
+          : { version: 1, activeProfileId: profile.id, profiles: [profile] };
+
       // Open before persisting so a failed renderer load keeps the last working setup.
       desktop.currentSetup = openSetup;
+      desktop.profileStore = nextProfileStore;
+      desktop.currentProfileLegacySession = profile.legacySession;
       const opened = await appOpener.open(openSetup.serverUrl, { switching: true });
       if (!opened) {
         desktop.currentSetup = previousSetup;
+        desktop.profileStore = previousProfileStore;
+        desktop.currentProfileLegacySession = previousLegacySession;
         configureHeaderSession(desktop.mainWindow?.webContents.session);
         syncHostComputerAccess();
         return {
@@ -198,20 +248,38 @@ export function registerSetupIpc({
           ? watchRendererUntilCommitted(appWindow)
           : null;
       try {
+        await writeDesktopProfileStore(userDataDir, nextProfileStore);
         await writeSetup(userDataDir, openSetup);
         if (rendererWatch?.crashed()) {
+          if (previousProfileStore)
+            await writeDesktopProfileStore(userDataDir, previousProfileStore);
+          else await clearDesktopProfileStore(userDataDir);
+          desktop.profileStore = previousProfileStore;
+          desktop.currentProfileLegacySession = previousLegacySession;
           const message = await recoverFromCrashedSave(userDataDir, previousSetup, previousUrl);
           return { ok: false, error: message };
         }
         // Commit while the crash listener is still armed.
+        desktop.addingProfile = false;
         commitPendingAppSwitch();
+        syncProfileNotifications();
         if (rendererWatch?.crashed()) {
+          if (previousProfileStore)
+            await writeDesktopProfileStore(userDataDir, previousProfileStore);
+          else await clearDesktopProfileStore(userDataDir);
+          desktop.profileStore = previousProfileStore;
+          desktop.currentProfileLegacySession = previousLegacySession;
           const message = await recoverFromCrashedSave(userDataDir, previousSetup, previousUrl);
           return { ok: false, error: message };
         }
         destroySetupWindow();
         // Final check after setup closes — a crash in this gap still rolls back.
         if (rendererWatch?.crashed()) {
+          if (previousProfileStore)
+            await writeDesktopProfileStore(userDataDir, previousProfileStore);
+          else await clearDesktopProfileStore(userDataDir);
+          desktop.profileStore = previousProfileStore;
+          desktop.currentProfileLegacySession = previousLegacySession;
           const message = await recoverFromCrashedSave(userDataDir, previousSetup, previousUrl);
           return { ok: false, error: message };
         }
@@ -219,6 +287,11 @@ export function registerSetupIpc({
         stopStackLeftBehind(previousSetup?.mode);
         return { ok: true };
       } catch {
+        if (previousProfileStore) await writeDesktopProfileStore(userDataDir, previousProfileStore);
+        else await clearDesktopProfileStore(userDataDir);
+        desktop.profileStore = previousProfileStore;
+        desktop.currentProfileLegacySession = previousLegacySession;
+        desktop.addingProfile = previousAddingProfile;
         const outcome = abandonPendingAppSwitch(previousSetup, previousUrl);
         return {
           ok: false,
