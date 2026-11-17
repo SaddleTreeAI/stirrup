@@ -88,6 +88,8 @@ export function ShellSidebar({
   openIntegrations,
   openSkills,
   openSpaceChat,
+  // edition-seam:W4
+  leading,
 }: {
   isMobile: boolean;
   mobileOpen: boolean;
@@ -118,6 +120,8 @@ export function ShellSidebar({
   openIntegrations: () => void;
   openSkills: () => void;
   openSpaceChat: (spaceId: string, path: string) => void;
+  // edition-seam:W4
+  leading?: ReactNode;
 }) {
   const { t } = useLingui();
   const {
@@ -168,6 +172,8 @@ export function ShellSidebar({
             : "h-full overflow-hidden border-sidebar-border"
         }
       >
+        {/* edition-seam:W4 */}
+        {leading}
         <SidebarHeader
           mini={mini}
           createMenuOpen={createMenuOpen}

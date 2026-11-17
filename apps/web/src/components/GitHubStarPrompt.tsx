@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button, buttonVariants, toast } from "@rakazo/ui-web";
 import { Star } from "lucide-react";
+import { edition } from "../edition";
 
 // Separate keys so a count written by another tab can never undo a dismissal.
 export const STAR_PROMPT_SENT_KEY = "rakazo.githubStarPrompt.sent";
@@ -19,6 +20,8 @@ function dismiss() {
 
 /** Counts a sent message and, after five, asks once for a GitHub star until dismissed. */
 export function recordMessageSent(): void {
+  // edition-seam:W7
+  if (edition.hideStarPrompt) return;
   if (shownThisSession) return;
   try {
     if (localStorage.getItem(STAR_PROMPT_DISMISSED_KEY) !== null) return;
@@ -43,8 +46,10 @@ export function resetStarPromptSessionForTests() {
   shownThisSession = false;
 }
 
-function GitHubStarPrompt() {
+export function GitHubStarPrompt() {
   const { t } = useLingui();
+  // edition-seam:W7
+  if (edition.hideStarPrompt) return null;
   // Every close path saves the dismissal, so the prompt never returns.
   const close = () => {
     dismiss();
