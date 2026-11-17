@@ -9,6 +9,7 @@ const include = [
   "packages/*/src/**/*.test.{ts,tsx}",
   "infra/sandboxes/supervisor/src/**/*.test.ts",
   "infra/updater/src/**/*.test.ts",
+  "scripts/account-transfer/*.test.ts",
   "apps/desktop/src/**/*.test.ts",
   "apps/web/src/**/*.test.{ts,tsx}",
   "apps/web/server/**/*.test.ts",
@@ -39,6 +40,20 @@ export default defineConfig({
   plugins: [lingui({ configPath: path.join(root, "lingui.config.ts") })],
   resolve: {
     alias: [
+      {
+        find: /^@rakazo\/adapters$/,
+        replacement: fileURLToPath(new URL("./packages/adapters/src/index.ts", import.meta.url)),
+      },
+      {
+        find: /^@rakazo\/core\/secrets-guard$/,
+        replacement: fileURLToPath(
+          new URL("./packages/core/src/secrets-guard.ts", import.meta.url),
+        ),
+      },
+      {
+        find: /^@rakazo\/db$/,
+        replacement: fileURLToPath(new URL("./packages/db/src/index.ts", import.meta.url)),
+      },
       {
         // The published dist keeps JSX inside .js files, which vite cannot parse;
         // tests load the package's shipped TypeScript source instead.
