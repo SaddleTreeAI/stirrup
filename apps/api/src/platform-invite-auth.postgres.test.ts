@@ -3,14 +3,12 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EmailEmulator, FakeSandboxProvider } from "@rakazo/adapters";
-import { asSystem, createDb, runAsSystem } from "@rakazo/db";
+import { asSystem, runAsSystem, runAsTenant } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AppHandles } from "./app.js";
 import { createApp } from "./app.js";
 
 const databaseUrl = process.env.VERIFY_DATABASE === "1" ? process.env.DATABASE_URL : undefined;
-const adminDatabaseUrl =
-  process.env.VERIFY_DATABASE === "1" ? process.env.DATABASE_MIGRATION_URL : undefined;
 const describePostgres = databaseUrl ? describe : describe.skip;
 const webOrigin = "http://127.0.0.1:5173";
 
@@ -22,13 +20,11 @@ describePostgres(
     const inviteToken = randomBytes(32).toString("base64url");
     const email = new EmailEmulator();
     let handles: AppHandles;
-    let adminDb: ReturnType<typeof createDb>;
     let dataDir: string;
     let userId: string | undefined;
     let inviteId: string | undefined;
     const extraInviteIds: string[] = [];
     const extraEmails: string[] = [];
-    let rlsTestRoleCreated = false;
 
     beforeAll(async () => {
       dataDir = await mkdtemp(join(tmpdir(), "rakazo-platform-invite-"));
@@ -45,7 +41,6 @@ describePostgres(
         authUrl: webOrigin,
         email,
       });
-      adminDb = createDb(adminDatabaseUrl ?? databaseUrl!);
       await runAsSystem("enable isolated platform invite test mode", () =>
         handles.prisma.deploymentSettings.upsert({
           where: { id: "default" },
@@ -67,22 +62,6 @@ describePostgres(
         }),
       );
       inviteId = invite.id;
-      await runAsSystem("prepare least-privilege invite RLS assertion role", async () => {
-        const admin = asSystem(adminDb.prisma);
-        await admin.$executeRawUnsafe(`DO $$ BEGIN
-        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'platform_invite_rls_test') THEN
-          REVOKE ALL ON "platform_invites" FROM "platform_invite_rls_test";
-          DROP ROLE "platform_invite_rls_test";
-        END IF;
-      END $$`);
-        await admin.$executeRawUnsafe(
-          'CREATE ROLE "platform_invite_rls_test" NOLOGIN NOSUPERUSER NOBYPASSRLS',
-        );
-        rlsTestRoleCreated = true;
-        await admin.$executeRawUnsafe(
-          'GRANT SELECT ON "platform_invites" TO "platform_invite_rls_test"',
-        );
-      });
     });
 
     afterAll(async () => {
@@ -99,17 +78,6 @@ describePostgres(
         });
         await handles.stop();
       }
-      if (adminDb) {
-        if (rlsTestRoleCreated) {
-          const admin = asSystem(adminDb.prisma);
-          await admin.$executeRawUnsafe(
-            'REVOKE ALL ON "platform_invites" FROM "platform_invite_rls_test"',
-          );
-          await admin.$executeRawUnsafe('DROP ROLE "platform_invite_rls_test"');
-        }
-        await adminDb.prisma.$disconnect();
-        await adminDb.pool.end();
-      }
       if (dataDir) await rm(dataDir, { recursive: true, force: true });
     });
 
@@ -122,14 +90,13 @@ describePostgres(
     }
 
     it("admits only the invited address, records consent, and still requires mailbox verification", async () => {
-      const visibleRows = await handles.prisma.$transaction(async (tx) => {
-        await tx.$executeRawUnsafe('SET LOCAL ROLE "platform_invite_rls_test"');
-        await tx.$executeRawUnsafe("SET LOCAL app.user_id = 'ordinary-user'");
-        await tx.$executeRawUnsafe("SET LOCAL app.rls_bypass = 'off'");
-        return tx.$queryRaw<
-          Array<{ count: bigint }>
-        >`SELECT count(*)::bigint AS count FROM "platform_invites"`;
-      });
+      const visibleRows = await runAsTenant(
+        { spaceId: "unrelated-space", userId: "ordinary-user" },
+        () =>
+          handles.prisma.$queryRaw<
+            Array<{ count: bigint }>
+          >`SELECT count(*)::bigint AS count FROM "platform_invites"`,
+      );
       expect(visibleRows).toEqual([{ count: 0n }]);
 
       const stranger = await auth("/sign-up/email", {

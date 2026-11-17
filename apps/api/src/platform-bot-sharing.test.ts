@@ -6,9 +6,16 @@ vi.mock("@rakazo/db", () => ({
 }));
 
 import { recordAuditEvent } from "@rakazo/db";
-import { setBotAccess } from "./platform-bot-sharing.js";
+import { listBotAccess, revokeBotAccess, setBotAccess } from "./platform-bot-sharing.js";
 
 describe("company bot sharing", () => {
+  const roles = new Map<string, string>([
+    ["manager", "member"],
+    ["target", "member"],
+    ["creator", "member"],
+    ["admin", "admin"],
+    ["owner", "owner"],
+  ]);
   const grants = new Map<string, { permission: string }>([["manager", { permission: "manage" }]]);
   const upsert = vi.fn(
     async (input: {
@@ -33,11 +40,16 @@ describe("company bot sharing", () => {
       findUnique: vi.fn(async () => ({ id: "bot", spaceId: "company", userId: "creator" })),
     },
     user: {
-      findUnique: vi.fn(async () => ({ platformRole: "member" })),
-      findMany: vi.fn(async () => [
-        { id: "manager", name: "Manager", email: "manager@example.test", platformRole: "member" },
-        { id: "target", name: "Target", email: "target@example.test", platformRole: "member" },
-      ]),
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const platformRole = roles.get(where.id);
+        return platformRole ? { platformRole } : null;
+      }),
+      findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
+        where.id.in.flatMap((id) => {
+          const platformRole = roles.get(id);
+          return platformRole ? [{ id, name: id, email: `${id}@example.test`, platformRole }] : [];
+        }),
+      ),
     },
     platformBotGrant: {
       findUnique: vi.fn(
@@ -50,16 +62,27 @@ describe("company bot sharing", () => {
     },
     spaceMember: {
       findUnique: vi.fn(async () => ({ id: "membership" })),
-      findMany: vi.fn(async () => [{ userId: "manager" }, { userId: "target" }]),
+      findMany: vi.fn(async () => [...roles.keys()].map((userId) => ({ userId }))),
     },
     $transaction: vi.fn(async (work: (tx: unknown) => unknown) =>
-      work({ platformBotGrant: { upsert, deleteMany } }),
+      work({
+        $queryRaw: vi.fn(async () => []),
+        user: { findUnique: prisma.user.findUnique },
+        spaceMember: { findUnique: prisma.spaceMember.findUnique },
+        platformBotGrant: { upsert, deleteMany },
+      }),
     ),
   };
 
   beforeEach(() => {
     grants.clear();
     grants.set("manager", { permission: "manage" });
+    roles.clear();
+    roles.set("manager", "member");
+    roles.set("target", "member");
+    roles.set("creator", "member");
+    roles.set("admin", "admin");
+    roles.set("owner", "owner");
     vi.clearAllMocks();
   });
 
@@ -76,6 +99,57 @@ describe("company bot sharing", () => {
       }),
     );
   });
+
+  it("reports inherited owner and administrator access as effective manage and read-only", async () => {
+    grants.set("admin", { permission: "use" });
+
+    const state = await listBotAccess(prisma as never, "bot", "manager");
+    const adminView = await listBotAccess(prisma as never, "bot", "admin");
+
+    expect(state.members.find(({ userId }) => userId === "creator")).toMatchObject({
+      permission: null,
+      effectivePermission: "manage",
+      inheritedAccess: "bot_owner",
+      canChangePermission: false,
+    });
+    expect(state.members.find(({ userId }) => userId === "admin")).toMatchObject({
+      permission: "use",
+      effectivePermission: "manage",
+      inheritedAccess: "platform_role",
+      canChangePermission: false,
+    });
+    expect(state.members.find(({ userId }) => userId === "owner")).toMatchObject({
+      effectivePermission: "manage",
+      inheritedAccess: "platform_role",
+      canChangePermission: false,
+    });
+    expect(state.members.find(({ userId }) => userId === "target")).toMatchObject({
+      permission: null,
+      effectivePermission: null,
+      inheritedAccess: null,
+      canChangePermission: true,
+    });
+    expect(adminView).toMatchObject({
+      permission: "use",
+      effectivePermission: "manage",
+      inheritedAccess: "platform_role",
+      canManage: true,
+    });
+  });
+
+  it.each(["creator", "admin", "owner"])(
+    "rejects explicit grant changes for inherited access (%s)",
+    async (targetUserId) => {
+      await expect(
+        setBotAccess(prisma as never, "manager", "bot", targetUserId, "use"),
+      ).rejects.toMatchObject({ kind: "BAD_REQUEST" });
+      await expect(
+        revokeBotAccess(prisma as never, "manager", "bot", targetUserId),
+      ).rejects.toMatchObject({ kind: "BAD_REQUEST" });
+      expect(upsert).not.toHaveBeenCalled();
+      expect(deleteMany).not.toHaveBeenCalled();
+    },
+  );
 
   it("refuses a member without manage permission before changing grants", async () => {
     grants.set("manager", { permission: "use" });

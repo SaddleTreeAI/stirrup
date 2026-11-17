@@ -157,6 +157,7 @@ export function platformModelCallObserver(
   scope: { userId: string; spaceId: string; runId?: string; botId?: string },
 ): ModelCallObserver {
   return {
+    reserveFullContextWindow: access.countsTowardUserBudget,
     beforeCall: (call) =>
       reservePlatformModelCall(
         prisma,

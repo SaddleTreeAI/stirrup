@@ -235,9 +235,6 @@ export function PlatformOwnerBotInspection({ userId }: { userId: string }) {
             <SectionHeading as="h4">
               <Trans>Files</Trans>
             </SectionHeading>
-            <p className="mt-1 text-label text-muted-foreground">
-              <Trans>Files download as a stream, including large files.</Trans>
-            </p>
             <ul className="mt-2 space-y-2">
               {files.map((file) => (
                 <li key={file.id} className="flex items-center justify-between gap-2">

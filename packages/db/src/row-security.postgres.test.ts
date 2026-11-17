@@ -8,16 +8,14 @@ import {
   provisionRuntimeRole,
   RUNTIME_ROLE,
 } from "./database-access.js";
-import { createGroupRepos } from "./groups.js";
-import { createRepos } from "./repos.js";
 import {
   drainUnscopedDatabaseAccess,
   ROW_SECURITY_MODELS,
   runAsSystem,
   runAsSystemInTransaction,
   runAsTenant,
-  runAsTenantWithPlatformBots,
 } from "./row-security.js";
+import { createRowSecurityTenants } from "./row-security-test-fixture.js";
 
 // Needs DATABASE_URL as the runtime login and DATABASE_MIGRATION_URL as the
 // owner, as `pnpm test:integration` provides after `pnpm db:migrate`.
@@ -146,20 +144,8 @@ describePostgres("row-level security (PostgreSQL)", () => {
     app = createDb(runtimeUrl!, { poolMax: 4 });
     db = app.prisma;
     const o = owner.prisma;
-    await o.organization.create({
-      data: { id: organizationId, name: "RLS", slug: organizationId, createdAt: new Date() },
-    });
+    await runAsSystem("seed row security test tenants", () => createRowSecurityTenants(o, suffix));
     for (const t of tenants) {
-      await o.user.create({
-        data: { id: t.userId, name: t.name, email: `${t.userId}@rakazo.test`, emailVerified: true },
-      });
-      await o.space.create({ data: { id: t.spaceId, organizationId, name: t.name } });
-      await o.bot.create({
-        data: { id: t.botId, spaceId: t.spaceId, userId: t.userId, name: t.name, color: "#000" },
-      });
-      await o.thread.create({
-        data: { id: t.threadId, spaceId: t.spaceId, userId: t.userId, botId: t.botId },
-      });
       await o.message.create({
         data: { threadId: t.threadId, seq: 1, role: "user", blocks: [{ text: t.name }] },
       });
@@ -220,25 +206,6 @@ describePostgres("row-level security (PostgreSQL)", () => {
           spaceId: t.spaceId,
           kind: "test",
           ciphertext: "c",
-        },
-      });
-      await o.member.create({
-        data: {
-          id: `${t.userId}-member`,
-          organizationId,
-          userId: t.userId,
-          role: "owner",
-          createdAt: new Date(),
-        },
-      });
-      await o.spaceMember.create({
-        data: {
-          id: `${t.userId}-space-member`,
-          spaceId: t.spaceId,
-          userId: t.userId,
-          organizationId,
-          role: "owner",
-          createdAt: new Date(),
         },
       });
       for (const [table, data] of rowsFor(t, "fixture")) {
@@ -618,376 +585,6 @@ describePostgres("row-level security (PostgreSQL)", () => {
     expect((await describeRowSecurity(db)).systemBlocked).toBeUndefined();
   });
 
-  it("fences company bots and their threads by the permission resolved for the request", async () => {
-    const settingsBefore = await owner.prisma.deploymentSettings.findUnique({
-      where: { id: "default" },
-    });
-    const privateBotId = `rls-company-private-${suffix}`;
-    const privateThreadId = `rls-company-private-thread-${suffix}`;
-    const privateComputerId = `rls-company-private-computer-${suffix}`;
-    const grantId = `rls-company-grant-${suffix}`;
-    const companySectionId = `rls-company-section-created-${suffix}`;
-    const ordinarySectionId = `rls-ordinary-section-created-${suffix}`;
-    let companyBoardId: string;
-    let createdCompanyBoard = false;
-    const companyTicketId = `rls-company-ticket-${suffix}`;
-    const ordinarySecondBotId = `rls-ordinary-group-bot-${suffix}`;
-    const crossSpaceMemberId = `rls-company-member-${suffix}`;
-    await owner.prisma.deploymentSettings.upsert({
-      where: { id: "default" },
-      create: { id: "default", companySpaceId: a.spaceId },
-      update: { companySpaceId: a.spaceId },
-    });
-    await owner.prisma.computer.create({
-      data: {
-        id: privateComputerId,
-        spaceId: a.spaceId,
-        userId: a.userId,
-        scope: "dedicated",
-        scopeKey: `bot:${privateBotId}`,
-        homeKey: `rls-company-private-home-${suffix}`,
-        kind: "fake",
-      },
-    });
-    await owner.prisma.bot.create({
-      data: {
-        id: privateBotId,
-        spaceId: a.spaceId,
-        userId: a.userId,
-        name: "private",
-        color: "#000",
-        computerId: privateComputerId,
-      },
-    });
-    await owner.prisma.thread.create({
-      data: { id: privateThreadId, spaceId: a.spaceId, userId: a.userId, botId: privateBotId },
-    });
-    await owner.prisma.platformBotGrant.create({
-      data: {
-        id: grantId,
-        botId: a.botId,
-        userId: b.userId,
-        permission: "manage",
-        createdByUserId: a.userId,
-      },
-    });
-    await owner.prisma.spaceMember.create({
-      data: {
-        id: crossSpaceMemberId,
-        spaceId: a.spaceId,
-        userId: b.userId,
-        organizationId,
-        role: "member",
-        createdAt: new Date(),
-      },
-    });
-    const existingCompanyBoard = await owner.prisma.board.findUnique({
-      where: { spaceId: a.spaceId },
-      select: { id: true },
-    });
-    if (existingCompanyBoard) {
-      companyBoardId = existingCompanyBoard.id;
-    } else {
-      companyBoardId = `rls-company-board-${suffix}`;
-      await owner.prisma.board.create({ data: { id: companyBoardId, spaceId: a.spaceId } });
-      createdCompanyBoard = true;
-    }
-    const previousTicket = await owner.prisma.ticket.aggregate({
-      where: { boardId: companyBoardId },
-      _max: { number: true },
-    });
-    const ticketNumber = (previousTicket._max.number ?? 0) + 1;
-    const scope = {
-      spaceId: a.spaceId,
-      userId: b.userId,
-      companySpaceId: a.spaceId,
-      useBotIds: [a.botId],
-      editBotIds: [],
-      manageBotIds: [],
-      requiredPermission: "use" as const,
-    };
-    const manageScope = {
-      ...scope,
-      useBotIds: [a.botId],
-      editBotIds: [a.botId],
-      manageBotIds: [a.botId],
-      requiredPermission: "manage" as const,
-    };
-    const createdBotId = `rls-company-created-${suffix}`;
-    const createdComputerId = `rls-company-computer-${suffix}`;
-    let repoCreatedCompanyBotId: string | undefined;
-    let repoCreatedOrdinaryBotId: string | undefined;
-    let companyGroupId: string | undefined;
-    let ordinaryGroupId: string | undefined;
-    try {
-      const allowed = await runAsTenantWithPlatformBots(scope, async () => {
-        const bots = await db.bot.findMany({
-          where: { id: { in: [a.botId, privateBotId] } },
-          select: { id: true },
-        });
-        const threads = await db.thread.findMany({
-          where: { id: { in: [a.threadId, privateThreadId] } },
-          select: { id: true },
-        });
-        const computers = await db.computer.findMany({
-          where: { id: privateComputerId },
-          select: { id: true },
-        });
-        const nested = await runAsTenant({ spaceId: a.spaceId, userId: b.userId }, () =>
-          db.bot.findMany({ where: { id: { in: [a.botId, privateBotId] } }, select: { id: true } }),
-        );
-        const otherIdentity = await runAsTenant({ spaceId: a.spaceId, userId: a.userId }, () =>
-          db.bot.findMany({ where: { id: { in: [a.botId, privateBotId] } }, select: { id: true } }),
-        );
-        const write = await db.bot.updateMany({
-          where: { id: a.botId },
-          data: { name: "not allowed" },
-        });
-        return { bots, threads, computers, nested, otherIdentity, write };
-      });
-      expect(allowed.bots.map((row) => row.id)).toEqual([a.botId]);
-      expect(allowed.threads.map((row) => row.id)).toEqual([a.threadId]);
-      expect(allowed.computers).toEqual([]);
-      expect(allowed.nested.map((row) => row.id)).toEqual([a.botId]);
-      expect(allowed.otherIdentity).toEqual([]);
-      expect(allowed.write.count).toBe(0);
-      const created = await runAsTenantWithPlatformBots(manageScope, async () => {
-        const computer = await db.computer.create({
-          data: {
-            id: createdComputerId,
-            spaceId: a.spaceId,
-            userId: b.userId,
-            scope: "dedicated",
-            scopeKey: `bot:${createdBotId}`,
-            homeKey: `rls-company-home-${suffix}`,
-            kind: "fake",
-          },
-        });
-        const bot = await db.bot.create({
-          data: {
-            id: createdBotId,
-            spaceId: a.spaceId,
-            userId: b.userId,
-            name: "created in company Space",
-            color: "#000",
-            computerId: computer.id,
-          },
-        });
-        return {
-          bot,
-          visibleComputer: await db.computer.findUnique({
-            where: { id: computer.id },
-            select: { id: true },
-          }),
-        };
-      });
-      expect(created.bot.id).toBe(createdBotId);
-      expect(created.visibleComputer?.id).toBe(createdComputerId);
-
-      // Exercise the actual repository flow. Its bot.create uses Prisma's
-      // INSERT ... RETURNING, which evaluates the restrictive SELECT policy
-      // against the new row before a separate lookup can find it.
-      const repos = createRepos(db);
-      const actorA = {
-        userId: a.userId,
-        spaceId: a.spaceId,
-        email: `${a.userId}@rakazo.test`,
-        isDeploymentOwner: false,
-      };
-      const companyRepoBot = await runAsTenantWithPlatformBots(
-        { ...manageScope, userId: a.userId },
-        () =>
-          repos.createBot(actorA, {
-            id: `rls-company-repo-created-${suffix}`,
-            name: "Company repository bot",
-            description: "",
-            instructions: "",
-            notifyOnFinish: false,
-            computerMode: "dedicated",
-          }),
-      );
-      repoCreatedCompanyBotId = companyRepoBot.id;
-      expect(companyRepoBot.id).toBe(`rls-company-repo-created-${suffix}`);
-
-      const groupRepos = createGroupRepos(db);
-      const companyActor = {
-        userId: a.userId,
-        spaceId: a.spaceId,
-        email: `${a.userId}@rakazo.test`,
-        isDeploymentOwner: false,
-      };
-      const companySection = await runAsTenantWithPlatformBots(
-        { ...manageScope, userId: a.userId },
-        () =>
-          db.botSection.create({
-            data: {
-              id: companySectionId,
-              spaceId: a.spaceId,
-              userId: a.userId,
-              name: "Company section",
-            },
-            select: { id: true },
-          }),
-      );
-      expect(companySection.id).toBe(companySectionId);
-      const companyTicket = await runAsTenantWithPlatformBots(
-        { ...manageScope, userId: a.userId },
-        () =>
-          db.ticket.create({
-            data: {
-              id: companyTicketId,
-              spaceId: a.spaceId,
-              boardId: companyBoardId,
-              number: ticketNumber,
-              title: "Company ticket",
-              createdByBotId: a.botId,
-            },
-            select: { id: true },
-          }),
-      );
-      expect(companyTicket.id).toBe(companyTicketId);
-      await expect(
-        runAsTenantWithPlatformBots(scope, () =>
-          db.ticket.create({
-            data: {
-              spaceId: a.spaceId,
-              boardId: companyBoardId,
-              number: ticketNumber + 1,
-              title: "Ticket references inaccessible bot",
-              createdByBotId: privateBotId,
-            },
-            select: { id: true },
-          }),
-        ),
-      ).rejects.toThrow(/row-level security/);
-      const companyGroup = await runAsTenantWithPlatformBots(
-        { ...manageScope, userId: a.userId },
-        () =>
-          groupRepos.createGroup(companyActor, {
-            name: "Company group",
-            botIds: [a.botId, privateBotId],
-          }),
-      );
-      companyGroupId = companyGroup.id;
-      expect(companyGroup.members.map(({ botId }) => botId).sort()).toEqual(
-        [a.botId, privateBotId].sort(),
-      );
-      const companyActorB = {
-        userId: b.userId,
-        spaceId: a.spaceId,
-        email: `${b.userId}@rakazo.test`,
-        isDeploymentOwner: false,
-      };
-      await expect(
-        runAsTenantWithPlatformBots(
-          {
-            ...scope,
-            editBotIds: [a.botId],
-            requiredPermission: "edit",
-          },
-          () =>
-            groupRepos.createGroup(companyActorB, {
-              name: "Group with inaccessible bot",
-              botIds: [a.botId, privateBotId],
-            }),
-        ),
-      ).rejects.toThrow();
-
-      // Normal first-user onboarding has no company Space. It must retain the
-      // ordinary tenant policy and also return the newly inserted bot.
-      await owner.prisma.deploymentSettings.update({
-        where: { id: "default" },
-        data: { companySpaceId: null },
-      });
-      const actorB = {
-        userId: b.userId,
-        spaceId: b.spaceId,
-        email: `${b.userId}@rakazo.test`,
-        isDeploymentOwner: false,
-      };
-      await owner.prisma.bot.create({
-        data: {
-          id: ordinarySecondBotId,
-          spaceId: b.spaceId,
-          userId: b.userId,
-          name: "Second ordinary bot",
-          color: "#000",
-        },
-      });
-      const ordinarySection = await runAsTenant({ spaceId: b.spaceId, userId: b.userId }, () =>
-        db.botSection.create({
-          data: {
-            id: ordinarySectionId,
-            spaceId: b.spaceId,
-            userId: b.userId,
-            name: "Ordinary section",
-          },
-          select: { id: true },
-        }),
-      );
-      expect(ordinarySection.id).toBe(ordinarySectionId);
-      const ordinaryGroup = await runAsTenant({ spaceId: b.spaceId, userId: b.userId }, () =>
-        groupRepos.createGroup(actorB, {
-          name: "Ordinary group",
-          botIds: [b.botId, ordinarySecondBotId],
-        }),
-      );
-      ordinaryGroupId = ordinaryGroup.id;
-      expect(ordinaryGroup.members.map(({ botId }) => botId).sort()).toEqual(
-        [b.botId, ordinarySecondBotId].sort(),
-      );
-      const ordinaryRepoBot = await runAsTenant({ spaceId: b.spaceId, userId: b.userId }, () =>
-        repos.createBot(actorB, {
-          id: `rls-ordinary-repo-created-${suffix}`,
-          name: "Ordinary repository bot",
-          description: "",
-          instructions: "",
-          notifyOnFinish: false,
-          computerMode: "dedicated",
-        }),
-      );
-      repoCreatedOrdinaryBotId = ordinaryRepoBot.id;
-      expect(ordinaryRepoBot.id).toBe(`rls-ordinary-repo-created-${suffix}`);
-      await owner.prisma.deploymentSettings.update({
-        where: { id: "default" },
-        data: { companySpaceId: a.spaceId },
-      });
-
-      const unscoped = await runAsTenant({ spaceId: a.spaceId, userId: b.userId }, () =>
-        db.bot.findMany({ where: { id: { in: [a.botId, privateBotId] } }, select: { id: true } }),
-      );
-      expect(unscoped).toEqual([]);
-    } finally {
-      await owner.prisma.chatGroup.deleteMany({
-        where: { id: { in: [companyGroupId, ordinaryGroupId].filter((id): id is string => !!id) } },
-      });
-      await owner.prisma.botSection.deleteMany({
-        where: { id: { in: [companySectionId, ordinarySectionId] } },
-      });
-      await owner.prisma.ticket.deleteMany({ where: { id: companyTicketId } });
-      if (createdCompanyBoard)
-        await owner.prisma.board.deleteMany({ where: { id: companyBoardId } });
-      await owner.prisma.bot.deleteMany({ where: { id: ordinarySecondBotId } });
-      await owner.prisma.spaceMember.deleteMany({ where: { id: crossSpaceMemberId } });
-      if (repoCreatedCompanyBotId)
-        await owner.prisma.bot.deleteMany({ where: { id: repoCreatedCompanyBotId } });
-      if (repoCreatedOrdinaryBotId)
-        await owner.prisma.bot.deleteMany({ where: { id: repoCreatedOrdinaryBotId } });
-      await owner.prisma.platformBotGrant.deleteMany({ where: { id: grantId } });
-      await owner.prisma.thread.deleteMany({ where: { id: privateThreadId } });
-      await owner.prisma.bot.deleteMany({ where: { id: privateBotId } });
-      await owner.prisma.bot.deleteMany({ where: { id: createdBotId } });
-      await owner.prisma.computer.deleteMany({ where: { id: privateComputerId } });
-      await owner.prisma.computer.deleteMany({ where: { id: createdComputerId } });
-      if (settingsBefore)
-        await owner.prisma.deploymentSettings.update({
-          where: { id: "default" },
-          data: { companySpaceId: settingsBefore.companySpaceId },
-        });
-      else await owner.prisma.deploymentSettings.deleteMany({ where: { id: "default" } });
-    }
-  });
-
   it("ignores a bypass a tenant session turns on without the key", async () => {
     const client = await app.pool.connect();
     try {
@@ -1282,19 +879,29 @@ describePostgres("row-level security (PostgreSQL)", () => {
       SELECT policyname, qual, with_check FROM pg_policies WHERE schemaname = 'public'
         AND (policyname LIKE '%\\_system' OR qual LIKE '%rls\\_%' OR with_check LIKE '%rls\\_%')`;
     expect(policies.length).toBeGreaterThan(50);
+    const rowWithParentBypass = new Set([
+      "attempts_platform_bot_fence",
+      "external_effects_platform_bot_fence",
+      "memory_revisions_platform_bot_fence",
+      "page_versions_platform_bot_fence",
+      "bot_email_messages_owner_fence",
+    ]);
     expect(
       policies.filter(
         (p) =>
           (p.qual !== "( SELECT app_rls_bypass() AS app_rls_bypass)" ||
             (p.with_check !== null &&
               p.with_check !== "( SELECT app_rls_bypass() AS app_rls_bypass)")) &&
-          p.policyname !== "bot_email_messages_owner_fence",
+          !rowWithParentBypass.has(p.policyname),
       ),
     ).toEqual([]);
+    for (const policy of policies.filter((row) => rowWithParentBypass.has(row.policyname))) {
+      expect(policy.qual).toContain("app_rls_bypass()");
+      if (policy.with_check) expect(policy.with_check).toContain("app_rls_bypass()");
+    }
     const botEmailOwnerFence = policies.find(
       (policy) => policy.policyname === "bot_email_messages_owner_fence",
     );
-    expect(botEmailOwnerFence?.qual).toContain("app_rls_bypass()");
     expect(botEmailOwnerFence?.qual).toContain('b."userId"');
     expect(botEmailOwnerFence?.with_check).toContain('b."userId"');
   });

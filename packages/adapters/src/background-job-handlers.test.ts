@@ -272,6 +272,29 @@ describe("createBackgroundJobHandlers", () => {
     expect(compactHistory).toHaveBeenCalledOnce();
   });
 
+  it("skips a legacy company compaction without an authenticated requester", async () => {
+    vi.mocked(compactHistory).mockClear();
+    vi.mocked(resolvePlatformBotTenantScope).mockClear();
+    const prisma = {
+      thread: {
+        findUnique: vi.fn(async () => ({ ...owner, botId: "bot-1", group: null })),
+      },
+      deploymentSettings: { findUnique: vi.fn(async () => ({ platformMode: true })) },
+    } as unknown as PrismaClient;
+    const handlers = createBackgroundJobHandlers({
+      executor: { contextStrategy: "current" } as ReturnType<typeof createRunExecutor>,
+      prisma,
+      runtime: {} as AgentRuntime,
+      jobs: {} as JobPublisher,
+      memoryProviders: { resolve: vi.fn(async () => null) },
+    } as unknown as Parameters<typeof createBackgroundJobHandlers>[0]);
+
+    await handlers["history.compact"]({ threadId: "legacy-company-thread" });
+
+    expect(compactHistory).not.toHaveBeenCalled();
+    expect(resolvePlatformBotTenantScope).not.toHaveBeenCalled();
+  });
+
   it.each([undefined, "retrieval", "snapshots", "cache-aware"] as const)(
     "does not spend on a queued legacy compaction after switching to %s",
     async (contextStrategy) => {
@@ -284,7 +307,10 @@ describe("createBackgroundJobHandlers", () => {
                 typeof createRunExecutor
               >[0])
             : ({ contextStrategy } as ReturnType<typeof createRunExecutor>),
-        prisma: { thread: owned() } as unknown as PrismaClient,
+        prisma: {
+          thread: owned(),
+          deploymentSettings: { findUnique: vi.fn(async () => ({ platformMode: false })) },
+        } as unknown as PrismaClient,
         sandbox: {} as unknown as SandboxProvider,
         home: {} as unknown as AgentHomeStore,
         artifacts: {} as unknown as ArtifactStore,

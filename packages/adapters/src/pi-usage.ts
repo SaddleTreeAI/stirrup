@@ -439,7 +439,11 @@ export function observedPiStream(
               maxOutputTokens: options?.maxTokens ?? model.maxTokens,
               maxCostUsd: maximumModelCallCost(
                 model.cost,
-                inputTokensEstimate,
+                observer.reserveFullContextWindow
+                  ? Number.isSafeInteger(model.contextWindow) && model.contextWindow > 0
+                    ? model.contextWindow
+                    : undefined
+                  : inputTokensEstimate,
                 options?.maxTokens ?? model.maxTokens,
                 cacheWriteRetention,
               ),
@@ -640,12 +644,16 @@ function receivedText(message: AssistantMessage): string {
 /** Includes higher context tiers and long-lived cache writes before any request can spend. */
 export function maximumModelCallCost(
   cost: Model<Api>["cost"],
-  inputTokens: number,
-  outputTokens: number,
+  inputTokens: number | undefined,
+  outputTokens: number | undefined,
   cacheWriteRetention?: "1h",
 ): number | undefined {
   const tiers = [cost, ...(cost.tiers ?? [])];
   if (
+    !Number.isSafeInteger(inputTokens) ||
+    inputTokens! < 0 ||
+    !Number.isSafeInteger(outputTokens) ||
+    outputTokens! < 0 ||
     !tiers.every((tier) =>
       [tier.input, tier.output, tier.cacheRead, tier.cacheWrite].every(
         (rate) => Number.isFinite(rate) && rate >= 0,
@@ -666,5 +674,5 @@ export function maximumModelCallCost(
     ]),
   );
   const outputRate = Math.max(...tiers.map((tier) => tier.output));
-  return (inputTokens * inputRate + outputTokens * outputRate) / 1_000_000;
+  return (inputTokens! * inputRate + outputTokens! * outputRate) / 1_000_000;
 }

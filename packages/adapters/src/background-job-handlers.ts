@@ -553,6 +553,15 @@ export function createBackgroundJobHandlers(deps: {
       deps.prisma,
       async (payload) => {
         const row = await threadBotTenant(payload);
+        if (row && !payload.userId) {
+          const deployment = await deps.prisma.deploymentSettings.findUnique({
+            where: { id: "default" },
+            select: { platformMode: true },
+          });
+          // Old jobs have no authenticated requester. In a company deployment, do
+          // not reinterpret them as the thread owner and spend that account's key.
+          if (deployment?.platformMode) return null;
+        }
         return row ? { ...row, userId: payload.userId ?? row.userId } : null;
       },
       async (payload) => {

@@ -35,28 +35,50 @@ export function CompanyBotSharingPanel({ botId }: { botId: string }) {
       ) : state.canManage ? (
         <ul className="space-y-2">
           {state.members.map((member) => {
-            const value = (member.permission ?? "none") as AccessValue;
+            const inheritedAccess =
+              member.inheritedAccess ??
+              (member.role === "owner" || member.role === "admin" ? "platform_role" : null);
+            const canChangePermission = member.canChangePermission ?? inheritedAccess === null;
+            const value =
+              member.effectivePermission ??
+              (inheritedAccess ? "manage" : member.permission) ??
+              "none";
             return (
               <li key={member.userId} className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body">{member.name}</p>
                   <p className="truncate text-body-sm text-muted-foreground">{member.email}</p>
                 </div>
-                <OptionSelect<AccessValue>
-                  aria-label={t`Access for ${member.name}`}
-                  value={value}
-                  disabled={change.pending}
-                  options={[
-                    { value: "none", label: t`No access` },
-                    { value: "use", label: t`Use` },
-                    { value: "edit", label: t`Edit` },
-                    { value: "manage", label: t`Manage` },
-                  ]}
-                  onValueChange={(next) => {
-                    const permission = next === "none" ? null : (next as BotPermission);
-                    change.run({ botId, userId: member.userId, permission });
-                  }}
-                />
+                {canChangePermission ? (
+                  <OptionSelect<AccessValue>
+                    className="w-28 shrink-0"
+                    aria-label={t`Access for ${member.name}`}
+                    value={value}
+                    disabled={change.pending}
+                    options={[
+                      { value: "none", label: t`No access` },
+                      { value: "use", label: t`Use` },
+                      { value: "edit", label: t`Edit` },
+                      { value: "manage", label: t`Manage` },
+                    ]}
+                    onValueChange={(next) => {
+                      const permission = next === "none" ? null : (next as BotPermission);
+                      change.run({ botId, userId: member.userId, permission });
+                    }}
+                  />
+                ) : (
+                  <span className="w-28 shrink-0 text-right text-body-sm text-muted-foreground">
+                    {value === "manage" ? (
+                      <Trans>Manage</Trans>
+                    ) : value === "edit" ? (
+                      <Trans>Edit</Trans>
+                    ) : value === "use" ? (
+                      <Trans>Use</Trans>
+                    ) : (
+                      <Trans>No access</Trans>
+                    )}
+                  </span>
+                )}
               </li>
             );
           })}

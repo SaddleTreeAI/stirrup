@@ -153,10 +153,8 @@ test("a platform owner reviews people and opens an invitation", async ({ page },
   await inspection.getByRole("button", { name: /Shared Planner/ }).click();
   await expect(inspection.getByRole("heading", { name: "Conversations" })).toBeVisible();
   await expect(inspection.getByText("Operations are ready.")).toBeVisible();
-  await expect(
-    inspection.getByText("Files download as a stream, including large files."),
-  ).toBeVisible();
   await expect(inspection.getByRole("button", { name: "Download" })).toBeEnabled();
+  await inspection.getByRole("heading", { name: "Conversations" }).scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "platform-owner-bot-inspection");
   await page.route("**/api/platform-admin/bots/shared-planner/files/ops-archive", (route) =>
     route.fulfill({

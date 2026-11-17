@@ -1272,13 +1272,22 @@ export const BotAccessMemberSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   role: PlatformRoleSchema,
+  /** The persisted per-bot grant, before company role or bot ownership is applied. */
   permission: BotPermissionSchema.nullable(),
+  /** Access after inherited platform-role and bot-ownership access is applied. */
+  effectivePermission: BotPermissionSchema.nullable().optional(),
+  /** False when the effective permission comes from bot ownership or platform administration. */
+  canChangePermission: z.boolean().optional(),
+  inheritedAccess: z.enum(["bot_owner", "platform_role"]).nullable().optional(),
 });
 export type BotAccessMember = z.infer<typeof BotAccessMemberSchema>;
 
 export const BotAccessStateSchema = z.object({
   isCompanyBot: z.boolean(),
   permission: BotPermissionSchema.nullable(),
+  /** Effective permission for the requesting user; optional for older API responses. */
+  effectivePermission: BotPermissionSchema.nullable().optional(),
+  inheritedAccess: z.enum(["bot_owner", "platform_role"]).nullable().optional(),
   canManage: z.boolean(),
   members: z.array(BotAccessMemberSchema),
 });

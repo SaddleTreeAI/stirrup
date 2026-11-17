@@ -206,6 +206,14 @@ describePostgres("company provider usage ledger (PostgreSQL)", { timeout: 120_00
         select: { thresholdPercent: true },
       }),
     ).toEqual([{ thresholdPercent: 80 }]);
+    const bucket = await prisma.platformModelBudgetBucket.findFirstOrThrow({
+      where: { userId: ids.user, monthStart },
+    });
+    expect(bucket.chargedMicros).toBe(80_000_000n);
+    expect(bucket.reservedMicros).toBe(0n);
+    await expect(reservePlatformModelCall(prisma, attribution(), 21)).rejects.toThrow(
+      /budget reached/i,
+    );
   });
 
   it("fails closed for unknown prices, accepts a known zero-price model, and never reuses a call id", async () => {

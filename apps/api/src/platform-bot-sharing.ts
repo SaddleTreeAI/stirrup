@@ -32,11 +32,29 @@ async function accessBot(prisma: AccessPrisma, botId: string, userId: string) {
     const isCompanyBot = Boolean(bot && settings?.companySpaceId === bot.spaceId);
     const isAdmin = platformRole === "owner" || platformRole === "admin";
     const isCreator = bot?.userId === userId;
-    const canManage = isCompanyBot && (isAdmin || isCreator || grant?.permission === "manage");
+    const inheritedAccess: "bot_owner" | "platform_role" | null = !isCompanyBot
+      ? null
+      : isCreator
+        ? "bot_owner"
+        : isAdmin
+          ? "platform_role"
+          : null;
+    const canManage = isCompanyBot && (inheritedAccess !== null || grant?.permission === "manage");
     const permission = (grant?.permission ?? (isAdmin || isCreator ? "manage" : undefined)) as
       | BotPermission
       | undefined;
-    return { bot, isCompanyBot, permission, canManage, platformRole };
+    const effectivePermission = inheritedAccess
+      ? "manage"
+      : (grant?.permission as BotPermission | undefined);
+    return {
+      bot,
+      isCompanyBot,
+      permission,
+      effectivePermission,
+      inheritedAccess,
+      canManage,
+      platformRole,
+    };
   });
 }
 
@@ -48,13 +66,22 @@ export async function listBotAccess(
   const access = await accessBot(prisma, botId, actorUserId);
   if (!access.bot) throw new ClientError("NOT_FOUND", "Bot not found");
   if (!access.isCompanyBot)
-    return { isCompanyBot: false, permission: null, canManage: false, members: [] };
+    return {
+      isCompanyBot: false,
+      permission: null,
+      effectivePermission: null,
+      inheritedAccess: null,
+      canManage: false,
+      members: [],
+    };
   if (!access.permission && !access.canManage && access.bot.userId !== actorUserId)
     throw new ClientError("FORBIDDEN", "You do not have access to this bot");
   if (!access.canManage)
     return {
       isCompanyBot: true,
       permission: access.permission ?? null,
+      effectivePermission: access.effectivePermission ?? null,
+      inheritedAccess: access.inheritedAccess,
       canManage: false,
       members: [],
     };
@@ -92,6 +119,21 @@ export async function listBotAccess(
               email: user.email,
               role: user.platformRole as PlatformRole,
               permission: byUser.get(userId) ?? null,
+              effectivePermission:
+                userId === access.bot?.userId ||
+                user.platformRole === "owner" ||
+                user.platformRole === "admin"
+                  ? "manage"
+                  : (byUser.get(userId) ?? null),
+              canChangePermission:
+                userId !== access.bot?.userId &&
+                user.platformRole !== "owner" &&
+                user.platformRole !== "admin",
+              inheritedAccess: (userId === access.bot?.userId
+                ? "bot_owner"
+                : user.platformRole === "owner" || user.platformRole === "admin"
+                  ? "platform_role"
+                  : null) as "bot_owner" | "platform_role" | null,
             },
           ]
         : [];
@@ -100,6 +142,8 @@ export async function listBotAccess(
   return {
     isCompanyBot: true,
     permission: access.permission ?? null,
+    effectivePermission: access.effectivePermission ?? null,
+    inheritedAccess: access.inheritedAccess,
     canManage: true,
     members: rows,
   };
@@ -118,16 +162,31 @@ async function changeBotAccess(
     throw new ClientError("BAD_REQUEST", "Sharing is only available for company bots");
   if (!access.canManage)
     throw new ClientError("FORBIDDEN", "Only a company bot manager can change access");
-  if (targetUserId === access.bot.userId && permission === null)
-    throw new ClientError("BAD_REQUEST", "The bot owner must keep access");
 
   await runAsSystem("change company bot sharing", async () => {
-    const targetMembership = await prisma.spaceMember.findUnique({
-      where: { spaceId_userId: { spaceId: access.bot?.spaceId ?? "", userId: targetUserId } },
-      select: { id: true },
-    });
-    if (!targetMembership) throw new ClientError("NOT_FOUND", "Company member not found");
     await prisma.$transaction(async (tx) => {
+      // Serialize against platform-role changes so an inherited administrator's grant cannot be
+      // changed based on a stale role read.
+      await tx.$queryRaw`SELECT "id" FROM "user" WHERE "id" = ${targetUserId} FOR UPDATE`;
+      const [targetMembership, target] = await Promise.all([
+        tx.spaceMember.findUnique({
+          where: { spaceId_userId: { spaceId: access.bot?.spaceId ?? "", userId: targetUserId } },
+          select: { id: true },
+        }),
+        tx.user.findUnique({ where: { id: targetUserId }, select: { platformRole: true } }),
+      ]);
+      if (!targetMembership || !target)
+        throw new ClientError("NOT_FOUND", "Company member not found");
+      if (
+        targetUserId === access.bot?.userId ||
+        target.platformRole === "owner" ||
+        target.platformRole === "admin"
+      ) {
+        throw new ClientError(
+          "BAD_REQUEST",
+          "This member's access is inherited and cannot be changed",
+        );
+      }
       if (permission === null) {
         await tx.platformBotGrant.deleteMany({ where: { botId, userId: targetUserId } });
       } else {
