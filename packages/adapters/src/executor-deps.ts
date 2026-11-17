@@ -21,6 +21,8 @@ import type {
 import type { LabFeature } from "@rakazo/contracts";
 import type { PrismaClient, RunLease, ThreadEvents } from "@rakazo/db";
 import type { CloudAgentConnection, UserCloudAgents } from "./cloud-agent-factory.js";
+// edition-seam:R0
+import type { EditionRunHooks } from "./edition-run-hooks.js";
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import type { MessagingDelivery } from "./messaging-delivery.js";
 import type { CodexLiveCatalog } from "./pi-codex-catalog.js";
@@ -104,4 +106,6 @@ export interface ExecutorDeps {
   stoppingSignal?: AbortSignal;
   /** Set by withRunLease for one attempt; that run's history writes carry its lease. */
   runLease?: RunLease & { runId: string };
+  // edition-seam:R0
+  editionRunHooks?: EditionRunHooks;
 }
