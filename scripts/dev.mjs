@@ -405,7 +405,11 @@ function shareOnTailnet(webPort) {
 
 function generateClientIfStale(env) {
   const client = path.join(dbPackage, "src/generated/prisma/client.ts");
-  const schema = path.join(dbPackage, "prisma/schema.prisma");
+  const editionSchema = path.join(dbPackage, "prisma/.edition/schema.prisma");
+  // edition-seam:C3 — prefer the prepared schema mtime when prepare-db has run.
+  const schema = existsSync(editionSchema)
+    ? editionSchema
+    : path.join(dbPackage, "prisma/schema.prisma");
   if (existsSync(client) && statSync(client).mtimeMs >= statSync(schema).mtimeMs) return;
   log("Generating the Prisma client");
   runPnpm(["--filter", "@rakazo/db", "generate"], {
@@ -443,6 +447,11 @@ env.DATABASE_URL = database.url;
 env.DATABASE_MIGRATION_URL = database.migrationUrl;
 env.DATA_DIR = database.dataDir;
 
+// edition-seam:C3 — forward a .env-only edition into child env, then prepare-db.
+if (setting("STIRRUP_EDITION") !== undefined && env.STIRRUP_EDITION === undefined) {
+  env.STIRRUP_EDITION = setting("STIRRUP_EDITION");
+}
+log(run(process.execPath, ["scripts/editions/prepare-db.mjs"], { cwd: root, env }));
 generateClientIfStale(env);
 // Checkouts starting together would otherwise grant the server-wide runtime role at the same
 // moment and fail. Advisory locks are per database, so every checkout locks the shared one.

@@ -228,8 +228,9 @@ export async function flushProgress(ctx: RunContext) {
   const { reply } = ctx.state;
   // Routines may finish silently. Do not leak narration or a partial silence
   // sentinel before the final outcome is known.
+  // edition-seam:R4
   if (
-    ctx.scripted ||
+    (ctx.scripted && !deps.editionRunHooks?.streamsProgress?.(deps.runtime?.describe?.().id)) ||
     !reply.pendingProgress ||
     run.trigger === "routine" ||
     isBackgroundRunTrigger(run.trigger) ||

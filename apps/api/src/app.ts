@@ -151,6 +151,8 @@ import {
   withClientIp,
 } from "./client-ip.js";
 import { cspReportRoutes } from "./csp-report.js";
+// edition-seam:S2
+import { getEdition } from "./edition/active.js";
 import { configuredEmailProvider } from "./email.js";
 import { mountEmailInboundRoute } from "./email-inbound.js";
 import type { AppEnv } from "./env.js";
@@ -473,6 +475,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     },
     update: { modelCreditsEnabled },
   });
+  // edition-seam:S5
+  await getEdition().afterBootstrap?.(prisma);
   const connectors = createConnectorRuntime(
     runtimeEnv,
     { prisma, secrets, events, jobs },
@@ -485,13 +489,15 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   );
   const { mcpOAuth, mcp, pipedream, installed, integrationSettings, stack, userCloudAgents } =
     connectors;
+  // edition-seam:S4
   const baseRuntime =
     runtimeOverride ??
     (env.agentRuntime === "scripted"
       ? new ScriptedAgentRuntime()
-      : new PiAgentRuntime({
+      : (getEdition().agentRuntime?.() ??
+        new PiAgentRuntime({
           sessionRoot: env.piSessionRecording ? piSessionsRoot(env.dataDir) : undefined,
-        }));
+        })));
   const pushTokens = new PrismaPushTokenStore(prisma, env.encryptionKey);
   const notifications =
     notificationsOverride ??
@@ -659,6 +665,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       contextStrategy,
       prisma,
       runtime: baseRuntime,
+      // edition-seam:S3
+      editionRunHooks: getEdition().runHooks,
       codexCatalog,
       sandbox,
       memory,
@@ -1148,6 +1156,8 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     sessionActor,
   );
   mountWebhookHttpRoutes(app, { prisma, secrets, events, jobs });
+  // edition-seam:S2
+  getEdition().mountRoutes?.(app, { prisma, sessionActor });
   if (env.inboundEmail) {
     mountEmailInboundRoute(app, {
       prisma,
