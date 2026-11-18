@@ -4,7 +4,8 @@
   "globalDependencies": ["scripts/build-server.mjs", "tsconfig.base.json"],
   "tasks": {
     "generate": {
-      "cache": false
+      "cache": false,
+      "env": ["STIRRUP_EDITION"]
     },
     "build": {
       "dependsOn": ["^build", "^generate"],

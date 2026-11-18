@@ -447,7 +447,10 @@ env.DATABASE_URL = database.url;
 env.DATABASE_MIGRATION_URL = database.migrationUrl;
 env.DATA_DIR = database.dataDir;
 
-// edition-seam:C3 — assemble edition schema/migrations before the client freshness check.
+// edition-seam:C3 — forward a .env-only edition into child env, then prepare-db.
+if (setting("STIRRUP_EDITION") !== undefined && env.STIRRUP_EDITION === undefined) {
+  env.STIRRUP_EDITION = setting("STIRRUP_EDITION");
+}
 log(run(process.execPath, ["scripts/editions/prepare-db.mjs"], { cwd: root, env }));
 generateClientIfStale(env);
 // Checkouts starting together would otherwise grant the server-wide runtime role at the same

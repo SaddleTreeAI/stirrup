@@ -104,11 +104,18 @@ function migrationDirNames(migrationsDir) {
     .sort();
 }
 
+function writeIfChanged(file, contents) {
+  if (existsSync(file) && readFileSync(file, "utf8") === contents) return false;
+  writeFileSync(file, contents);
+  return true;
+}
+
 function prepareDb({ root, editionId }) {
   const coreSchemaPath = path.join(root, "packages/db/prisma/schema.prisma");
   const coreMigrationsDir = path.join(root, "packages/db/prisma/migrations");
   const outDir = path.join(root, "packages/db/prisma/.edition");
   const outSchema = path.join(outDir, "schema.prisma");
+  const outEdition = path.join(outDir, "edition");
   const outMigrations = path.join(outDir, "migrations");
   const editionsDir = path.join(root, "editions");
 
@@ -116,8 +123,17 @@ function prepareDb({ root, editionId }) {
     throw new Error(`Missing core schema at ${coreSchemaPath}`);
   }
 
-  rmSync(outDir, { recursive: true, force: true });
+  if (editionId !== "default") {
+    const editionDir = path.join(editionsDir, editionId);
+    if (!existsSync(editionDir) || !statSync(editionDir).isDirectory()) {
+      throw new Error(`Unknown edition "${editionId}": editions/${editionId} does not exist`);
+    }
+  }
+
   mkdirSync(outDir, { recursive: true });
+  // Migrations always rebuild; schema is written only when content changes so
+  // generateClientIfStale can skip a no-op regenerate on every pnpm dev.
+  rmSync(outMigrations, { recursive: true, force: true });
 
   const coreSchema = readFileSync(coreSchemaPath, "utf8");
   const names = new Map();
@@ -132,7 +148,8 @@ function prepareDb({ root, editionId }) {
     parts.push(`\n\n// from ${file.relative}\n${body}\n`);
     modelCount += 1;
   }
-  writeFileSync(outSchema, parts.join("").replace(/\n+$/, "\n"));
+  writeIfChanged(outSchema, parts.join("").replace(/\n+$/, "\n"));
+  writeFileSync(outEdition, `${editionId}\n`);
 
   let migrationCount = 0;
   if (editionId === "default") {

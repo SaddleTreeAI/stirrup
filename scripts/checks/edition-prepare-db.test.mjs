@@ -9,6 +9,8 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -72,6 +74,15 @@ function prepare(root, args = []) {
   });
 }
 
+function prepareFailure(root, args = []) {
+  try {
+    prepare(root, args);
+    return null;
+  } catch (error) {
+    return String(error.stderr ?? error.message ?? error);
+  }
+}
+
 test("rewrites generator output and appends every edition model", () => {
   const root = fixtureRoot();
   try {
@@ -94,6 +105,10 @@ test("rewrites generator output and appends every edition model", () => {
         schema.indexOf("editions/zed/db/zed.prisma"),
     );
     assert.equal(existsSync(path.join(root, "packages/db/prisma/.edition/migrations")), false);
+    assert.equal(
+      readFileSync(path.join(root, "packages/db/prisma/.edition/edition"), "utf8"),
+      "default\n",
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -116,19 +131,14 @@ test("selected edition gets core plus edition migrations in sorted order", () =>
       "20260102000000_core_two",
       "99990001000000_zed",
     ]);
+    assert.equal(
+      readFileSync(path.join(root, "packages/db/prisma/.edition/edition"), "utf8"),
+      "zed\n",
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
-
-function prepareFailure(root, args = []) {
-  try {
-    prepare(root, args);
-    return null;
-  } catch (error) {
-    return String(error.stderr ?? error.message ?? error);
-  }
-}
 
 test("duplicate model or enum names fail", () => {
   const root = fixtureRoot();
@@ -161,6 +171,39 @@ test("edition migration that sorts before the last core migration fails", () => 
     });
     const message = prepareFailure(root, ["--edition", "zed"]);
     assert.match(message ?? "", /must sort after the last core migration/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("unknown edition id fails", () => {
+  const root = fixtureRoot();
+  try {
+    const message = prepareFailure(root, ["--edition", "nope"]);
+    assert.match(message ?? "", /Unknown edition "nope"/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("schema.prisma mtime is stable across identical runs and updates after a model change", () => {
+  const root = fixtureRoot();
+  try {
+    prepare(root, ["--edition", "default"]);
+    const schemaPath = path.join(root, "packages/db/prisma/.edition/schema.prisma");
+    const old = new Date("2020-01-01T00:00:00Z");
+    utimesSync(schemaPath, old, old);
+    const firstMtime = statSync(schemaPath).mtimeMs;
+
+    prepare(root, ["--edition", "default"]);
+    assert.equal(statSync(schemaPath).mtimeMs, firstMtime);
+
+    writeFileSync(
+      path.join(root, "editions/zed/db/zed.prisma"),
+      `model Zed {\n  id String @id\n  note String?\n}\n`,
+    );
+    prepare(root, ["--edition", "default"]);
+    assert.ok(statSync(schemaPath).mtimeMs > firstMtime);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

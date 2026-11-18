@@ -34,6 +34,10 @@ Editions can add Prisma models and SQL migrations without editing `packages/db/p
 
 ```bash
 node scripts/editions/prepare-db.mjs [--edition <id>]
+STIRRUP_EDITION=<id> pnpm --filter @rakazo/db generate
+pnpm db:migrate
 ```
 
-To add an edition model: create `editions/<id>/db/<id>.prisma` with scalar fields only, then add a migration directory under `editions/<id>/db/migrations/` whose name starts with `9999`. Run `pnpm --filter @rakazo/db generate` (which calls prepare-db) before migrate.
+Always run `STIRRUP_EDITION=<id> pnpm --filter @rakazo/db generate` before `pnpm db:migrate` for a non-default edition so `.edition/migrations` matches. Edition migration SQL must not start with `-- deferred` (that marker is for core deferred drops). Do not run `migrate:dev` while edition models exist: it diffs the merged schema and would invent core migrations for edition tables.
+
+To add an edition model: create `editions/<id>/db/<id>.prisma` with scalar fields only, then add a migration directory under `editions/<id>/db/migrations/` whose name starts with `9999`.
