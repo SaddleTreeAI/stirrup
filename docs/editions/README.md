@@ -11,20 +11,26 @@ An edition is an optional product skin layered on the shared Stirrup core: web U
 
 Core files must not grow edition behavior. When core must call into an edition, keep the change small (about ten lines), mark it with `// edition-seam:<ID>` (for example `// edition-seam:A1-web`), and avoid edition-specific wording in core. Only the listed seam files may import `@rakazo/edition-*` or `@edition/web`; `scripts/checks/edition-seams.test.mjs` enforces that.
 
-| Id        | File                                                                                   | Role                                                |
-| --------- | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| A1-web    | `apps/web/vite.config.ts`, `vitest.config.ts`                                          | Web edition Vite alias and test resolution          |
-| A1-server | `apps/api/src/edition/active.ts`, `apps/worker/src/edition/active.ts`                  | Server edition registry                             |
-| R0        | `packages/adapters/src/executor-deps.ts`, `packages/adapters/src/edition-run-hooks.ts` | Optional `editionRunHooks` on executor deps         |
-| R1        | `packages/adapters/src/run-assembly-context.ts`                                        | `turnNote` appended to the turn prompt              |
-| R2        | `packages/adapters/src/run-assembly-context.ts`                                        | `limitTeammates` before the bot directory           |
-| R3        | `packages/adapters/src/run-turn.ts`                                                    | `onReplyFinalized` after a successful reply         |
-| R4        | `packages/adapters/src/run-turn.ts`, `packages/adapters/src/run-progress.ts`           | `streamsProgress` may flush progress while scripted |
-| S1        | `apps/api/src/index.ts`, `apps/worker/src/index.ts`                                    | `onProcessStart` after env load                     |
-| S2        | `apps/api/src/app.ts`                                                                  | `mountRoutes` beside other HTTP mounts              |
-| S3        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                      | Pass `runHooks` into `createRunRuntime`             |
-| S4        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                      | Optional `agentRuntime` before Pi                   |
-| S5        | `apps/api/src/app.ts`                                                                  | `afterBootstrap` after deployment settings upsert   |
+| Id        | File                                                                                    | Role                                                                                   |
+| --------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| A1-web    | `apps/web/vite.config.ts`, `vitest.config.ts`                                           | Web edition Vite alias and test resolution                                             |
+| A1-server | `apps/api/src/edition/active.ts`, `apps/worker/src/edition/active.ts`                   | Server edition registry                                                                |
+| W2        | `apps/web/src/pages/Shell.tsx`                                                          | Wraps the shell in `edition.ShellProvider` when the edition defines one                |
+| W3        | `apps/web/src/pages/Shell.tsx`                                                          | Wraps the loaded shell tree in `edition.ChromeFrame` (pass-through by default)         |
+| W4        | `apps/web/src/pages/Shell.tsx`, `apps/web/src/pages/shell/shell-sidebar.tsx`            | Optional sidebar `leading` slot above the header (`edition.SidebarLeading`)            |
+| W5        | `apps/web/src/pages/Shell.tsx`                                                          | Renders `edition.MainAside` after `</main>` when defined                               |
+| W6        | `apps/web/src/pages/Shell.tsx`                                                          | `useShellExtension`: transform sidebar groups, filter create-menu bots, `onBotCreated` |
+| W7        | `apps/web/src/components/GitHubStarPrompt.tsx`, `apps/web/src/pages/shell/composer.tsx` | Skips the GitHub star prompt and its message count when `hideStarPrompt` is true       |
+| R0        | `packages/adapters/src/executor-deps.ts`, `packages/adapters/src/edition-run-hooks.ts`  | Optional `editionRunHooks` on executor deps                                            |
+| R1        | `packages/adapters/src/run-assembly-context.ts`                                         | `turnNote` appended to the turn prompt                                                 |
+| R2        | `packages/adapters/src/run-assembly-context.ts`                                         | `limitTeammates` before the bot directory                                              |
+| R3        | `packages/adapters/src/run-turn.ts`                                                     | `onReplyFinalized` after a successful reply                                            |
+| R4        | `packages/adapters/src/run-turn.ts`, `packages/adapters/src/run-progress.ts`            | `streamsProgress` may flush progress while scripted                                    |
+| S1        | `apps/api/src/index.ts`, `apps/worker/src/index.ts`                                     | `onProcessStart` after env load                                                        |
+| S2        | `apps/api/src/app.ts`                                                                   | `mountRoutes` beside other HTTP mounts                                                 |
+| S3        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                       | Pass `runHooks` into `createRunRuntime`                                                |
+| S4        | `apps/api/src/app.ts`                                                                   | Optional `agentRuntime` before Pi                                                      |
+| S5        | `apps/api/src/app.ts`                                                                   | `afterBootstrap` after deployment settings upsert                                      |
 
 ## Adding an edition
 

@@ -28,6 +28,7 @@ import { Button } from "@rakazo/ui-web";
 import { useIsMobile } from "@rakazo/ui-web/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   Suspense,
   useCallback,
@@ -43,6 +44,7 @@ import { CallCard, CallReturnBar } from "../components/call/CallCard";
 import { IncomingCall } from "../components/call/IncomingCall";
 import { PageLoading } from "../components/PageLoading";
 import { PageViewHost } from "../components/pages/PageViewHost";
+import { edition } from "../edition";
 import type { ArtifactTarget } from "../lib/artifact-open";
 import { authClient } from "../lib/auth";
 import { peekBootstrapSeed } from "../lib/bootstrap";
@@ -120,15 +122,32 @@ import type { SettingsSection } from "./shell-overlay";
 const NO_AGENT_SKILLS: AgentSkillCatalogEntry[] = [];
 const NO_PROVIDERS: string[] = [];
 
+// edition-seam:W2
+function ProvideEdition({ children }: { children: ReactNode }) {
+  const Provider = edition.ShellProvider;
+  return Provider ? <Provider>{children}</Provider> : children;
+}
+
+// edition-seam:W3
+function NoChromeFrame({ children }: { children: ReactNode }) {
+  return children;
+}
+
 export function ShellPage() {
   // A new key per space switch, so nothing from the previous space survives it.
   const spaceEpoch = useSpaceEpoch();
-  return <SpaceShell key={spaceEpoch} />;
+  return (
+    <ProvideEdition key={spaceEpoch}>
+      <SpaceShell key={spaceEpoch} />
+    </ProvideEdition>
+  );
 }
 
 function SpaceShell() {
   const { t } = useLingui();
   const { botId, groupId } = useParams();
+  // edition-seam:W6
+  const ext = edition.useShellExtension();
   const [shellSpaceId] = useState(selectedSpaceId);
   const [rpc] = useState(() => createSpaceRpc(shellSpaceId));
   const session = authClient.useSession();
@@ -573,16 +592,16 @@ function SpaceShell() {
           : [],
     [bootstrapMe, botSections, bots, groups, spaces],
   );
-  const sidebarGroups = useMemo(
-    () =>
-      sidebarGroupsForSpaces(
-        sidebarSpaces,
-        miniSidebar ? "" : search.query,
-        { pinned: t`Pinned`, unassigned: t`Unassigned` },
-        snoozeNow,
-      ),
-    [sidebarSpaces, search.query, miniSidebar, t, snoozeNow],
-  );
+  const sidebarGroups = useMemo(() => {
+    // edition-seam:W6a
+    const groups = sidebarGroupsForSpaces(
+      sidebarSpaces,
+      miniSidebar ? "" : search.query,
+      { pinned: t`Pinned`, unassigned: t`Unassigned` },
+      snoozeNow,
+    );
+    return ext.transformSidebarGroups?.(groups) ?? groups;
+  }, [sidebarSpaces, search.query, miniSidebar, t, snoozeNow, ext]);
   // The Dock badge ignores the roster search box: a filter must not hide unread chats.
   const unreadChatCount = useMemo(
     () => countUnreadChats(sidebarGroupsForSpaces(sidebarSpaces, "", undefined, snoozeNow)),
@@ -920,11 +939,16 @@ function SpaceShell() {
   async function createBot(input: CreateBotDialogInput, client: RpcClient) {
     const isFirstBot = botsRef.current.length === 0;
     const bot = await client.bots.create({ ...input, notifyOnFinish: true });
+    // edition-seam:W6b
+    await ext.onBotCreated?.(bot).catch(() => undefined);
     openCreatedBot(bot);
     dialogs.setCreateBotOpen(false);
     await composer.startFocusPrompt(bot.id, isFirstBot);
     await refreshBots().catch(() => undefined);
   }
+
+  // edition-seam:W6c
+  const createMenuBots = useMemo(() => ext.filterCreateMenuBots?.(bots) ?? bots, [bots, ext]);
 
   const contextBot =
     botMenu?.kind === "bot" ? bots.find((bot) => bot.id === botMenu.id) : undefined;
@@ -988,7 +1012,7 @@ function SpaceShell() {
         createMenuOpen={createMenuOpen}
         setCreateMenuOpen={setCreateMenuOpen}
         search={search}
-        bots={bots}
+        bots={createMenuBots}
         groups={groups}
         collapsedSidebarSections={collapsedSidebarSections}
         toggleSidebarSection={toggleSidebarSection}
@@ -1063,6 +1087,8 @@ function SpaceShell() {
         openIntegrations={() => setOverlay({ kind: "integrations" })}
         openSkills={() => setOverlay({ kind: "skills" })}
         openSpaceChat={openSpaceChat}
+        // edition-seam:W4
+        leading={edition.SidebarLeading ? <edition.SidebarLeading /> : undefined}
       />
 
       {/* Keep the composer's z-index inside the chat so phone overlays like the side panel cover it. */}
@@ -1260,6 +1286,8 @@ function SpaceShell() {
           </div>
         ) : null}
       </main>
+      {/* edition-seam:W5 */}
+      {edition.MainAside ? <edition.MainAside /> : null}
 
       <PageViewHost />
       <CallCard onSettings={() => openSettings("voice")} />
@@ -1480,10 +1508,14 @@ function SpaceShell() {
   );
 
   // Empty chrome until the first bot list lands would flash "Select a bot" before the chat.
+  // edition-seam:W3
+  const ChromeFrame = edition.ChromeFrame ?? NoChromeFrame;
   return (
     <SpaceRpcProvider spaceId={shellSpaceId}>
       {initialBotsLoaded || initialLoadFailed ? (
-        <PagesProvider value={pages}>{shell}</PagesProvider>
+        <ChromeFrame>
+          <PagesProvider value={pages}>{shell}</PagesProvider>
+        </ChromeFrame>
       ) : (
         <PageLoading />
       )}
