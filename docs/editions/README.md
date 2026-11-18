@@ -37,3 +37,22 @@ Core files must not grow edition behavior. When core must call into an edition, 
 ```bash
 STIRRUP_EDITION=law pnpm dev
 ```
+
+## Database
+
+Editions can add Prisma models and SQL migrations without editing `packages/db/prisma/schema.prisma` or `packages/db/prisma/migrations/`.
+
+1. **Types.** The Prisma client is always generated from the core schema plus every edition's model file under `editions/*/db/*.prisma`. All packages typecheck in every build; unused edition tables simply do not exist in other editions' databases.
+2. **Tables.** Migrations applied are core migrations plus only the active edition's migrations under `editions/<id>/db/migrations/*`. Edition migration directory names start with `9999` (for example `99990001000000_…`) so they sort after every core migration.
+3. **Scalar-only models.** Edition models use scalar fields only (no Prisma relations to core models), so the core schema never needs back-relations.
+4. **Output.** `node scripts/editions/prepare-db.mjs` writes a generated, gitignored tree at `packages/db/prisma/.edition/`. With `STIRRUP_EDITION` unset (or `default`), tooling behaves as today: the prepared schema equals the core schema, and core migrations are used.
+
+```bash
+node scripts/editions/prepare-db.mjs [--edition <id>]
+STIRRUP_EDITION=<id> pnpm --filter @rakazo/db generate
+pnpm db:migrate
+```
+
+Always run `STIRRUP_EDITION=<id> pnpm --filter @rakazo/db generate` before `pnpm db:migrate` for a non-default edition so `.edition/migrations` matches. Edition migration SQL must not start with `-- deferred` (that marker is for core deferred drops). Do not run `migrate:dev` while edition models exist: it diffs the merged schema and would invent core migrations for edition tables.
+
+To add an edition model: create `editions/<id>/db/<id>.prisma` with scalar fields only, then add a migration directory under `editions/<id>/db/migrations/` whose name starts with `9999`.

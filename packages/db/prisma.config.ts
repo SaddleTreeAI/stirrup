@@ -9,8 +9,11 @@ const rootEnv = path.resolve(here, "../../.env");
 if (existsSync(rootEnv)) config({ path: rootEnv });
 config();
 
+const editionSchema = path.join(here, "prisma/.edition/schema.prisma");
+
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  // edition-seam:C1 — prefer the prepared schema when prepare-db has run.
+  schema: existsSync(editionSchema) ? "prisma/.edition/schema.prisma" : "prisma/schema.prisma",
   migrations: {
     // The migrate command passes a copy without the deferred migrations it holds back.
     path: process.env.RAKAZO_MIGRATIONS_PATH || "prisma/migrations",
