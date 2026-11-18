@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { act } from "react";
+import { act, useEffect } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -194,5 +194,35 @@ describe("edition seam W7 star prompt", () => {
     editionState.hideStarPrompt = false;
     act(() => root.render(<GitHubStarPrompt />));
     expect(container.querySelector('[aria-label="Star on GitHub"]')).not.toBeNull();
+  });
+});
+
+describe("edition seam W3 chrome frame identity", () => {
+  it("keeps a child mounted across parent re-renders when the frame is module-level", () => {
+    // Mirrors Shell.tsx: NoChromeFrame is stable; an inline frame would remount.
+    function NoChromeFrame({ children }: { children: ReactNode }) {
+      return children;
+    }
+    let mounts = 0;
+    function Child() {
+      useEffect(() => {
+        mounts += 1;
+      }, []);
+      return <div data-testid="frame-child" />;
+    }
+    function Parent({ tick }: { tick: number }) {
+      const ChromeFrame = NoChromeFrame;
+      return (
+        <ChromeFrame>
+          <Child />
+          <span data-testid="tick">{tick}</span>
+        </ChromeFrame>
+      );
+    }
+    act(() => root.render(<Parent tick={1} />));
+    expect(mounts).toBe(1);
+    act(() => root.render(<Parent tick={2} />));
+    expect(mounts).toBe(1);
+    expect(container.querySelector('[data-testid="tick"]')?.textContent).toBe("2");
   });
 });
