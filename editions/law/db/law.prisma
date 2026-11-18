@@ -1,0 +1,51 @@
+// Law edition tables. Scalar fields only — no Prisma relations to core or
+// between these models — so prepare-db can append them without editing core.
+
+model LawCase {
+  id        String   @id @default(uuid())
+  spaceId   String
+  slug      String
+  name      String
+  brief     String   @db.Text
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([spaceId, slug])
+  @@index([spaceId, position])
+  @@map("law_cases")
+}
+
+model LawCaseMember {
+  caseId String
+  userId String
+
+  @@id([caseId, userId])
+  @@index([userId])
+  @@map("law_case_members")
+}
+
+model LawDocument {
+  id          String   @id @default(uuid())
+  caseId      String
+  title       String
+  filename    String   @default("")
+  body        String   @db.Text
+  kind        String
+  version     Int      @default(1)
+  rootId      String?
+  sourceRunId String?  @unique
+  createdAt   DateTime @default(now())
+
+  @@index([caseId, kind, createdAt])
+  @@index([caseId, rootId, version])
+  @@map("law_documents")
+}
+
+model LawCaseBot {
+  caseId String
+  role   String
+  botId  String @unique
+
+  @@id([caseId, role])
+  @@map("law_case_bots")
+}

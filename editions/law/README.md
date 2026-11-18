@@ -24,4 +24,50 @@ Supporting modules under `src/web/`:
 
 ## Server
 
-Skeleton `src/server.ts` returns `id: "law"` with no routes or hooks yet; later tasks C2 and C3 fill those in.
+`editions/law/src/server.ts` exports a `ServerEdition` that A3 mounts through seams S2/S3 (`docs/editions/README.md`). C3 adds `onProcessStart`, `agentRuntime`, and `afterBootstrap`.
+
+### Tables
+
+Prisma models in `db/law.prisma` (scalar fields only). Migrations under `db/migrations/` (9999 prefix):
+
+| Table              | Purpose                                                              |
+| ------------------ | -------------------------------------------------------------------- |
+| `law_cases`        | Case file per Space (`slug`, `name`, `brief`)                        |
+| `law_case_members` | Which users may open a case                                          |
+| `law_documents`    | Library files and review drafts (versioned)                          |
+| `law_case_bots`    | Role → bot link (`manager`, `documents`, `transcripts`, `generator`) |
+
+Row-level security is enabled and forced on every law table; tenant policies key off `app.space_id`, with an `app.rls_bypass` system policy.
+
+### Routes
+
+Mounted at `/api/law/*` by `mountRoutes`:
+
+| Method | Path                                           | Behavior                                     |
+| ------ | ---------------------------------------------- | -------------------------------------------- |
+| GET    | `/api/law/cases`                               | List the caller's cases and role bots        |
+| POST   | `/api/law/cases`                               | Create a case and the four role bots         |
+| POST   | `/api/law/cases/:id/bots`                      | Attach an existing Space bot to the case     |
+| GET    | `/api/law/cases/:id/documents`                 | List library / review documents              |
+| POST   | `/api/law/cases/:id/documents/:docId/versions` | Save a new review draft version (`{ body }`) |
+
+Unauthenticated calls return 401. Response shapes match the B1 web client.
+
+### Hooks
+
+Always on while the law edition is selected (no `LAW_ENFORCE_CHAT_PIN` gate):
+
+| Hook               | Function                 | Role                                               |
+| ------------------ | ------------------------ | -------------------------------------------------- |
+| `turnNote`         | `lawTurnNote`            | Case brief + keyword snippets into the turn prompt |
+| `limitTeammates`   | `limitLawTeammates`      | Hide other cases' bots from the teammate list      |
+| `onReplyFinalized` | `saveLawReviewDraftHook` | Persist generator replies as review drafts         |
+
+### Env
+
+No new env vars in C2. Chat pin / OpenRouter wiring and seed belong to C3 (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` live in `src/server/constants.ts` for that follow-up). Apply migrations with:
+
+```bash
+STIRRUP_EDITION=law pnpm --filter @rakazo/db generate
+STIRRUP_EDITION=law pnpm db:migrate
+```
