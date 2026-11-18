@@ -9,6 +9,8 @@ export interface LawRosterFilter {
   caseBotIds: readonly string[];
   /** Every case bot, including the other cases, which stay hidden. */
   allCaseBotIds: readonly string[];
+  /** True until the first case list for this space has arrived. Bots stay hidden. */
+  loading?: boolean;
 }
 
 /**
@@ -39,6 +41,8 @@ export function applyLawRoster<
       canDeleteSpace: false,
     }) as T;
 
+  if (filter.loading) return [section("law-loading", null, [])];
+
   if (filter.environment === "general") {
     const hidden = new Set(filter.allCaseBotIds);
     const generalBots = items.filter((item) => !hidden.has(item.chat.id));
@@ -58,6 +62,7 @@ export function filterLawCreateBots<T extends { id: string }>(
   filter: LawRosterFilter | null,
 ): T[] {
   if (!filter) return [...bots];
+  if (filter.loading) return [];
   if (filter.environment === "general") {
     const hidden = new Set(filter.allCaseBotIds);
     return bots.filter((bot) => !hidden.has(bot.id));

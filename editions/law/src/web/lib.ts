@@ -3,7 +3,7 @@
 
 const SPACE_STORAGE_KEY = "rakazo:space-id";
 
-function selectedSpaceId(): string | null {
+export function selectedSpaceId(): string | null {
   if (typeof window === "undefined") return null;
   try {
     return window.localStorage.getItem(SPACE_STORAGE_KEY);
