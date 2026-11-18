@@ -2,6 +2,7 @@
 // Copyright 2026 SaddleTree AI
 
 import { SectionHeading } from "@rakazo/ui-web";
+import { useSidebar } from "@rakazo/ui-web/components/ui/sidebar";
 import { Briefcase, Plus, Scale } from "lucide-react";
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -14,7 +15,7 @@ import {
   LawFileViewer,
   latestLawDocuments,
 } from "./files.js";
-import { withSpaceHeaders } from "./lib.js";
+import { selectedSpaceId, withSpaceHeaders } from "./lib.js";
 import type { LawEnvironment, LawRosterFilter } from "./roster.js";
 
 interface LawBot {
@@ -41,31 +42,52 @@ interface LawShellValue {
   setEnvironment: (environment: LawEnvironment) => void;
   createCase: (name: string) => Promise<LawCase>;
   attachBot: (botId: string) => Promise<void>;
+  /** Space captured when this shell mounted. Later storage changes do not retarget fetches. */
+  spaceId: string | null;
 }
 
 const LawShellContext = createContext<LawShellValue | null>(null);
-const ENV_KEY = "law-environment";
 
-function readStoredEnvironment(): LawEnvironment {
+function environmentStorageKey(spaceId: string | null): string {
+  return `law-environment:${spaceId ?? ""}`;
+}
+
+function readStoredEnvironment(spaceId: string | null): LawEnvironment | null {
   try {
-    return sessionStorage.getItem(ENV_KEY) === "general" ? "general" : "cases";
+    const value = sessionStorage.getItem(environmentStorageKey(spaceId));
+    return value === "general" || value === "cases" ? value : null;
   } catch {
-    return "cases";
+    return null;
+  }
+}
+
+function writeStoredEnvironment(spaceId: string | null, environment: LawEnvironment) {
+  try {
+    sessionStorage.setItem(environmentStorageKey(spaceId), environment);
+  } catch {
+    /* ignore */
   }
 }
 
 export function LawProvider({ children }: { children: ReactNode }) {
   const { botId } = useParams();
   const navigate = useNavigate();
+  const [spaceId] = useState(selectedSpaceId);
   const [cases, setCases] = useState<LawCase[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(0);
-  const [environment, setEnvironmentState] = useState<LawEnvironment>(readStoredEnvironment);
+  const [environmentChoice, setEnvironmentChoice] = useState<LawEnvironment | null>(() =>
+    readStoredEnvironment(spaceId),
+  );
   const reload = useCallback(() => setTick((value) => value + 1), []);
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/law/cases", { credentials: "same-origin", headers: withSpaceHeaders() })
+    void fetch("/api/law/cases", {
+      credentials: "same-origin",
+      headers: withSpaceHeaders(undefined, spaceId),
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error(String(response.status));
         return (await response.json()) as { cases: LawCase[] };
@@ -74,31 +96,33 @@ export function LawProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           setCases(body.cases);
           setError(null);
+          setLoaded(true);
         }
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setError(caught instanceof Error ? caught.message : "error");
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : "error");
+          setLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [tick]);
+  }, [spaceId, tick]);
 
   const caseForBot = useMemo(
     () => cases.find((item) => item.bots.some((bot) => bot.botId === botId)) ?? null,
     [botId, cases],
   );
 
+  const environment: LawEnvironment =
+    environmentChoice ?? (loaded && cases.length > 0 ? "cases" : "general");
+
   useEffect(() => {
-    if (caseForBot && environment === "general") {
-      setEnvironmentState("cases");
-      try {
-        sessionStorage.setItem(ENV_KEY, "cases");
-      } catch {
-        /* ignore */
-      }
-    }
-  }, [caseForBot, environment]);
+    // A case bot opened while this space was left on general would flip the
+    // stored choice. Leave the bot instead, so switching back restores general.
+    if (caseForBot && environmentChoice === "general") navigate("/app");
+  }, [caseForBot, environmentChoice, navigate]);
 
   const selected = useMemo(() => {
     if (environment !== "cases" || cases.length === 0) return null;
@@ -107,12 +131,8 @@ export function LawProvider({ children }: { children: ReactNode }) {
 
   const setEnvironment = useCallback(
     (next: LawEnvironment) => {
-      setEnvironmentState(next);
-      try {
-        sessionStorage.setItem(ENV_KEY, next);
-      } catch {
-        /* ignore */
-      }
+      setEnvironmentChoice(next);
+      writeStoredEnvironment(spaceId, next);
       if (next === "cases") {
         const target = caseForBot ?? cases[0];
         const bot = target?.bots[0];
@@ -122,7 +142,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       const allCaseBotIds = new Set(cases.flatMap((item) => item.bots.map((bot) => bot.botId)));
       if (botId && allCaseBotIds.has(botId)) navigate("/app");
     },
-    [botId, caseForBot, cases, navigate],
+    [botId, caseForBot, cases, navigate, spaceId],
   );
 
   const selectCase = useCallback(
@@ -130,18 +150,14 @@ export function LawProvider({ children }: { children: ReactNode }) {
       const next = cases.find((item) => item.id === caseId);
       if (!next) return;
       if (environment !== "cases") {
-        setEnvironmentState("cases");
-        try {
-          sessionStorage.setItem(ENV_KEY, "cases");
-        } catch {
-          /* ignore */
-        }
+        setEnvironmentChoice("cases");
+        writeStoredEnvironment(spaceId, "cases");
       }
       const role = cases.flatMap((item) => item.bots).find((bot) => bot.botId === botId)?.role;
       const bot = next.bots.find((item) => item.role === role) ?? next.bots[0];
       if (bot && bot.botId !== botId) navigate(`/app/${bot.botId}`);
     },
-    [botId, cases, environment, navigate],
+    [botId, cases, environment, navigate, spaceId],
   );
 
   const createCase = useCallback(
@@ -149,24 +165,20 @@ export function LawProvider({ children }: { children: ReactNode }) {
       const response = await fetch("/api/law/cases", {
         method: "POST",
         credentials: "same-origin",
-        headers: withSpaceHeaders({ "content-type": "application/json" }),
+        headers: withSpaceHeaders({ "content-type": "application/json" }, spaceId),
         body: JSON.stringify({ name }),
       });
       if (!response.ok) throw new Error(String(response.status));
       const body = (await response.json()) as { case: LawCase };
       setCases((current) => [...current, body.case]);
-      setEnvironmentState("cases");
-      try {
-        sessionStorage.setItem(ENV_KEY, "cases");
-      } catch {
-        /* ignore */
-      }
+      setEnvironmentChoice("cases");
+      writeStoredEnvironment(spaceId, "cases");
       const bot = body.case.bots[0];
       if (bot) navigate(`/app/${bot.botId}`);
       reload();
       return body.case;
     },
-    [navigate, reload],
+    [navigate, reload, spaceId],
   );
 
   const attachBot = useCallback(
@@ -175,23 +187,25 @@ export function LawProvider({ children }: { children: ReactNode }) {
       const response = await fetch(`/api/law/cases/${selected.id}/bots`, {
         method: "POST",
         credentials: "same-origin",
-        headers: withSpaceHeaders({ "content-type": "application/json" }),
+        headers: withSpaceHeaders({ "content-type": "application/json" }, spaceId),
         body: JSON.stringify({ botId: newBotId }),
       });
       if (!response.ok) throw new Error(String(response.status));
       reload();
     },
-    [reload, selected],
+    [reload, selected, spaceId],
   );
 
-  const roster = useMemo<LawRosterFilter | null>(() => {
-    if (cases.length === 0 && environment === "cases") return null;
+  const roster = useMemo<LawRosterFilter>(() => {
+    if (!loaded) {
+      return { environment, caseBotIds: [], allCaseBotIds: [], loading: true };
+    }
     return {
       environment,
       caseBotIds: selected?.bots.map((bot) => bot.botId) ?? [],
       allCaseBotIds: cases.flatMap((item) => item.bots.map((bot) => bot.botId)),
     };
-  }, [cases, environment, selected]);
+  }, [cases, environment, loaded, selected]);
 
   const value = useMemo(
     () => ({
@@ -205,6 +219,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       setEnvironment,
       createCase,
       attachBot,
+      spaceId,
     }),
     [
       attachBot,
@@ -217,6 +232,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       selectCase,
       selected,
       setEnvironment,
+      spaceId,
     ],
   );
   return <LawShellContext.Provider value={value}>{children}</LawShellContext.Provider>;
@@ -228,14 +244,27 @@ export function useLawShell(): LawShellValue {
   return value;
 }
 
-/** Frame that offsets the core sidebar for the fixed environment rail. */
+/**
+ * Width of the environment rail. Kept in this stylesheet because the web app's
+ * Tailwind scan does not include this package, so a utility written only here
+ * is never generated.
+ */
+const LAW_CHROME_STYLE = `
+.law-chrome-spacer,.law-chrome-rail{width:3rem}
+.law-chrome-frame{contain:paint}
+@media (max-width:767px){
+  .law-chrome-spacer,.law-chrome-rail{display:none}
+}
+`;
+
+/** Frame that holds the core sidebar in the space to the right of the environment rail. */
 export function LawChromeFrame({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 overflow-hidden">
-      {/* Spacer so the fixed bots sidebar sits to the right of the environment rail. */}
-      <div className="w-12 shrink-0" aria-hidden="true" />
+      <style>{LAW_CHROME_STYLE}</style>
+      <div className="law-chrome-spacer shrink-0" aria-hidden="true" />
       <LawEnvironmentRail />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [&_[data-slot=sidebar-container][data-side=left]]:left-12">
+      <div className="law-chrome-frame flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>
     </div>
@@ -247,7 +276,7 @@ export function LawEnvironmentRail() {
   return (
     <aside
       data-testid="law-environment-rail"
-      className="fixed inset-y-0 start-0 z-20 flex w-12 flex-col items-center gap-2 border-e border-sidebar-border bg-sidebar py-3"
+      className="law-chrome-rail fixed inset-y-0 start-0 z-20 flex flex-col items-center gap-2 border-e border-sidebar-border bg-sidebar py-3"
     >
       <button
         type="button"
@@ -283,10 +312,12 @@ export function LawEnvironmentRail() {
 
 export function LawCaseTabs() {
   const { cases, selected, error, reload, selectCase, createCase, environment } = useLawShell();
+  const sidebar = useSidebar();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
+  if (!sidebar.isMobile && sidebar.state === "collapsed") return null;
   if (environment !== "cases") return null;
   if (error && cases.length === 0) {
     return (
@@ -364,7 +395,7 @@ export function LawCaseTabs() {
 }
 
 export function LawCaseColumn() {
-  const { selected, error, reload, environment } = useLawShell();
+  const { selected, error, reload, environment, spaceId } = useLawShell();
   const [documents, setDocuments] = useState<LawFileDoc[]>([]);
   const [docError, setDocError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<LawFileDoc | null>(null);
@@ -377,7 +408,7 @@ export function LawCaseColumn() {
     const load = () => {
       void fetch(`/api/law/cases/${caseId}/documents`, {
         credentials: "same-origin",
-        headers: withSpaceHeaders(),
+        headers: withSpaceHeaders(undefined, spaceId),
       })
         .then(async (response) => {
           if (!response.ok) throw new Error(String(response.status));
@@ -399,7 +430,7 @@ export function LawCaseColumn() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [caseId, environment]);
+  }, [caseId, environment, spaceId]);
 
   if (environment !== "cases" || !selected) return null;
 
@@ -412,7 +443,7 @@ export function LawCaseColumn() {
     const response = await fetch(`/api/law/cases/${caseId}/documents/${editor.id}/versions`, {
       method: "POST",
       credentials: "same-origin",
-      headers: withSpaceHeaders({ "content-type": "application/json" }),
+      headers: withSpaceHeaders({ "content-type": "application/json" }, spaceId),
       body: JSON.stringify({ body }),
     });
     if (!response.ok) throw new Error(String(response.status));

@@ -55,6 +55,13 @@ describe("applyLawRoster", () => {
     expect(result).toEqual(groups);
     expect(result).not.toBe(groups);
   });
+
+  it("hides every bot while the case list is still loading", () => {
+    const result = applyLawRoster(groups, { ...casesFilter, loading: true });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.key).toBe("law-loading");
+    expect(result[0]?.bots).toEqual([]);
+  });
 });
 
 describe("filterLawCreateBots", () => {
@@ -73,5 +80,9 @@ describe("filterLawCreateBots", () => {
 
   it("returns all bots when the filter is null", () => {
     expect(filterLawCreateBots(bots, null)).toEqual(bots);
+  });
+
+  it("offers no bots while the case list is still loading", () => {
+    expect(filterLawCreateBots(bots, { ...generalFilter, loading: true })).toEqual([]);
   });
 });
