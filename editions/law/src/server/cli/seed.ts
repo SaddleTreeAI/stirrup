@@ -7,6 +7,7 @@ import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import type { PrismaClient } from "@rakazo/db";
 import { asSystem, createDb, createOrganizationWithDefaultSpace, createRepos } from "@rakazo/db";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "../constants.js";
@@ -225,7 +226,8 @@ function writeLogin(file: string, password: string) {
 }
 
 function caseName(slug: string): string {
-  return slug.slice(0, 1).toUpperCase() + slug.slice(1);
+  const short = slug.slice(0, 1).toUpperCase() + slug.slice(1);
+  return `Commonwealth v. ${short}`;
 }
 
 /** Demo library titles keep varied professional extensions for the file cards. */
@@ -243,13 +245,28 @@ function libraryFilename(file: string): string {
   return `${base}.txt`;
 }
 
+/** Refuse a login path inside the monorepo so the password file is never committed by accident. */
+export function assertLoginFileOutsideRepo(loginFile: string, repoRoot = MONOREPO_ROOT): string {
+  const resolved = path.resolve(loginFile);
+  const root = path.resolve(repoRoot);
+  const relative = path.relative(root, resolved);
+  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
+    throw new Error(
+      `LAW_LOGIN_FILE must resolve outside the repository (got ${resolved}; repo root is ${root}).`,
+    );
+  }
+  return resolved;
+}
+
 async function main() {
+  loadRootEnv();
   const loginFile = process.env.LAW_LOGIN_FILE?.trim();
   if (!loginFile) throw new Error("Set LAW_LOGIN_FILE to a path outside the repository.");
+  const resolvedLogin = assertLoginFileOutsideRepo(loginFile);
   const databaseUrl =
     process.env.DATABASE_MIGRATION_URL?.trim() || process.env.DATABASE_URL?.trim();
   if (!databaseUrl) throw new Error("Set DATABASE_URL.");
-  await seedLawPlatform({ loginFile, databaseUrl });
+  await seedLawPlatform({ loginFile: resolvedLogin, databaseUrl });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

@@ -621,6 +621,7 @@ services:
       dockerfile: infra/compose/Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-}
+        STIRRUP_EDITION: ${STIRRUP_EDITION:-}
     restart: unless-stopped
     # Directly, not through pnpm, so a stop reaches it (see the api command).
     working_dir: /app/apps/web

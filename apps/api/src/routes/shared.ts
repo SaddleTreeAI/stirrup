@@ -20,6 +20,8 @@ import {
 } from "@rakazo/contracts";
 import { isAdmin } from "../admins.js";
 import { effectiveSandboxProvider } from "../computer-provider-config.js";
+// edition-seam:S6
+import { getEdition } from "../edition/active.js";
 import type { RouterDeps } from "../router.js";
 
 export { createAdapterContext as computerContext } from "@rakazo/adapter-kit";
@@ -137,6 +139,8 @@ export async function modelSetup(deps: RouterDeps, actor: Actor) {
   const hasDeployment =
     Boolean(deps.env.deploymentModelConfigured) &&
     (!funding?.creditPurchasesEnabled || creditsAvailable);
+  // edition-seam:S6 — a scripted edition runtime needs no model credential to send
+  const editionScripted = Boolean(getEdition().agentRuntime?.()?.describe().capabilities?.scripted);
   return {
     main,
     model:
@@ -149,7 +153,7 @@ export async function modelSetup(deps: RouterDeps, actor: Actor) {
     funding,
     creditsAvailable,
     hasDeployment,
-    needsModel: deps.env.agentRuntime !== "scripted" && !main && !hasDeployment,
+    needsModel: deps.env.agentRuntime !== "scripted" && !editionScripted && !main && !hasDeployment,
   };
 }
 
