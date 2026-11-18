@@ -6,57 +6,16 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { PrismaClient } from "@rakazo/db";
 import { asSystem, createDb, createOrganizationWithDefaultSpace, createRepos } from "@rakazo/db";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "../constants.js";
 
-const EMAIL = "rowan.ellis@demonstration-defense.example";
+export const LAW_SEED_EMAIL = "rowan.ellis@demonstration-defense.example";
 const ATTORNEY = "Rowan Ellis";
 const EDITION_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const MONOREPO_ROOT = path.resolve(EDITION_ROOT, "../..");
 const ROOT = path.join(EDITION_ROOT, "seed/cases");
-
-/** Case tables from the law edition Prisma models (C2). Cast until generate sees them. */
-type LawSeedDb = PrismaClient & {
-  lawCase: {
-    upsert: (args: {
-      where: { spaceId_slug: { spaceId: string; slug: string } };
-      create: {
-        id: string;
-        spaceId: string;
-        slug: string;
-        name: string;
-        brief: string;
-        position: number;
-      };
-      update: { name: string; brief: string; position: number };
-    }) => Promise<{ id: string }>;
-  };
-  lawCaseMember: {
-    upsert: (args: {
-      where: { caseId_userId: { caseId: string; userId: string } };
-      create: { caseId: string; userId: string };
-      update: Record<string, never>;
-    }) => Promise<unknown>;
-  };
-  lawCaseBot: {
-    upsert: (args: {
-      where: { caseId_role: { caseId: string; role: string } };
-      create: { caseId: string; role: string; botId: string };
-      update: Record<string, never>;
-    }) => Promise<unknown>;
-  };
-  lawDocument: {
-    findFirst: (args: {
-      where: Record<string, unknown>;
-      select: { id: true };
-    }) => Promise<{ id: string } | null>;
-    create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
-    update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<unknown>;
-  };
-};
 
 const ROLES = [
   {
@@ -89,18 +48,24 @@ const ROLES = [
   },
 ] as const;
 
-async function main() {
-  const loginFile = process.env.LAW_LOGIN_FILE?.trim();
-  if (!loginFile) throw new Error("Set LAW_LOGIN_FILE to a path outside the repository.");
-  const databaseUrl =
-    process.env.DATABASE_MIGRATION_URL?.trim() || process.env.DATABASE_URL?.trim();
-  if (!databaseUrl) throw new Error("Set DATABASE_URL.");
-  const { prisma, pool } = createDb(databaseUrl);
-  const db = asSystem(prisma, "law platform seed") as LawSeedDb;
+export type SeedLawPlatformResult = {
+  userId: string;
+  spaceId: string;
+  cases: string[];
+};
+
+/** Seed the synthetic attorney, cases, bots, and documents. Safe to run again. */
+export async function seedLawPlatform(input: {
+  loginFile: string;
+  databaseUrl: string;
+  quiet?: boolean;
+}): Promise<SeedLawPlatformResult> {
+  const { prisma, pool } = createDb(input.databaseUrl);
+  const db = asSystem(prisma, "law platform seed");
   try {
-    const password = existingPassword(loginFile) ?? randomBytes(18).toString("base64url");
-    const userId = await ensureUser(db, password, !existsSync(loginFile));
-    writeLogin(loginFile, password);
+    const password = existingPassword(input.loginFile) ?? randomBytes(18).toString("base64url");
+    const userId = await ensureUser(db, password, !existsSync(input.loginFile));
+    writeLogin(input.loginFile, password);
     const spaceId = await createOrganizationWithDefaultSpace(db, {
       userId,
       orgId: randomUUID(),
@@ -108,7 +73,7 @@ async function main() {
       slug: "demonstration-defense",
     });
     const repos = createRepos(db);
-    const actor = { userId, spaceId, email: EMAIL, isDeploymentOwner: false };
+    const actor = { userId, spaceId, email: LAW_SEED_EMAIL, isDeploymentOwner: false };
     const present = new Set(
       readdirSync(ROOT, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
@@ -197,7 +162,8 @@ async function main() {
         });
       }
     }
-    process.stdout.write(`Seeded ${cases.length} cases for ${EMAIL}.\n`);
+    if (!input.quiet) process.stdout.write(`Seeded ${cases.length} cases for ${LAW_SEED_EMAIL}.\n`);
+    return { userId, spaceId, cases };
   } finally {
     await pool.end();
   }
@@ -209,7 +175,10 @@ async function ensureUser(db: PrismaClient, password: string, rotate: boolean): 
     hashPassword: (value: string) => Promise<string>;
   };
   const hash = await hashPassword(password);
-  const existing = await db.user.findUnique({ where: { email: EMAIL }, select: { id: true } });
+  const existing = await db.user.findUnique({
+    where: { email: LAW_SEED_EMAIL },
+    select: { id: true },
+  });
   if (existing) {
     if (rotate) {
       await db.account.updateMany({
@@ -222,7 +191,14 @@ async function ensureUser(db: PrismaClient, password: string, rotate: boolean): 
   const id = randomUUID();
   const now = new Date();
   await db.user.create({
-    data: { id, name: ATTORNEY, email: EMAIL, emailVerified: true, createdAt: now, updatedAt: now },
+    data: {
+      id,
+      name: ATTORNEY,
+      email: LAW_SEED_EMAIL,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    },
   });
   await db.account.create({
     data: {
@@ -244,7 +220,7 @@ function existingPassword(file: string): string | undefined {
 }
 
 function writeLogin(file: string, password: string) {
-  writeFileSync(file, `email=${EMAIL}\npassword=${password}\n`, { mode: 0o600 });
+  writeFileSync(file, `email=${LAW_SEED_EMAIL}\npassword=${password}\n`, { mode: 0o600 });
   chmodSync(file, 0o600);
 }
 
@@ -267,4 +243,15 @@ function libraryFilename(file: string): string {
   return `${base}.txt`;
 }
 
-await main();
+async function main() {
+  const loginFile = process.env.LAW_LOGIN_FILE?.trim();
+  if (!loginFile) throw new Error("Set LAW_LOGIN_FILE to a path outside the repository.");
+  const databaseUrl =
+    process.env.DATABASE_MIGRATION_URL?.trim() || process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) throw new Error("Set DATABASE_URL.");
+  await seedLawPlatform({ loginFile, databaseUrl });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  await main();
+}
