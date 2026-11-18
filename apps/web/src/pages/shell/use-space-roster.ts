@@ -14,6 +14,7 @@ import { replaceEqualDeep } from "@tanstack/react-query";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { edition } from "../../edition";
 import { takeInitialBootstrap } from "../../lib/bootstrap";
 import {
   initialBootstrapTarget,
@@ -37,6 +38,20 @@ import type { ThreadState } from "./use-thread-state";
 type Navigation = ReturnType<typeof useShellNavigation>;
 type ChatRoute = NonNullable<ReturnType<typeof initialBootstrapTarget>>;
 
+// edition-seam:W8 — an edition may choose the chat a route opens when it names none.
+function useChosenRoute() {
+  const choose = edition.useShellExtension().chooseDefaultRoute;
+  const chooseRef = useRef(choose);
+  chooseRef.current = choose;
+  return useCallback(
+    (
+      bots: readonly Pick<Bot, "id" | "snoozedUntil">[],
+      groups: readonly Pick<Group, "id" | "snoozedUntil">[],
+    ) => chooseRef.current?.(bots, groups),
+    [],
+  );
+}
+
 function routeChatListed(route: ChatRoute, bots: readonly Bot[], groups: readonly Group[]) {
   return route.groupId
     ? groups.some((group) => group.id === route.groupId)
@@ -55,6 +70,7 @@ export function useSpaceRoster({
   navigate: Navigation["navigate"];
   redirectKeepingOverlay: Navigation["redirectKeepingOverlay"];
 }) {
+  const chosenRoute = useChosenRoute();
   const [groups, setGroups] = useState<Group[]>(seed?.groups ?? []);
   const groupsRef = useRef(groups);
   groupsRef.current = groups;
@@ -150,10 +166,10 @@ export function useSpaceRoster({
       // The chat a switch is opening is in the other space's roster, and moving the route cancels it.
       if (switchingSpace.current?.()) return;
       if (!routeChatListed(route, list, groupList)) {
-        redirectKeepingOverlay(firstThreadRoute(list, groupList));
+        redirectKeepingOverlay(chosenRoute(list, groupList) ?? firstThreadRoute(list, groupList));
       }
     },
-    [navigate, liveRoute],
+    [chosenRoute, liveRoute, navigate, redirectKeepingOverlay],
   );
 
   /**
@@ -293,6 +309,7 @@ export function useSpaceBootstrap({
   /** Opens a linked chat that lives in another of the user's Spaces. */
   openSpaceChat: RefObject<(spaceId: string, path: string) => void>;
 }) {
+  const chosenRoute = useChosenRoute();
   const {
     bots,
     setBots,
@@ -440,8 +457,9 @@ export function useSpaceBootstrap({
           navigate("/onboarding", { replace: true });
           return;
         }
-        if (route.groupId) {
-          redirectKeepingOverlay(firstThreadRoute(bootstrap.bots, groupList));
+        const chosen = chosenRoute(bootstrap.bots, groupList);
+        if (route.groupId || chosen) {
+          redirectKeepingOverlay(chosen ?? firstThreadRoute(bootstrap.bots, groupList));
           return;
         }
         const selectedBotId = bootstrap.thread?.botId ?? bootstrap.bots[0]?.id;

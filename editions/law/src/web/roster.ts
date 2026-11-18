@@ -56,6 +56,40 @@ export function applyLawRoster<
   return [section("law-case", null, caseBots)];
 }
 
+function openChat<T extends { snoozedUntil?: string | null }>(items: readonly T[]): T | undefined {
+  if (items.length === 0) return undefined;
+  return (
+    items.find((item) => !item.snoozedUntil || Date.parse(item.snoozedUntil) <= Date.now()) ??
+    items[0]
+  );
+}
+
+/**
+ * Chat to open when the current route is not listed. General never falls through to a case bot:
+ * with none of its own, the chatless route stays put.
+ */
+export function chooseLawDefaultRoute(
+  filter: LawRosterFilter | null,
+  bots: readonly { id: string; snoozedUntil?: string | null }[],
+  groups: readonly { id: string; snoozedUntil?: string | null }[] = [],
+): string {
+  if (!filter || filter.loading) return "/app";
+  if (filter.environment === "general") {
+    const hidden = new Set(filter.allCaseBotIds);
+    const bot = openChat(bots.filter((bot) => !hidden.has(bot.id)));
+    return bot ? `/app/${bot.id}` : "/app";
+  }
+  const byId = new Map(bots.map((bot) => [bot.id, bot]));
+  const ordered = filter.caseBotIds.flatMap((id) => {
+    const bot = byId.get(id);
+    return bot ? [bot] : [];
+  });
+  const bot = openChat(ordered);
+  if (bot) return `/app/${bot.id}`;
+  const group = openChat(groups);
+  return group ? `/app/g/${group.id}` : "/app";
+}
+
 /** Bots the create menu may open while a law environment is active. */
 export function filterLawCreateBots<T extends { id: string }>(
   bots: readonly T[],

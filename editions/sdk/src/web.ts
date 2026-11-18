@@ -16,6 +16,11 @@ export type ShellExtension = {
   transformSidebarGroups?: <G extends SidebarGroupLike>(groups: readonly G[]) => G[];
   filterCreateMenuBots?: <T extends CreateBotLike>(bots: readonly T[]) => T[];
   onBotCreated?: (bot: { id: string }) => Promise<void>;
+  /** Route to open when the current chat is not listed. Omit to keep the default. */
+  chooseDefaultRoute?: (
+    bots: readonly { id: string; snoozedUntil?: string | null }[],
+    groups: readonly { id: string; snoozedUntil?: string | null }[],
+  ) => string;
 };
 
 export type WebEdition = {

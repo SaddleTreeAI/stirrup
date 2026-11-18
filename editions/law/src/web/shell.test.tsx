@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
-import { deferred } from "@rakazo/core/test-async";
+import { deferred, flush } from "@rakazo/core/test-async";
 import { SidebarProvider } from "@rakazo/ui-web/components/ui/sidebar";
-import { act, createElement, useLayoutEffect } from "react";
+import { act, createElement, useEffect, useLayoutEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyLawRoster } from "./roster.js";
 import {
+  LawCaseColumn,
   LawCaseTabs,
   LawChromeFrame,
   LawEnvironmentRail,
@@ -80,6 +81,7 @@ async function mountShell(
     createElement(LawEnvironmentRail),
     createElement(LawCaseTabs),
   ),
+  initialPath = "/app",
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -88,7 +90,7 @@ async function mountShell(
     root.render(
       createElement(
         MemoryRouter,
-        { initialEntries: ["/app"] },
+        { initialEntries: [initialPath] },
         createElement(
           Routes,
           null,
@@ -101,6 +103,44 @@ async function mountShell(
     );
   });
   return { container, root };
+}
+
+function lawFile(id: string, title: string, kind = "library", filename = `${id}.pdf`) {
+  return { id, title, filename, kind, body: title, version: 1, rootId: id };
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function columnTitles(container: HTMLElement) {
+  return [...container.querySelectorAll("[data-testid^=law-file-card-]")].map(
+    (node) => node.querySelector("button span")?.textContent ?? "",
+  );
+}
+
+function RouteMark() {
+  const location = useLocation();
+  return createElement("div", { "data-testid": "route", "data-path": location.pathname });
+}
+
+/** Stands in for core sending a bare /app to the first unfiltered bot, which is a case bot. */
+function StealBareApp() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const stole = useRef(false);
+  useEffect(() => {
+    if (location.pathname !== "/app" || stole.current) return;
+    stole.current = true;
+    navigate("/app/bot-ruiz", { replace: true });
+  }, [location.pathname, navigate]);
+  return createElement("div", {
+    "data-testid": "route",
+    "data-path": location.pathname,
+  });
 }
 
 describe("law shell chrome", () => {
@@ -302,6 +342,316 @@ describe("law shell chrome", () => {
     expect(frame?.className ?? "").not.toContain("left-12");
     expect(container.querySelector(".law-chrome-spacer")).not.toBeNull();
     expect(container.querySelector(".law-chrome-rail")).not.toBeNull();
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("renders only the newer case when an older document response arrives later", async () => {
+    const ruizDocs = deferred<Response>();
+    const wardDocs = deferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/law/cases") return jsonResponse(SYNTHETIC_CASES);
+        if (url === "/api/law/cases/case-ruiz/documents") return ruizDocs.promise;
+        if (url === "/api/law/cases/case-ward/documents") return wardDocs.promise;
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+        createElement(LawCaseColumn),
+      ),
+      "/app/bot-ruiz",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-case-tab-ward"]')).not.toBeNull();
+    });
+    const seen = new Set<string>();
+    const note = () => {
+      for (const title of columnTitles(container)) seen.add(title);
+    };
+    note();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
+    });
+    note();
+    wardDocs.resolve(jsonResponse({ documents: [lawFile("ward-doc", "Ward Memo")] }));
+    await act(async () => {
+      await flush();
+    });
+    note();
+    ruizDocs.resolve(jsonResponse({ documents: [lawFile("ruiz-doc", "Ruiz Memo")] }));
+    await act(async () => {
+      await flush();
+    });
+    note();
+    expect([...seen]).toEqual(["Ward Memo"]);
+    expect(columnTitles(container)).toEqual(["Ward Memo"]);
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("clears the aside as soon as the case changes, before the next documents arrive", async () => {
+    const ruizDocs = deferred<Response>();
+    const wardDocs = deferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/law/cases") return jsonResponse(SYNTHETIC_CASES);
+        if (url === "/api/law/cases/case-ruiz/documents") return ruizDocs.promise;
+        if (url === "/api/law/cases/case-ward/documents") return wardDocs.promise;
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(LawCaseTabs),
+        createElement(LawCaseColumn),
+      ),
+      "/app/bot-ruiz",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-column"]')).not.toBeNull();
+    });
+    ruizDocs.resolve(jsonResponse({ documents: [lawFile("ruiz-doc", "Ruiz Memo")] }));
+    await act(async () => {
+      await flush();
+    });
+    expect(columnTitles(container)).toEqual(["Ruiz Memo"]);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
+    });
+    expect(columnTitles(container)).toEqual([]);
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("keeps General selected when a bare /app route resolves to a case bot", async () => {
+    sessionStorage.setItem("law-general-bot:", "general-bot");
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(StealBareApp),
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+        createElement(LawCaseColumn),
+      ),
+      "/app/bot-ruiz",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-case-tab-ruiz"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-env-general"]')?.click();
+    });
+    await act(async () => {
+      await flush();
+    });
+    expect(
+      container.querySelector('[data-testid="law-env-general"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    const path = container.querySelector('[data-testid="route"]')?.getAttribute("data-path") ?? "";
+    expect(path).toBe("/app/general-bot");
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not show a stored case when the URL names a non-case bot", async () => {
+    sessionStorage.setItem("law-environment:", "cases");
+    const docs = deferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/law/cases") return jsonResponse(SYNTHETIC_CASES);
+        if (url.includes("/documents")) return docs.promise;
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(RouteMark),
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+        createElement(LawCaseColumn),
+      ),
+      "/app/general-bot",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-env-cases"]')).not.toBeNull();
+    });
+    await act(async () => {
+      await flush();
+    });
+    expect(container.querySelector('[data-testid="law-case-tabs"]')).toBeNull();
+    expect(container.querySelector('[data-testid="law-column"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="law-env-general"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-env-cases"]')?.click();
+    });
+    expect(container.querySelector('[data-testid="route"]')?.getAttribute("data-path")).toBe(
+      "/app/bot-ruiz",
+    );
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("opens the case named by the URL even when general is stored", async () => {
+    sessionStorage.setItem("law-environment:", "general");
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(RouteMark),
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+        createElement(LawCaseColumn),
+      ),
+      "/app/bot-ward",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-testid="law-case-tab-ward"]')?.getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+    expect(
+      container.querySelector('[data-testid="law-env-general"]')?.getAttribute("aria-pressed"),
+    ).toBe("false");
+    expect(container.querySelector('[data-testid="route"]')?.getAttribute("data-path")).toBe(
+      "/app/bot-ward",
+    );
+    expect(container.querySelector('[data-testid="law-column"]')).not.toBeNull();
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("closes an open viewer and editor when the case changes", async () => {
+    const wardDocs = deferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/law/cases") return jsonResponse(SYNTHETIC_CASES);
+        if (url === "/api/law/cases/case-ruiz/documents") {
+          return jsonResponse({
+            documents: [
+              lawFile("ruiz-pdf", "Ruiz Report", "library", "ruiz-report.pdf"),
+              lawFile("ruiz-memo", "Ruiz Draft", "review", "ruiz-draft.md"),
+            ],
+          });
+        }
+        if (url === "/api/law/cases/case-ward/documents") return wardDocs.promise;
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(LawCaseTabs),
+        createElement(LawCaseColumn),
+      ),
+      "/app/bot-ruiz",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-file-card-ruiz-pdf"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('[data-testid="law-file-card-ruiz-pdf"] button')
+        ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    });
+    expect(
+      container.querySelector('[data-testid="law-file-overlay"]')?.getAttribute("aria-label"),
+    ).toBe("Ruiz Report");
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
+    });
+    expect(container.querySelector('[data-testid="law-file-overlay"]')).toBeNull();
+    wardDocs.resolve(jsonResponse({ documents: [] }));
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ruiz"]')?.click();
+      await flush();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-file-card-ruiz-memo"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('[data-testid="law-file-card-ruiz-memo"] button')
+        ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    });
+    expect(container.querySelector('[data-testid="law-doc-editor"]')).not.toBeNull();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
+    });
+    expect(container.querySelector('[data-testid="law-file-overlay"]')).toBeNull();
+    expect(container.querySelector('[data-testid="law-doc-editor"]')).toBeNull();
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("leaves the aside empty when the open case's documents fail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/law/cases") return jsonResponse(SYNTHETIC_CASES);
+        if (url === "/api/law/cases/case-ruiz/documents") {
+          return jsonResponse({ documents: [lawFile("ruiz-doc", "Ruiz Memo")] });
+        }
+        if (url === "/api/law/cases/case-ward/documents")
+          return new Response("no", { status: 500 });
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(LawCaseTabs),
+        createElement(LawCaseColumn),
+      ),
+      "/app/bot-ruiz",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(columnTitles(container)).toEqual(["Ruiz Memo"]);
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
+      await flush();
+    });
+    expect(container.querySelector('[data-testid="law-column"]')).not.toBeNull();
+    expect(columnTitles(container)).toEqual([]);
+    expect(container.textContent).not.toContain("Ruiz Memo");
     await act(async () => {
       root.unmount();
     });
