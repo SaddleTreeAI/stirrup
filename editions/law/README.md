@@ -1,10 +1,20 @@
 # Law edition
 
-Optional product skin selected with `STIRRUP_EDITION=law`. Web and server entry points live under `src/`; this package stays self-contained and never imports `apps/*`.
+Optional product skin selected with `STIRRUP_EDITION=law` (or `pnpm dev:law` / `pnpm build:law`). Web and server entry points live under `src/`; this package stays self-contained and never imports `apps/*`.
+
+## What the law edition changes
+
+- **Environment rail** — far-left Cases / General switch (`ChromeFrame` + spacer).
+- **Case tabs** — tab strip above the bots list (cases environment only); labels strip a leading `Commonwealth v. `.
+- **Case column** — library / review document column and overlays (`MainAside`).
+- **Roster filtering** — sidebar and create-menu show only the selected case's bots (`useShellExtension`).
+- **Chat pin** — always pins chat to the OpenRouter model in `constants.ts`.
+- **Mock** — when `LAW_OPENROUTER_API_KEY` is unset, replies stream from `law-mock` (~30–60 s).
+- **Seed** — synthetic attorney, three cases, four bots each, library + review docs; login written only to `LAW_LOGIN_FILE`.
 
 ## Web
 
-`editions/law/src/web.ts` exports a `WebEdition` that A2 wires into the core shell through seams W2–W6 (`docs/editions/README.md`). Until those seams land, the UI compiles and unit-tests here but does not appear in the browser.
+`editions/law/src/web.ts` exports a `WebEdition` wired into the core shell through seams W2–W7 (`docs/editions/README.md`).
 
 | Export                           | Role                                                                                                           | Core seam |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------- |
@@ -13,18 +23,13 @@ Optional product skin selected with `STIRRUP_EDITION=law`. Web and server entry 
 | `SidebarLeading` (`LawCaseTabs`) | Case tab strip above the bots list (cases environment only).                                                   | W4        |
 | `MainAside` (`LawCaseColumn`)    | Case file library / review column and document overlays.                                                       | W5        |
 | `useShellExtension`              | Memoized `transformSidebarGroups` / `filterCreateMenuBots` / `onBotCreated` over the current roster.           | W6        |
-| `hideStarPrompt: true`           | Hides the Star on GitHub prompt when the law edition is active.                                                | W7 (A2)   |
+| `hideStarPrompt: true`           | Hides the Star on GitHub prompt when the law edition is active.                                                | W7        |
 
-Supporting modules under `src/web/`:
-
-- `shell.tsx` — provider, rail, tabs, case column, chrome frame
-- `roster.ts` — `applyLawRoster` / `filterLawCreateBots`
-- `files.tsx` — case document cards, viewer, and editor
-- `lib.ts` — local `withSpaceHeaders` (space id from `rakazo:space-id` localStorage)
+Supporting modules under `src/web/`: `shell.tsx`, `roster.ts`, `files.tsx`, `lib.ts` (local `withSpaceHeaders` using `rakazo:space-id` localStorage).
 
 ## Server
 
-`editions/law/src/server.ts` exports a `ServerEdition` that A3 mounts through seams S2–S5 (`docs/editions/README.md`).
+`editions/law/src/server.ts` exports a `ServerEdition` mounted through seams S1–S5 and run hooks R1–R4.
 
 ### Tables
 
@@ -51,11 +56,9 @@ Mounted at `/api/law/*` by `mountRoutes`:
 | GET    | `/api/law/cases/:id/documents`                 | List library / review documents              |
 | POST   | `/api/law/cases/:id/documents/:docId/versions` | Save a new review draft version (`{ body }`) |
 
-Unauthenticated calls return 401. Response shapes match the B1 web client.
+Unauthenticated calls return 401.
 
 ### Hooks
-
-Always on while the law edition is selected:
 
 | Hook               | Function                 | Role                                               |
 | ------------------ | ------------------------ | -------------------------------------------------- |
@@ -64,22 +67,21 @@ Always on while the law edition is selected:
 | `onReplyFinalized` | `saveLawReviewDraftHook` | Persist generator replies as review drafts         |
 | `streamsProgress`  | `lawStreamsProgress`     | Flush scripted progress for the `law-mock` runtime |
 
+`lawCaseAccess` is ported in `cases.ts` but has **no core caller yet** (needs a future seam).
+
 ### Pin and mock
 
 `onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`). `agentRuntime` returns the slow mock when `LAW_OPENROUTER_API_KEY` is unset. `afterBootstrap` refuses a deployment default model other than the pin.
 
 ## Run
 
-Unset `LAW_OPENROUTER_API_KEY` to use the slow mock (30–60 s streaming replies). Set it to a real OpenRouter key to call the pinned model `qwen/qwen3.8-27b`.
-
 ```bash
-# Generate edition Prisma client, migrate, then seed (password goes only to LAW_LOGIN_FILE)
 STIRRUP_EDITION=law pnpm --filter @rakazo/db generate
-STIRRUP_EDITION=law pnpm db:migrate
+pnpm db:migrate
 LAW_LOGIN_FILE=/tmp/law-login.txt pnpm --filter @rakazo/edition-law seed
-
-# Dev (pnpm dev:law lands in E1)
-STIRRUP_EDITION=law pnpm dev
+pnpm dev:law
 ```
 
-`LAW_LOGIN_FILE` must be a path outside the repository. The seed refuses to run without it. Never commit that file or put a real API key in the repo.
+Unset `LAW_OPENROUTER_API_KEY` for the slow mock. Set it to a real OpenRouter key for the pinned model. `LAW_LOGIN_FILE` must resolve outside the repository; the seed refuses paths inside the checkout. Never commit that file or put a real API key in the repo.
+
+Demo smoke: `docs/editions/00-README.md`. Parity map: `docs/editions/law-parity.md`.

@@ -51,10 +51,15 @@ describePostgres("law platform seed", () => {
 
     const cases = await system.lawCase.findMany({
       where: { spaceId },
-      select: { id: true, slug: true },
+      select: { id: true, slug: true, name: true },
       orderBy: { position: "asc" },
     });
     expect(cases.map((row) => row.slug)).toEqual(["ruiz", "ward", "nunez"]);
+    expect(cases.map((row) => row.name)).toEqual([
+      "Commonwealth v. Ruiz",
+      "Commonwealth v. Ward",
+      "Commonwealth v. Nunez",
+    ]);
     ruizCaseId = cases.find((row) => row.slug === "ruiz")!.id;
     const bots = await system.lawCaseBot.count({
       where: { caseId: { in: cases.map((row) => row.id) } },

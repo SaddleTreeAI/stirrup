@@ -82,6 +82,13 @@ jobs:
           BETTER_AUTH_SECRET: ci-build-auth-secret-at-least-32-characters
           ENCRYPTION_KEY: ci-build-encryption-key-at-least-32-characters
           electron_config_cache: ${{ runner.temp }}/electron-cache
+      - name: Build web with law edition
+        if: env.WEB == 'true'
+        run: STIRRUP_EDITION=law pnpm --filter @rakazo/web build
+        env:
+          DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
+          BETTER_AUTH_SECRET: ci-build-auth-secret-at-least-32-characters
+          ENCRYPTION_KEY: ci-build-encryption-key-at-least-32-characters
       - name: Save turbo build cache
         if: success() && env.WEB == 'true'
         continue-on-error: true

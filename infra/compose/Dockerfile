@@ -59,6 +59,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lo
 COPY --chmod=755 . .
 RUN pnpm --filter @rakazo/db generate
 RUN pnpm --filter @rakazo/api --filter @rakazo/worker build
+ARG STIRRUP_EDITION=
+ENV STIRRUP_EDITION=$STIRRUP_EDITION
 RUN RAKAZO_ALLOW_DEV_SECRETS=1 pnpm --filter @rakazo/web build
 # Build and test tooling stays here; the runtime takes its dependencies from the deps stage.
 RUN find . -name node_modules -type d -prune -exec rm -rf {} + \
