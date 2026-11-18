@@ -1,11 +1,38 @@
-import type { ShellExtension } from "@rakazo/edition-sdk";
-import { defineWebEdition } from "@rakazo/edition-sdk";
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 SaddleTree AI
 
-const EMPTY: ShellExtension = {};
+import { defineWebEdition } from "@rakazo/edition-sdk";
+import { useMemo } from "react";
+import { applyLawRoster, filterLawCreateBots } from "./web/roster.js";
+import {
+  LawCaseColumn,
+  LawCaseTabs,
+  LawChromeFrame,
+  LawProvider,
+  useLawShell,
+} from "./web/shell.js";
 
 export const edition = defineWebEdition({
   id: "law",
-  useShellExtension: () => EMPTY,
+  hideStarPrompt: true,
+  ShellProvider: LawProvider,
+  ChromeFrame: LawChromeFrame,
+  SidebarLeading: LawCaseTabs,
+  MainAside: LawCaseColumn,
+  useShellExtension: () => {
+    const law = useLawShell();
+    return useMemo(
+      () => ({
+        transformSidebarGroups: (groups) => applyLawRoster(groups, law.roster),
+        filterCreateMenuBots: (bots) => filterLawCreateBots(bots, law.roster),
+        onBotCreated: async (bot) => {
+          if (law.environment === "cases" && law.selected)
+            await law.attachBot(bot.id).catch(() => undefined);
+        },
+      }),
+      [law.roster, law.environment, law.selected, law.attachBot],
+    );
+  },
 });
 
 export default edition;
