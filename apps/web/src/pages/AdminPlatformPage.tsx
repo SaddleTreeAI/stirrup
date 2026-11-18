@@ -20,6 +20,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { PageLoading } from "../components/PageLoading";
+import { desktopBridge } from "../lib/desktop";
 import { useSave, useSpaceQueries } from "../lib/query";
 import { errorText } from "../lib/user-error";
 import { CompanyProvidersPanel } from "./CompanyProvidersPanel";
@@ -59,7 +60,7 @@ function PlatformDashboard({ owner }: { owner: boolean }) {
   );
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background text-foreground">
-      <WindowChrome />
+      <WindowChrome className={desktopBridge()?.platform === "darwin" ? "mb-7" : undefined} />
       <header className="flex items-center gap-3 border-b px-4 py-3">
         <Link
           to="/app"
