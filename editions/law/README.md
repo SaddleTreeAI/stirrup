@@ -24,7 +24,7 @@ Supporting modules under `src/web/`:
 
 ## Server
 
-`editions/law/src/server.ts` exports a `ServerEdition` that A3 mounts through seams S2/S3 (`docs/editions/README.md`). C3 adds `onProcessStart`, `agentRuntime`, and `afterBootstrap`.
+`editions/law/src/server.ts` exports a `ServerEdition` that A3 mounts through seams S2–S5 (`docs/editions/README.md`).
 
 ### Tables
 
@@ -55,19 +55,31 @@ Unauthenticated calls return 401. Response shapes match the B1 web client.
 
 ### Hooks
 
-Always on while the law edition is selected (no `LAW_ENFORCE_CHAT_PIN` gate):
+Always on while the law edition is selected:
 
 | Hook               | Function                 | Role                                               |
 | ------------------ | ------------------------ | -------------------------------------------------- |
 | `turnNote`         | `lawTurnNote`            | Case brief + keyword snippets into the turn prompt |
 | `limitTeammates`   | `limitLawTeammates`      | Hide other cases' bots from the teammate list      |
 | `onReplyFinalized` | `saveLawReviewDraftHook` | Persist generator replies as review drafts         |
+| `streamsProgress`  | `lawStreamsProgress`     | Flush scripted progress for the `law-mock` runtime |
 
-### Env
+### Pin and mock
 
-No new env vars in C2. Chat pin / OpenRouter wiring and seed belong to C3 (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` live in `src/server/constants.ts` for that follow-up). Apply migrations with:
+`onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`). `agentRuntime` returns the slow mock when `LAW_OPENROUTER_API_KEY` is unset. `afterBootstrap` refuses a deployment default model other than the pin.
+
+## Run
+
+Unset `LAW_OPENROUTER_API_KEY` to use the slow mock (30–60 s streaming replies). Set it to a real OpenRouter key to call the pinned model `qwen/qwen3.8-27b`.
 
 ```bash
+# Generate edition Prisma client, migrate, then seed (password goes only to LAW_LOGIN_FILE)
 STIRRUP_EDITION=law pnpm --filter @rakazo/db generate
 STIRRUP_EDITION=law pnpm db:migrate
+LAW_LOGIN_FILE=/tmp/law-login.txt pnpm --filter @rakazo/edition-law seed
+
+# Dev (pnpm dev:law lands in E1)
+STIRRUP_EDITION=law pnpm dev
 ```
+
+`LAW_LOGIN_FILE` must be a path outside the repository. The seed refuses to run without it. Never commit that file or put a real API key in the repo.

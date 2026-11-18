@@ -1,0 +1,22 @@
+SYNTHETIC DEMONSTRATION FILE. NOT A REAL CASE. NOT LEGAL ADVICE.
+
+SPDX-License-Identifier: Apache-2.0
+Copyright 2026 SaddleTree AI
+Firm: Demonstration Defense
+
+PLEA OFFER
+Commonwealth of Kentucky v. Priya Nunez
+Jefferson Circuit Court, 26-CR-0882
+From: Drew Solano, fictional assistant, phone 555-0120
+To: Rowan Ellis, Demonstration Defense, phone 555-0100
+Date: November 10, 2026
+
+The Commonwealth offers a recommendation of five years on a plea of
+guilty to robbery in the second degree, KRS 515.030. The offer is
+open through Thursday, November 19, 2026, at 5:00 p.m.
+
+The offer letter says the identification was certain and that a jail
+call contains an admission. It does not mention Bates CW-0847. It does
+not mention photo number 6. It does not quote the transcript of call 14.
+
+This letter is a demonstration. It is not a real plea.

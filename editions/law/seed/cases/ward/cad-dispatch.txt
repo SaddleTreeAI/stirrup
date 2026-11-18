@@ -1,0 +1,28 @@
+SYNTHETIC DEMONSTRATION FILE. NOT A REAL CASE. NOT LEGAL ADVICE.
+
+SPDX-License-Identifier: Apache-2.0
+Copyright 2026 SaddleTree AI
+Firm: Demonstration Defense
+
+CAD EXTRACT
+Demonstration Police, Lexington post. Fictional agency.
+Incident DP-2026-1002-4417
+Case: 26-CR-0417, Commonwealth of Kentucky v. Elias Ward
+Printed October 6, 2026, for the discovery packet.
+
+22:09:40  unit L44 status: available, eastbound East Third Street.
+22:13:11  unit L44 self-initiates, "checking a parked sedan,"
+           1400 Demonstration Avenue.
+22:14:02 unit L44 on scene, vehicle parked, engine off, lot of the closed Demonstration Fuel station, 1400 Demonstration Avenue.
+22:14:40  unit L44 requests backup, "one occupant, cooperative."
+22:21:55  unit L51 dispatched to 1400 Demonstration Avenue.
+22:22:18  unit L51 on scene.
+22:26:04  unit L44: "still deciding on the arrest."
+22:27:36  unit L44: "arrest, request tow."
+22:31:10  tow Demonstration Wrecker en route.
+22:44:02  units clear. Prisoner transport to the demonstration intake.
+
+No entry in this extract says "traffic stop," "signal," or "lane change."
+The first on-scene line says the vehicle was parked and the engine was off.
+
+Dispatcher desk phone for this fictional post: 555-0121.

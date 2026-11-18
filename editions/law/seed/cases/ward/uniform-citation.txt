@@ -1,0 +1,37 @@
+SYNTHETIC DEMONSTRATION FILE. NOT A REAL CASE. NOT LEGAL ADVICE.
+
+SPDX-License-Identifier: Apache-2.0
+Copyright 2026 SaddleTree AI
+Firm: Demonstration Defense
+
+UNIFORM CITATION
+Demonstration Police, Lexington post
+Agency is fictional. This is not a court filing.
+
+Citation DP-2026-1002-4417
+Date: October 2, 2026
+Time of stop recorded by the officer: 22:14
+Location: Demonstration Avenue at East Third Street, Lexington
+Court: Fayette Circuit Court, 26-CR-0417
+Defendant: Elias Ward
+Phone on the citation: 555-0101
+Officer: Reed Calder, badge L44
+Officer phone: 555-0110
+
+Charge: KRS 218A.1412, trafficking in a controlled substance in the
+first degree. The citation alleges fentanyl. Any quantity of fentanyl
+is the theory written on the face of the citation.
+
+Narrative on the face of the citation:
+
+I was traveling east on East Third Street. Ward failed to signal a
+lane change while turning from East Third Street onto Demonstration
+Avenue. I stopped the sedan at 22:14. Ward gave verbal consent to a
+search of the sedan. In the front door pocket I found a small bag of
+tan powder, suspected fentanyl, item W-4, weight 0.4 grams.
+
+The defendant was given a copy of this citation at the scene.
+No government identity number was taken.
+
+Signed: Reed Calder
+Demonstration Police, Lexington post
