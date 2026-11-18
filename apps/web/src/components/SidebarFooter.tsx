@@ -24,8 +24,10 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { desktopBridge } from "../lib/desktop";
 import type { Organization } from "../lib/organizations";
-import { DesktopAccountProfiles } from "./DesktopAccountProfiles";
+import type { DesktopProfileAction } from "./DesktopAccountProfiles";
+import { DesktopAccountProfiles, DesktopProfileDialog } from "./DesktopAccountProfiles";
 import { useSidebarUpdate } from "./DesktopUpdates";
 import { IconTooltip } from "./IconTooltip";
 
@@ -92,6 +94,15 @@ export function SidebarFooter({
   const { t } = useLingui();
   const update = useSidebarUpdate();
   const [failedImage, setFailedImage] = useState<string | null>(null);
+  const [profileAction, setProfileAction] = useState<DesktopProfileAction | null>(null);
+  const accountIdentity = (
+    <span className="flex min-w-0 flex-1 flex-col">
+      <span className="truncate text-body font-medium">{name}</span>
+      {email && email !== name ? (
+        <span className="truncate text-label text-muted-foreground">{email}</span>
+      ) : null}
+    </span>
+  );
   return (
     <div
       data-testid="sidebar-footer"
@@ -134,12 +145,40 @@ export function SidebarFooter({
           >
             <div
               data-testid="account-menu-header"
-              className="mb-1 min-w-0 border-b border-border px-2.5 py-2.5"
+              className="mb-1 min-w-0 border-b border-border pb-1"
             >
-              <p className="truncate text-body font-medium">{name}</p>
-              {email && email !== name ? (
-                <p className="truncate text-label text-muted-foreground">{email}</p>
-              ) : null}
+              {desktopBridge()?.profiles ? (
+                <Popover>
+                  <PopoverTrigger
+                    aria-label={t`Saved accounts for ${name}`}
+                    className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2.5 text-start outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-accent"
+                  >
+                    {accountIdentity}
+                    <ChevronRight
+                      size={16}
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                      className="shrink-0 text-muted-foreground rtl:rotate-180"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="inline-end"
+                    align="start"
+                    sideOffset={8}
+                    aria-label={t`Saved accounts`}
+                    className="max-h-(--available-height) w-72 max-w-[calc(100vw-2rem)] gap-0 overflow-y-auto p-1"
+                  >
+                    <DesktopAccountProfiles
+                      onAction={(action) => {
+                        setProfileAction(action);
+                        onOpenChange(false);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <div className="px-2.5 py-2.5">{accountIdentity}</div>
+              )}
             </div>
             <OrganizationRow
               organizations={organizations}
@@ -192,7 +231,6 @@ export function SidebarFooter({
               </Popover>
             ) : null}
             {administration}
-            <DesktopAccountProfiles />
             <Button
               variant="ghost"
               className="h-9 w-full justify-start gap-2.5 font-normal"
@@ -288,6 +326,9 @@ export function SidebarFooter({
           </PopoverContent>
         ) : null}
       </Popover>
+      {profileAction ? (
+        <DesktopProfileDialog action={profileAction} onClose={() => setProfileAction(null)} />
+      ) : null}
       {!mini ? (
         <Button
           variant="outline"
