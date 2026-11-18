@@ -360,3 +360,62 @@ describe("edition streamsProgress", () => {
     expect(flushProgress).toHaveBeenCalled();
   });
 });
+
+describe("edition streamsProgress flushProgress", () => {
+  async function progressContext(hooks?: EditionRunHooks) {
+    const append = vi.fn();
+    const deps = {
+      prisma: { message: { findMany: async () => [] } },
+      events: { append },
+      editionRunHooks: hooks,
+      runtime: { describe: () => ({ id: "edition-mock" }) },
+    };
+    const run = {
+      id: "run-1",
+      botId: "bot-1",
+      spaceId: "space-1",
+      userId: "user-1",
+      threadId: "thread-1",
+      taskId: "task-1",
+      trigger: "message",
+      startedAt: new Date(),
+    };
+    const reply = await createReplyState(deps as never, run as never, []);
+    reply.pendingProgress = "streamed so far";
+    const ctx = {
+      deps,
+      run,
+      runId: run.id,
+      bot: { id: run.botId },
+      thread: { id: run.threadId },
+      scripted: true,
+      groupReplyOptional: false,
+      state: { reply },
+    } as unknown as RunContext;
+    return { ctx, append };
+  }
+
+  it("appends thread.progress when streamsProgress allows a scripted flush", async () => {
+    const { flushProgress: realFlushProgress } =
+      await vi.importActual<typeof import("./run-progress.js")>("./run-progress.js");
+    const { ctx, append } = await progressContext({
+      streamsProgress: (id) => id === "edition-mock",
+    });
+    await realFlushProgress(ctx);
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread.progress",
+        runId: "run-1",
+        payload: { text: "streamed so far", streaming: true },
+      }),
+    );
+  });
+
+  it("does not append when streamsProgress is absent for a scripted run", async () => {
+    const { flushProgress: realFlushProgress } =
+      await vi.importActual<typeof import("./run-progress.js")>("./run-progress.js");
+    const { ctx, append } = await progressContext();
+    await realFlushProgress(ctx);
+    expect(append).not.toHaveBeenCalled();
+  });
+});

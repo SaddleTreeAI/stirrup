@@ -13,13 +13,13 @@ Core files must not grow edition behavior. When core must call into an edition, 
 
 | Id        | File                                                                                   | Role                                                |
 | --------- | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| A1-web    | `apps/web/src/edition.ts`                                                              | Web edition module boundary                         |
+| A1-web    | `apps/web/vite.config.ts`, `vitest.config.ts`                                          | Web edition Vite alias and test resolution          |
 | A1-server | `apps/api/src/edition/active.ts`, `apps/worker/src/edition/active.ts`                  | Server edition registry                             |
 | R0        | `packages/adapters/src/executor-deps.ts`, `packages/adapters/src/edition-run-hooks.ts` | Optional `editionRunHooks` on executor deps         |
 | R1        | `packages/adapters/src/run-assembly-context.ts`                                        | `turnNote` appended to the turn prompt              |
 | R2        | `packages/adapters/src/run-assembly-context.ts`                                        | `limitTeammates` before the bot directory           |
 | R3        | `packages/adapters/src/run-turn.ts`                                                    | `onReplyFinalized` after a successful reply         |
-| R4        | `packages/adapters/src/run-turn.ts`                                                    | `streamsProgress` may flush progress while scripted |
+| R4        | `packages/adapters/src/run-turn.ts`, `packages/adapters/src/run-progress.ts`           | `streamsProgress` may flush progress while scripted |
 | S1        | `apps/api/src/index.ts`, `apps/worker/src/index.ts`                                    | `onProcessStart` after env load                     |
 | S2        | `apps/api/src/app.ts`                                                                  | `mountRoutes` beside other HTTP mounts              |
 | S3        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                      | Pass `runHooks` into `createRunRuntime`             |
