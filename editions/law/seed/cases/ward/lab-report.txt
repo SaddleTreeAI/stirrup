@@ -1,0 +1,34 @@
+SYNTHETIC DEMONSTRATION FILE. NOT A REAL CASE. NOT LEGAL ADVICE.
+
+SPDX-License-Identifier: Apache-2.0
+Copyright 2026 SaddleTree AI
+Firm: Demonstration Defense
+
+LABORATORY REPORT
+Demonstration Forensic Laboratory. Fictional laboratory.
+Lab number DF-2026-4417
+Agency number DP-2026-1002-4417
+Case: Commonwealth of Kentucky v. Elias Ward, 26-CR-0417
+Fayette Circuit Court
+Report date: November 10, 2026
+Submitting officer: Reed Calder, phone 555-0110
+
+Item W-4
+One sealed clear bag containing tan powder. The submission form called
+the powder suspected fentanyl and listed a field weight of 0.4 grams.
+The laboratory weight of the powder was 0.41 grams.
+
+Result
+
+Item W-4 did not contain a controlled substance. The sample was caffeine and acetaminophen.
+
+No fentanyl, fentanyl analogue, heroin, cocaine, or methamphetamine
+was detected. KRS 218A.1412, as charged on the citation, is written on
+the submission form by the officer. The laboratory does not decide the
+charge. The chemistry result is that item W-4 was not a controlled
+substance.
+
+Analyst phone, fictional laboratory: 555-0119.
+
+This report was not in the October 20, 2026 discovery index. It was
+delivered to Demonstration Defense on November 12, 2026.
