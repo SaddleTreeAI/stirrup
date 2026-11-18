@@ -6,6 +6,11 @@ import { stopOnShutdownSignals } from "@rakazo/core/node/shutdown-signals";
 loadRootEnv();
 await unwrapEnvFromKeyManager();
 
+// edition-seam:S1
+import { getEdition } from "./edition/active.js";
+
+getEdition().onProcessStart?.();
+
 import { serve } from "@hono/node-server";
 import { SERVICE_NAMES } from "@rakazo/logging";
 import { createRootLogger } from "@rakazo/logging/axiom";

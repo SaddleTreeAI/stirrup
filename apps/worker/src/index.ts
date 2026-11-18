@@ -9,6 +9,11 @@ import { createWorkerSecretStore } from "./secret-store.js";
 loadRootEnv();
 await unwrapEnvFromKeyManager();
 
+// edition-seam:S1
+import { getEdition } from "./edition/active.js";
+
+getEdition().onProcessStart?.();
+
 import {
   apnsVoipConfig,
   ChatSdkMessagingSurface,
@@ -142,10 +147,12 @@ async function main() {
   });
   const env = runRuntimeEnvFromProcess(process.env);
   const boardEvents = createBoardEvents(realtime);
+  // edition-seam:S4
   const runtime =
     process.env.AGENT_RUNTIME === "scripted"
       ? new ScriptedAgentRuntime()
-      : new PiAgentRuntime({ sessionRoot: resolvePiSessionRoot(env.dataDir) });
+      : (getEdition().agentRuntime?.() ??
+        new PiAgentRuntime({ sessionRoot: resolvePiSessionRoot(env.dataDir) }));
   const sandboxProvider = resolveSandboxProvider(process.env);
   const sandboxOptions = sandboxProviderOptionsFromEnv(process.env);
   // Never poll inbound here: Telegram allows a single getUpdates consumer,
@@ -227,6 +234,8 @@ async function main() {
     mediaGeneration,
     prisma,
     runtime,
+    // edition-seam:S3
+    editionRunHooks: getEdition().runHooks,
     // Live per-account Codex catalog; never refreshes or writes credentials.
     codexCatalog: new CodexCatalogCache(),
     sandbox,

@@ -380,6 +380,8 @@ export async function buildTurnPrompt(
     formatCurrentTimeInstruction(deps.now?.() ?? new Date(), userTimeZone),
     lateRoutineNote,
     sharedSpaceNote,
+    // edition-seam:R1
+    await deps.editionRunHooks?.turnNote?.(deps.prisma, bot.id, basePrompt),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -433,8 +435,12 @@ export async function buildTurnPrompt(
         }),
     !conversationThread.groupId ? loadBotGroupDirectory(deps.prisma, run) : undefined,
   ]);
+  // edition-seam:R2
+  const visibleTeammates =
+    (await deps.editionRunHooks?.limitTeammates?.(deps.prisma, bot.id, teammates)) ?? teammates;
   const botDirectory =
-    [renderBotDirectory(teammates), groupDirectory].filter(Boolean).join("\n\n") || undefined;
+    [renderBotDirectory(visibleTeammates), groupDirectory].filter(Boolean).join("\n\n") ||
+    undefined;
   return {
     pluginLine,
     taughtSkillsLine,

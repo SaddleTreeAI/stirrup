@@ -327,7 +327,13 @@ async function streamText(ctx: RunContext, event: RuntimeEvent<"text">) {
   tryFlushPendingTools(reply);
   reply.pendingProgress += reply.redactor.push(event.text);
   const now = Date.now();
-  if (!ctx.scripted && reply.pendingProgress && now - reply.lastProgressAt >= 250) {
+  // edition-seam:R4
+  if (
+    (!ctx.scripted ||
+      ctx.deps.editionRunHooks?.streamsProgress?.(ctx.deps.runtime?.describe?.().id)) &&
+    reply.pendingProgress &&
+    now - reply.lastProgressAt >= 250
+  ) {
     await flushProgress(ctx);
   }
 }
@@ -1068,6 +1074,11 @@ export async function completeRun(ctx: RunContext) {
     });
   }
   await enqueueConversationRetention(ctx, answeredMessageIds);
+  // edition-seam:R3
+  if (deps.editionRunHooks?.onReplyFinalized)
+    await deps.editionRunHooks
+      .onReplyFinalized(deps.prisma, { botId: bot.id, runId, text })
+      .catch((error) => getLogger().error("edition reply hook", error));
   // Last, and never fatal: the run is already finalized, so a failure here must not reach
   // the failure path, where a second finalizeRun would match no rows and silently
   // skip the completion notification.
