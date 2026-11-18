@@ -5,7 +5,15 @@ import { SectionHeading } from "@rakazo/ui-web";
 import { useSidebar } from "@rakazo/ui-web/components/ui/sidebar";
 import { Briefcase, Plus, Scale } from "lucide-react";
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { LawFileDoc } from "./files.js";
 import {
@@ -44,6 +52,8 @@ interface LawShellValue {
   attachBot: (botId: string) => Promise<void>;
   /** Space captured when this shell mounted. Later storage changes do not retarget fetches. */
   spaceId: string | null;
+  /** Remembers a non-case bot seen in the sidebar, so General can open it later. */
+  noteSidebarBotIds: (botIds: readonly string[]) => void;
 }
 
 const LawShellContext = createContext<LawShellValue | null>(null);
@@ -69,6 +79,26 @@ function writeStoredEnvironment(spaceId: string | null, environment: LawEnvironm
   }
 }
 
+function generalBotStorageKey(spaceId: string | null): string {
+  return `law-general-bot:${spaceId ?? ""}`;
+}
+
+function readStoredGeneralBot(spaceId: string | null): string | null {
+  try {
+    return sessionStorage.getItem(generalBotStorageKey(spaceId)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredGeneralBot(spaceId: string | null, botId: string) {
+  try {
+    sessionStorage.setItem(generalBotStorageKey(spaceId), botId);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function LawProvider({ children }: { children: ReactNode }) {
   const { botId } = useParams();
   const navigate = useNavigate();
@@ -80,33 +110,37 @@ export function LawProvider({ children }: { children: ReactNode }) {
   const [environmentChoice, setEnvironmentChoice] = useState<LawEnvironment | null>(() =>
     readStoredEnvironment(spaceId),
   );
+  const generalBotRef = useRef<string | null>(readStoredGeneralBot(spaceId));
+  /** True after General is chosen until the URL names a bot that is not on a case. */
+  const pendingGeneral = useRef(false);
   const reload = useCallback(() => setTick((value) => value + 1), []);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
     void fetch("/api/law/cases", {
       credentials: "same-origin",
       headers: withSpaceHeaders(undefined, spaceId),
+      signal: controller.signal,
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(String(response.status));
         return (await response.json()) as { cases: LawCase[] };
       })
       .then((body) => {
-        if (!cancelled) {
-          setCases(body.cases);
-          setError(null);
-          setLoaded(true);
-        }
+        if (cancelled) return;
+        setCases(body.cases);
+        setError(null);
+        setLoaded(true);
       })
       .catch((caught: unknown) => {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : "error");
-          setLoaded(true);
-        }
+        if (cancelled || controller.signal.aborted) return;
+        setError(caught instanceof Error ? caught.message : "error");
+        setLoaded(true);
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [spaceId, tick]);
 
@@ -114,41 +148,81 @@ export function LawProvider({ children }: { children: ReactNode }) {
     () => cases.find((item) => item.bots.some((bot) => bot.botId === botId)) ?? null,
     [botId, cases],
   );
+  const caseBotIds = useMemo(
+    () => new Set(cases.flatMap((item) => item.bots.map((bot) => bot.botId))),
+    [cases],
+  );
 
+  // A bot in the URL is the source of truth once the case list can classify it.
+  // Until then, show no case. The stored choice applies only to a bare /app.
+  const environmentFromUrl: LawEnvironment | null =
+    loaded && botId ? (caseForBot ? "cases" : "general") : null;
   const environment: LawEnvironment =
-    environmentChoice ?? (loaded && cases.length > 0 ? "cases" : "general");
+    (pendingGeneral.current && caseForBot) || (botId && !loaded)
+      ? "general"
+      : (environmentFromUrl ??
+        environmentChoice ??
+        (loaded && cases.length > 0 ? "cases" : "general"));
 
   useEffect(() => {
-    // A case bot opened while this space was left on general would flip the
-    // stored choice. Leave the bot instead, so switching back restores general.
-    if (caseForBot && environmentChoice === "general") navigate("/app");
-  }, [caseForBot, environmentChoice, navigate]);
+    if (!loaded || !botId || caseForBot) return;
+    pendingGeneral.current = false;
+    generalBotRef.current = botId;
+    writeStoredGeneralBot(spaceId, botId);
+  }, [botId, caseForBot, loaded, spaceId]);
 
-  const selected = useMemo(() => {
-    if (environment !== "cases" || cases.length === 0) return null;
-    return caseForBot ?? cases[0] ?? null;
-  }, [caseForBot, cases, environment]);
+  useEffect(() => {
+    if (!environmentFromUrl || pendingGeneral.current) return;
+    setEnvironmentChoice((current) =>
+      current === environmentFromUrl ? current : environmentFromUrl,
+    );
+    if (readStoredEnvironment(spaceId) !== environmentFromUrl) {
+      writeStoredEnvironment(spaceId, environmentFromUrl);
+    }
+  }, [environmentFromUrl, spaceId]);
+
+  useEffect(() => {
+    if (!pendingGeneral.current || !loaded || !caseForBot) return;
+    const target = generalBotRef.current ?? readStoredGeneralBot(spaceId);
+    if (target && !caseBotIds.has(target)) {
+      if (target !== botId) navigate(`/app/${target}`);
+      return;
+    }
+    if (botId) navigate("/app");
+  }, [botId, caseBotIds, caseForBot, loaded, navigate, spaceId]);
+
+  useEffect(() => {
+    if (!loaded || environment !== "cases" || caseForBot || pendingGeneral.current) return;
+    const bot = cases[0]?.bots[0];
+    if (bot && bot.botId !== botId) navigate(`/app/${bot.botId}`);
+  }, [botId, caseForBot, cases, environment, loaded, navigate]);
+
+  const selected = environment === "cases" && caseForBot ? caseForBot : null;
 
   const setEnvironment = useCallback(
     (next: LawEnvironment) => {
       setEnvironmentChoice(next);
       writeStoredEnvironment(spaceId, next);
-      if (next === "cases") {
-        const target = caseForBot ?? cases[0];
-        const bot = target?.bots[0];
-        if (bot && bot.botId !== botId) navigate(`/app/${bot.botId}`);
+      if (next === "general") {
+        pendingGeneral.current = true;
+        if (!(botId && caseBotIds.has(botId))) return;
+        const target = generalBotRef.current ?? readStoredGeneralBot(spaceId);
+        navigate(target && !caseBotIds.has(target) ? `/app/${target}` : "/app");
         return;
       }
-      const allCaseBotIds = new Set(cases.flatMap((item) => item.bots.map((bot) => bot.botId)));
-      if (botId && allCaseBotIds.has(botId)) navigate("/app");
+      pendingGeneral.current = false;
+      const target = caseForBot ?? cases[0];
+      const bot = target?.bots[0];
+      if (bot && bot.botId !== botId) navigate(`/app/${bot.botId}`);
     },
-    [botId, caseForBot, cases, navigate, spaceId],
+    [botId, caseBotIds, caseForBot, cases, navigate, spaceId],
   );
 
   const selectCase = useCallback(
     (caseId: string) => {
       const next = cases.find((item) => item.id === caseId);
       if (!next) return;
+      pendingGeneral.current = false;
       if (environment !== "cases") {
         setEnvironmentChoice("cases");
         writeStoredEnvironment(spaceId, "cases");
@@ -171,6 +245,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       if (!response.ok) throw new Error(String(response.status));
       const body = (await response.json()) as { case: LawCase };
       setCases((current) => [...current, body.case]);
+      pendingGeneral.current = false;
       setEnvironmentChoice("cases");
       writeStoredEnvironment(spaceId, "cases");
       const bot = body.case.bots[0];
@@ -194,6 +269,17 @@ export function LawProvider({ children }: { children: ReactNode }) {
       reload();
     },
     [reload, selected, spaceId],
+  );
+
+  const noteSidebarBotIds = useCallback(
+    (botIds: readonly string[]) => {
+      if (!loaded) return;
+      const general = botIds.find((id) => !caseBotIds.has(id));
+      if (!general) return;
+      generalBotRef.current = general;
+      writeStoredGeneralBot(spaceId, general);
+    },
+    [caseBotIds, loaded, spaceId],
   );
 
   const roster = useMemo<LawRosterFilter>(() => {
@@ -220,6 +306,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       createCase,
       attachBot,
       spaceId,
+      noteSidebarBotIds,
     }),
     [
       attachBot,
@@ -227,6 +314,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       createCase,
       environment,
       error,
+      noteSidebarBotIds,
       reload,
       roster,
       selectCase,
@@ -396,59 +484,90 @@ export function LawCaseTabs() {
 
 export function LawCaseColumn() {
   const { selected, error, reload, environment, spaceId } = useLawShell();
+  if (environment !== "cases" || !selected) return null;
+  return (
+    <LawCaseDocuments
+      key={selected.id}
+      caseId={selected.id}
+      spaceId={spaceId}
+      shellError={error}
+      reload={reload}
+    />
+  );
+}
+
+function LawCaseDocuments({
+  caseId,
+  spaceId,
+  shellError,
+  reload,
+}: {
+  caseId: string;
+  spaceId: string | null;
+  shellError: string | null;
+  reload: () => void;
+}) {
   const [documents, setDocuments] = useState<LawFileDoc[]>([]);
+  const [docCaseId, setDocCaseId] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<LawFileDoc | null>(null);
-  const [editor, setEditor] = useState<LawFileDoc | null>(null);
-  const caseId = selected?.id ?? null;
+  const [editor, setEditor] = useState<{ doc: LawFileDoc; caseId: string } | null>(null);
 
   useEffect(() => {
-    if (!caseId || environment !== "cases") return;
+    const controller = new AbortController();
     let cancelled = false;
     const load = () => {
       void fetch(`/api/law/cases/${caseId}/documents`, {
         credentials: "same-origin",
         headers: withSpaceHeaders(undefined, spaceId),
+        signal: controller.signal,
       })
         .then(async (response) => {
           if (!response.ok) throw new Error(String(response.status));
           return (await response.json()) as { documents: LawFileDoc[] };
         })
         .then((body) => {
-          if (!cancelled) {
-            setDocuments(body.documents);
-            setDocError(null);
-          }
+          if (cancelled || controller.signal.aborted) return;
+          setDocuments(body.documents);
+          setDocCaseId(caseId);
+          setDocError(null);
         })
         .catch((caught: unknown) => {
-          if (!cancelled) setDocError(caught instanceof Error ? caught.message : "error");
+          if (cancelled || controller.signal.aborted) return;
+          setDocuments([]);
+          setDocCaseId(caseId);
+          setDocError(caught instanceof Error ? caught.message : "error");
         });
     };
     load();
     const timer = window.setInterval(load, 4_000);
     return () => {
       cancelled = true;
+      controller.abort();
       window.clearInterval(timer);
     };
-  }, [caseId, environment, spaceId]);
+  }, [caseId, spaceId]);
 
-  if (environment !== "cases" || !selected) return null;
-
-  const heads = latestLawDocuments(documents);
+  const visible = docCaseId === caseId ? documents : [];
+  const heads = latestLawDocuments(visible);
   const library = heads.filter((doc) => doc.kind === "library");
   const review = heads.filter((doc) => doc.kind === "review");
 
   async function saveVersion(body: string) {
-    if (!editor || !caseId) return;
-    const response = await fetch(`/api/law/cases/${caseId}/documents/${editor.id}/versions`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: withSpaceHeaders({ "content-type": "application/json" }, spaceId),
-      body: JSON.stringify({ body }),
-    });
+    if (!editor || editor.caseId !== caseId) return;
+    const response = await fetch(
+      `/api/law/cases/${editor.caseId}/documents/${editor.doc.id}/versions`,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: withSpaceHeaders({ "content-type": "application/json" }, spaceId),
+        body: JSON.stringify({ body }),
+      },
+    );
     if (!response.ok) throw new Error(String(response.status));
     const payload = (await response.json()) as { document: LawFileDoc };
     setDocuments((current) => [...current, payload.document]);
+    setDocCaseId(editor.caseId);
     setEditor(null);
     setViewer(payload.document);
   }
@@ -470,7 +589,7 @@ export function LawCaseColumn() {
           testId="law-review"
           docs={review}
           onOpen={(doc) => {
-            if (isEditableLawFile(doc.filename)) setEditor(doc);
+            if (isEditableLawFile(doc.filename)) setEditor({ doc, caseId });
             else setViewer(doc);
           }}
           editable
@@ -483,7 +602,7 @@ export function LawCaseColumn() {
             Something else
           </SectionHeading>
         </section>
-        {error || docError ? (
+        {shellError || docError ? (
           <button
             type="button"
             className="border-t border-border px-3 py-2 text-start text-body-sm underline"
@@ -500,7 +619,7 @@ export function LawCaseColumn() {
           onEdit={
             isEditableLawFile(viewer.filename)
               ? () => {
-                  setEditor(viewer);
+                  setEditor({ doc: viewer, caseId });
                   setViewer(null);
                 }
               : undefined
@@ -508,7 +627,7 @@ export function LawCaseColumn() {
         />
       ) : null}
       {editor ? (
-        <LawDocumentEditor doc={editor} onClose={() => setEditor(null)} onSave={saveVersion} />
+        <LawDocumentEditor doc={editor.doc} onClose={() => setEditor(null)} onSave={saveVersion} />
       ) : null}
     </>
   );

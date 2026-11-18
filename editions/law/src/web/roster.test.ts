@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { LawRosterFilter } from "./roster.js";
-import { applyLawRoster, filterLawCreateBots } from "./roster.js";
+import { applyLawRoster, chooseLawDefaultRoute, filterLawCreateBots } from "./roster.js";
 
 type Group = {
   key: string;
@@ -84,5 +84,35 @@ describe("filterLawCreateBots", () => {
 
   it("offers no bots while the case list is still loading", () => {
     expect(filterLawCreateBots(bots, { ...generalFilter, loading: true })).toEqual([]);
+  });
+});
+
+describe("chooseLawDefaultRoute", () => {
+  const bots = [
+    { id: "case-bot-1" },
+    { id: "case-bot-2", snoozedUntil: "2999-01-01T00:00:00.000Z" },
+    { id: "general-bot" },
+  ];
+
+  it("opens the first case bot while cases are selected", () => {
+    expect(chooseLawDefaultRoute(casesFilter, bots)).toBe("/app/case-bot-1");
+  });
+
+  it("skips a snoozed case bot", () => {
+    expect(
+      chooseLawDefaultRoute({ ...casesFilter, caseBotIds: ["case-bot-2", "case-bot-1"] }, bots),
+    ).toBe("/app/case-bot-1");
+  });
+
+  it("opens a non-case bot in the general environment", () => {
+    expect(chooseLawDefaultRoute(generalFilter, bots)).toBe("/app/general-bot");
+  });
+
+  it("stays on the chatless route when general has no bot of its own", () => {
+    expect(chooseLawDefaultRoute(generalFilter, [{ id: "case-bot-1" }])).toBe("/app");
+  });
+
+  it("does not pick a case bot before the case list arrives", () => {
+    expect(chooseLawDefaultRoute({ ...casesFilter, loading: true }, bots)).toBe("/app");
   });
 });
