@@ -36,4 +36,25 @@ describe("keyword retrieval", () => {
     expect(text).not.toContain("Nunez");
     expect(text).not.toContain("CW-0847");
   });
+
+  it("labels PDF snippets with a physical page from page rows", () => {
+    const pdf = {
+      title: "Lab report",
+      body: "\n\n[page 1]\n\ncover\n\n[page 2]\n\nItem W-4 was caffeine and acetaminophen.\n\n[page 3]\n\nclosing",
+      pages: [
+        { page: 1, text: "cover sheet only" },
+        { page: 2, text: "Item W-4 was caffeine and acetaminophen." },
+        { page: 3, text: "closing remarks" },
+      ],
+    };
+    const hits = retrieveCaseSnippets("Was item caffeine?", [pdf]);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.title).toBe("Lab report (p. 2)");
+    const text = formatLawContext({
+      name: "Commonwealth v. Ward",
+      brief: "Ward brief.",
+      snippets: hits,
+    });
+    expect(text).toContain("### Lab report (p. 2)");
+  });
 });

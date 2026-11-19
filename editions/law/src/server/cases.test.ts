@@ -6,6 +6,7 @@ import { LAW_ROLE_AVATARS } from "../shared/avatars.js";
 import {
   attachBotToLawCase,
   backfillLawAvatars,
+  CASE_ROLES,
   isPlainGeneratedAvatar,
   lawBotAccess,
   lawCaseAccess,
@@ -62,6 +63,17 @@ describe("lawBotAccess / lawCaseAccess", () => {
     await expect(lawCaseAccess(prisma as never, actor.userId, "bot-1")).resolves.toBe("denied");
     await expect(lawBotAccess(prisma as never, actor, "bot-1")).resolves.toBe("deny");
     expect(prisma.lawCaseMember.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("CASE_ROLES instructions", () => {
+  it("tells every role to cite sources with the given page labels", () => {
+    for (const role of CASE_ROLES) {
+      expect(role.instructions("brief")).toContain('Cite sources as "[Title, p. N]"');
+      expect(role.instructions("brief")).toContain(
+        "using exactly the source labels you were given",
+      );
+    }
   });
 });
 

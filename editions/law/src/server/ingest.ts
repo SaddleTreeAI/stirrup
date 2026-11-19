@@ -74,7 +74,7 @@ export function classify(mediaType: string, filename: string): Classification {
 
 export type TextIngestResult = {
   body: string;
-  status: "ready";
+  status: "ready" | "queued";
   statusDetail: string;
 };
 
@@ -85,6 +85,13 @@ export function prepareIngestBody(
   mediaType: string,
   filename: string,
 ): TextIngestResult {
+  if (classification.kind === "pdf") {
+    return {
+      body: "",
+      status: "queued",
+      statusDetail: "Reading PDF",
+    };
+  }
   if (!classification.textual) {
     return {
       body: "",

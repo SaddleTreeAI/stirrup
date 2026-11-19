@@ -53,12 +53,26 @@ describe("prepareIngestBody", () => {
     expect(result.body).toBe("Hello world");
   });
 
-  it("leaves a placeholder for non-textual kinds", () => {
+  it("queues PDF uploads for extraction", () => {
     const result = prepareIngestBody(
       classify("application/pdf", "a.pdf"),
       new Uint8Array([1, 2, 3]),
       "application/pdf",
       "a.pdf",
+    );
+    expect(result).toEqual({
+      body: "",
+      status: "queued",
+      statusDetail: "Reading PDF",
+    });
+  });
+
+  it("leaves a placeholder for other non-textual kinds", () => {
+    const result = prepareIngestBody(
+      classify("image/png", "a.png"),
+      new Uint8Array([1, 2, 3]),
+      "image/png",
+      "a.png",
     );
     expect(result).toEqual({
       body: "",

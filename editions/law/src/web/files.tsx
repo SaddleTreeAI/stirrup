@@ -22,6 +22,7 @@ import {
 import { Download, File, FileCode2, FileImage, FileText, FileType2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { LawPdfViewer } from "./pdf-viewer.js";
 
 export interface LawFileDoc {
   id: string;
@@ -177,19 +178,33 @@ export function LawFileCard({
   );
 }
 
+export function isPdfLawDocument(doc: LawFileDoc): boolean {
+  const mime = (doc.mimeType ?? "").toLowerCase();
+  if (mime === "application/pdf") return true;
+  return fileExtension(doc.filename) === "pdf";
+}
+
 export function LawFileViewer({
   doc,
   onClose,
   onEdit,
   originalHref,
+  caseId,
+  spaceId,
+  page,
 }: {
   doc: LawFileDoc;
   onClose: () => void;
   onEdit?: () => void;
   /** When set, Download / Download original use the stored file bytes. */
   originalHref?: string;
+  caseId?: string;
+  spaceId?: string | null;
+  /** Physical page for PDF deep links. */
+  page?: number;
 }) {
   const textView = isTextLawDocument(doc);
+  const pdfView = isPdfLawDocument(doc) && Boolean(caseId) && Boolean(doc.hasOriginal);
   const sizeLabel = doc.sizeBytes ? formatLawFileSize(doc.sizeBytes) : "";
   const typeLabel = doc.mimeType || fileExtension(doc.filename).toUpperCase();
 
@@ -211,25 +226,29 @@ export function LawFileViewer({
       subtitle={`${doc.filename}${doc.version > 1 ? ` · v${doc.version}` : ""}`}
       onClose={onClose}
       actions={
-        <>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={download}
-            data-testid="law-viewer-download"
-          >
-            {t`Download`}
-          </Button>
-          {onEdit && textView ? (
-            <Button type="button" size="sm" onClick={onEdit} data-testid="law-viewer-edit">
-              {t`Edit`}
+        pdfView ? null : (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={download}
+              data-testid="law-viewer-download"
+            >
+              {t`Download`}
             </Button>
-          ) : null}
-        </>
+            {onEdit && textView ? (
+              <Button type="button" size="sm" onClick={onEdit} data-testid="law-viewer-edit">
+                {t`Edit`}
+              </Button>
+            ) : null}
+          </>
+        )
       }
     >
-      {textView ? (
+      {pdfView && caseId ? (
+        <LawPdfViewer doc={doc} caseId={caseId} spaceId={spaceId ?? null} page={page} />
+      ) : textView ? (
         <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-6 py-4 text-body text-foreground">
           {doc.body}
         </pre>
