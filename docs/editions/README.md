@@ -57,6 +57,7 @@ Regenerate this table with `git grep -n "edition-seam:"` (excluding `docs/` and 
 | S4        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                       | Optional `agentRuntime` before Pi                                                |
 | S5        | `apps/api/src/app.ts`                                                                   | `afterBootstrap` after deployment settings upsert                                |
 | S6        | `apps/api/src/routes/shared.ts`                                                         | Scripted edition runtimes skip the model-credential send gate (`needsModel`)     |
+| S7        | `apps/api/src/routes/threads.ts`                                                        | Optional server-edition botAccess check on a bot thread (head, get, messages, subscribe, send) |
 | C1        | `packages/db/prisma.config.ts`                                                          | Prefer the prepared `.edition` schema when `prepare-db` has run                  |
 | C2        | `apps/api/src/cli/migrate-database.ts`                                                  | Refuse a mismatched prepared tree; use `.edition/migrations` when present        |
 | C3        | `scripts/dev.mjs`                                                                       | Forward edition into child env; prefer prepared schema mtime; run `prepare-db`   |

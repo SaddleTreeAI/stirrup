@@ -26,6 +26,13 @@ export type EditionRunHooks = {
   streamsProgress?: (runtimeId: string | undefined) => boolean;
 };
 
+/** Optional veto of access to a bot's thread. Undefined means every bot is allowed. */
+export type EditionBotAccess = (
+  prisma: PrismaClient,
+  actor: Actor,
+  botId: string,
+) => Promise<"allow" | "deny">;
+
 export type ServerEdition = {
   id: string;
   onProcessStart?: () => void;
@@ -33,6 +40,8 @@ export type ServerEdition = {
   agentRuntime?: () => AgentRuntime | undefined;
   afterBootstrap?: (prisma: PrismaClient) => Promise<void>;
   runHooks?: EditionRunHooks;
+  /** Undefined means every bot is allowed. */
+  botAccess?: EditionBotAccess;
 };
 
 /** Identity helper that fills optional server edition defaults. */
@@ -43,6 +52,7 @@ export function defineServerEdition(edition: ServerEdition): ServerEdition {
     agentRuntime: undefined,
     afterBootstrap: undefined,
     runHooks: undefined,
+    botAccess: undefined,
     ...edition,
   };
 }

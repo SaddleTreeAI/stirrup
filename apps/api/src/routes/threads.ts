@@ -27,6 +27,8 @@ import {
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { answerComputerRequest } from "../computer-control.js";
+// edition-seam:S7
+import { getEdition } from "../edition/active.js";
 import { HANG_UP_PROMPT } from "../hidden-turns.prompt.js";
 import type { RouterDeps } from "../router.js";
 import { createRoutineTestRun, routineTestRunNonce, routineTestTarget } from "../routines.js";
@@ -107,6 +109,18 @@ export function threadsRoutes(ctx: RouterContext) {
             select: { botId: true },
           })
         )?.botId ?? target.memberBotIds[0]!);
+  // edition-seam:S7
+  const assertBotAccess = async (actor: Actor, target: ThreadTarget) => {
+    const check = getEdition().botAccess;
+    if (target.kind !== "bot" || !check) return;
+    if ((await check(deps.prisma, actor, target.botId)) === "deny") {
+      getLogger().error("bot access denied", undefined, {
+        botId: target.botId,
+        userId: actor.userId,
+      });
+      throw new ORPCError("FORBIDDEN", { message: "You do not have access to this bot." });
+    }
+  };
   const send = async (
     actor: Actor,
     input: Parameters<typeof sendThreadMessage>[3] & { botId?: string; groupId?: string },
@@ -114,6 +128,8 @@ export function threadsRoutes(ctx: RouterContext) {
   ) => {
     const setup = await modelSetup(deps, actor);
     const target = await resolveThreadTarget(deps.prisma, actor, input);
+    // edition-seam:S7
+    await assertBotAccess(actor, target);
     // A bot with its own runnable model needs no main model, and stopping work needs none.
     const replied =
       target.kind === "group" ? await replyParentBotId(deps.prisma, target, input) : undefined;
@@ -161,18 +177,24 @@ export function threadsRoutes(ctx: RouterContext) {
     threads: {
       head: authed.threads.head.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        // edition-seam:S7
+        await assertBotAccess(context.actor, target);
         return threadHead(deps.prisma, target);
       }),
       get: authed.threads.get.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input, {
           includeArchived: true,
         });
+        // edition-seam:S7
+        await assertBotAccess(context.actor, target);
         return threadSnapshot(deps, target, context.actor.userId);
       }),
       messages: authed.threads.messages.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input, {
           includeArchived: true,
         });
+        // edition-seam:S7
+        await assertBotAccess(context.actor, target);
         return loadMessagePage(
           deps.prisma,
           target.threadId,
@@ -185,6 +207,8 @@ export function threadsRoutes(ctx: RouterContext) {
       }),
       subscribe: authed.threads.subscribe.handler(async function* ({ context, input }) {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        // edition-seam:S7
+        await assertBotAccess(context.actor, target);
         const peerRunCache = new Map<string, Promise<boolean>>();
         const backgroundRunCache = new Map<string, Promise<boolean>>();
         const events = withHeartbeats(context, (signal) =>

@@ -67,7 +67,7 @@ Unauthenticated calls return 401.
 | `onReplyFinalized` | `saveLawReviewDraftHook` | Persist generator replies as review drafts         |
 | `streamsProgress`  | `lawStreamsProgress`     | Flush scripted progress for the `law-mock` runtime |
 
-`lawCaseAccess` is ported in `cases.ts` but has **no core caller yet** (needs a future seam).
+`lawCaseAccess` is wired through `botAccess` (S7).
 
 ### Pin and mock
 
