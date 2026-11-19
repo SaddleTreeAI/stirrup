@@ -20,7 +20,7 @@ export async function preferredCasesSpaceId(
     });
     if (memberships.length === 0) return null;
     const cases = await prisma.lawCase.findMany({
-      where: { id: { in: memberships.map((row) => row.caseId) } },
+      where: { id: { in: memberships.map((row) => row.caseId) }, deletedAt: null },
       select: { spaceId: true, position: true },
       orderBy: [{ position: "asc" }, { id: "asc" }],
     });

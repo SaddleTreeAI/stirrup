@@ -12,6 +12,18 @@ import { openLawText, sealLawText } from "./seal.js";
 
 type LawDb = Pick<PrismaClient, "lawCaseBot" | "lawCaseMember" | "lawDocument" | "lawCase">;
 
+/** True when the case exists and has not been soft-deleted. */
+export async function lawCaseIsOpen(
+  prisma: Pick<PrismaClient, "lawCase">,
+  caseId: string,
+): Promise<boolean> {
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: caseId },
+    select: { deletedAt: true },
+  });
+  return Boolean(lawCase && !lawCase.deletedAt);
+}
+
 /** Hex or organic shape — not a user-picked picture. */
 export function isPlainGeneratedAvatar(color: string): boolean {
   const parsed = parseBotAvatarValue(color);
@@ -67,6 +79,11 @@ export async function lawCaseAccess(
     select: { caseId: true },
   });
   if (!link) return "open";
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: link.caseId },
+    select: { deletedAt: true },
+  });
+  if (!lawCase || lawCase.deletedAt) return "denied";
   const member = await prisma.lawCaseMember.findUnique({
     where: { caseId_userId: { caseId: link.caseId, userId } },
     select: { userId: true },
@@ -96,11 +113,11 @@ export async function lawTurnNote(
   if (!link) return undefined;
   const lawCase = await prisma.lawCase.findUnique({
     where: { id: link.caseId },
-    select: { id: true, name: true, brief: true, spaceId: true },
+    select: { id: true, name: true, brief: true, spaceId: true, deletedAt: true },
   });
-  if (!lawCase) return undefined;
+  if (!lawCase || lawCase.deletedAt) return undefined;
   const documents = await prisma.lawDocument.findMany({
-    where: { caseId: link.caseId, kind: "library" },
+    where: { caseId: link.caseId, kind: "library", deletedAt: null },
     select: { id: true, title: true, body: true },
   });
   const brief = await openLawText(
@@ -181,9 +198,9 @@ export async function saveLawReviewDraft(
   if (link?.role !== "generator") return;
   const lawCase = await prisma.lawCase.findUnique({
     where: { id: link.caseId },
-    select: { spaceId: true },
+    select: { spaceId: true, deletedAt: true },
   });
-  if (!lawCase) return;
+  if (!lawCase || lawCase.deletedAt) return;
   const title =
     text
       .split("\n")
@@ -234,6 +251,7 @@ export async function attachBotToLawCase(
   prisma: Pick<PrismaClient, "lawCase" | "lawCaseMember" | "lawCaseBot" | "bot">,
   input: { caseId: string; userId: string; botId: string; role?: string },
 ): Promise<{ role: string } | null> {
+  if (!(await lawCaseIsOpen(prisma, input.caseId))) return null;
   const member = await prisma.lawCaseMember.findUnique({
     where: { caseId_userId: { caseId: input.caseId, userId: input.userId } },
     select: { userId: true },
@@ -333,9 +351,9 @@ export async function saveLawDocumentVersion(
   if (!member) return "forbidden";
   const lawCase = await prisma.lawCase.findUnique({
     where: { id: input.caseId },
-    select: { spaceId: true },
+    select: { spaceId: true, deletedAt: true },
   });
-  if (!lawCase) return null;
+  if (!lawCase || lawCase.deletedAt) return null;
   const current = await prisma.lawDocument.findFirst({
     where: { id: input.documentId, caseId: input.caseId },
     select: {

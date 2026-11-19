@@ -9,8 +9,9 @@ import type { EditionRouteDeps } from "@rakazo/edition-sdk";
 import { getLogger } from "@rakazo/logging";
 import type { Hono } from "hono";
 import { lawRoleAvatar } from "../shared/avatars.js";
+import { isSpaceOwnerOrOrgAdmin, listDeletedLawCases, mountCaseRoutes } from "./case-routes.js";
 import { attachBotToLawCase, CASE_ROLES, saveLawDocumentVersion } from "./cases.js";
-import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "./constants.js";
+import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER, lawCaseRetentionDays } from "./constants.js";
 import { mountLibraryRoutes, serializeDocument } from "./library-routes.js";
 import { preferredCasesSpaceId } from "./preferred-space.js";
 import { openLawText, sealLawText } from "./seal.js";
@@ -19,14 +20,40 @@ const ROLE_ORDER = ["manager", "documents", "transcripts", "generator"];
 
 export function mountLawRoutes(app: Hono, deps: EditionRouteDeps) {
   mountLibraryRoutes(app, deps);
+  mountCaseRoutes(app, deps);
   app.get("/api/law/cases", async (c) => {
     try {
       const actor = await deps.sessionActor(c.req.raw);
       if (!actor) return c.json({ error: "Sign in required" }, 401);
-      const cases = await runAsTenant(actor, () => listCases(deps.prisma, actor.userId));
-      if (cases.length > 0) return c.json({ cases });
+      if (c.req.query("deleted") === "1") {
+        const deleted = await runAsTenant(actor, () => listDeletedLawCases(deps.prisma, actor));
+        if (deleted === "forbidden") return c.json({ error: "Forbidden" }, 403);
+        return c.json({ cases: deleted });
+      }
+      const listed = await runAsTenant(actor, () => listCases(deps.prisma, actor));
+      if (listed.cases.length > 0) {
+        return c.json({
+          cases: listed.cases,
+          deletedBotIds: listed.deletedBotIds,
+          retentionDays: listed.retentionDays,
+          canViewDeleted: listed.canViewDeleted,
+        });
+      }
       const casesSpaceId = await preferredCasesSpaceId(deps.prisma, actor.userId, actor.spaceId);
-      return casesSpaceId ? c.json({ cases, casesSpaceId }) : c.json({ cases });
+      return casesSpaceId
+        ? c.json({
+            cases: listed.cases,
+            deletedBotIds: listed.deletedBotIds,
+            retentionDays: listed.retentionDays,
+            canViewDeleted: listed.canViewDeleted,
+            casesSpaceId,
+          })
+        : c.json({
+            cases: listed.cases,
+            deletedBotIds: listed.deletedBotIds,
+            retentionDays: listed.retentionDays,
+            canViewDeleted: listed.canViewDeleted,
+          });
     } catch (error) {
       getLogger().error("law cases", error);
       return c.json({ error: "Couldn't load cases" }, 500);
@@ -142,22 +169,50 @@ export function mountLawRoutes(app: Hono, deps: EditionRouteDeps) {
   });
 }
 
-async function listCases(prisma: PrismaClient, userId: string) {
+async function listCases(prisma: PrismaClient, actor: Actor) {
+  const retentionDays = lawCaseRetentionDays();
   const memberships = await prisma.lawCaseMember.findMany({
-    where: { userId },
+    where: { userId: actor.userId },
     select: { caseId: true },
   });
   const caseIds = memberships.map((row) => row.caseId);
-  if (caseIds.length === 0) return [];
-  const cases = await prisma.lawCase.findMany({
+  if (caseIds.length === 0) {
+    return {
+      cases: [],
+      deletedBotIds: [] as string[],
+      retentionDays,
+      canViewDeleted: await isSpaceOwnerOrOrgAdmin(prisma, actor, actor.spaceId),
+    };
+  }
+
+  const allCases = await prisma.lawCase.findMany({
     where: { id: { in: caseIds } },
-    select: { id: true, slug: true, name: true, position: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      position: true,
+      createdBy: true,
+      deletedAt: true,
+      spaceId: true,
+    },
   });
+  const openCases = allCases.filter((item) => !item.deletedAt);
+  const deletedCaseIds = allCases.filter((item) => item.deletedAt).map((item) => item.id);
+  const openCaseIds = openCases.map((item) => item.id);
+
   const links = await prisma.lawCaseBot.findMany({
     where: { caseId: { in: caseIds } },
     select: { caseId: true, role: true, botId: true },
   });
-  const botIds = [...new Set(links.map((link) => link.botId))];
+  const deletedBotIds = [
+    ...new Set(
+      links.filter((link) => deletedCaseIds.includes(link.caseId)).map((link) => link.botId),
+    ),
+  ];
+
+  const openLinks = links.filter((link) => openCaseIds.includes(link.caseId));
+  const botIds = [...new Set(openLinks.map((link) => link.botId))];
   const bots =
     botIds.length === 0
       ? []
@@ -167,30 +222,38 @@ async function listCases(prisma: PrismaClient, userId: string) {
         });
   const botName = new Map(bots.map((bot) => [bot.id, bot.name]));
   const botsByCase = new Map<string, Array<{ role: string; botId: string; name: string }>>();
-  for (const link of links) {
+  for (const link of openLinks) {
     const name = botName.get(link.botId);
     if (!name) continue;
     const list = botsByCase.get(link.caseId) ?? [];
     list.push({ role: link.role, botId: link.botId, name });
     botsByCase.set(link.caseId, list);
   }
-  return cases
+
+  const elevated = await isSpaceOwnerOrOrgAdmin(prisma, actor, actor.spaceId);
+  const cases = openCases
     .sort((a, b) => a.position - b.position)
-    .map((item) => ({
-      id: item.id,
-      slug: item.slug,
-      name: item.name,
-      bots: [...(botsByCase.get(item.id) ?? [])]
-        .sort((a, b) => {
-          const left = ROLE_ORDER.indexOf(a.role);
-          const right = ROLE_ORDER.indexOf(b.role);
-          const leftRank = left === -1 ? ROLE_ORDER.length : left;
-          const rightRank = right === -1 ? ROLE_ORDER.length : right;
-          if (leftRank !== rightRank) return leftRank - rightRank;
-          return a.role.localeCompare(b.role);
-        })
-        .map((bot) => ({ role: bot.role, name: bot.name, botId: bot.botId })),
-    }));
+    .map((item) => {
+      const canDelete = elevated || (item.createdBy !== null && item.createdBy === actor.userId);
+      return {
+        id: item.id,
+        slug: item.slug,
+        name: item.name,
+        canDelete,
+        bots: [...(botsByCase.get(item.id) ?? [])]
+          .sort((a, b) => {
+            const left = ROLE_ORDER.indexOf(a.role);
+            const right = ROLE_ORDER.indexOf(b.role);
+            const leftRank = left === -1 ? ROLE_ORDER.length : left;
+            const rightRank = right === -1 ? ROLE_ORDER.length : right;
+            if (leftRank !== rightRank) return leftRank - rightRank;
+            return a.role.localeCompare(b.role);
+          })
+          .map((bot) => ({ role: bot.role, name: bot.name, botId: bot.botId })),
+      };
+    });
+
+  return { cases, deletedBotIds, retentionDays, canViewDeleted: elevated };
 }
 
 async function listDocuments(prisma: PrismaClient, userId: string, caseId: string) {
@@ -201,9 +264,9 @@ async function listDocuments(prisma: PrismaClient, userId: string, caseId: strin
   if (!member) return null;
   const lawCase = await prisma.lawCase.findUnique({
     where: { id: caseId },
-    select: { spaceId: true },
+    select: { spaceId: true, deletedAt: true },
   });
-  if (!lawCase) return null;
+  if (!lawCase || lawCase.deletedAt) return null;
   const documents = await prisma.lawDocument.findMany({
     where: { caseId, deletedAt: null },
     orderBy: [{ createdAt: "asc" }, { version: "asc" }],
@@ -295,6 +358,7 @@ async function finishCreateCase(
       name: input.name,
       brief,
       position,
+      createdBy: actor.userId,
     },
   });
   await prisma.lawCaseMember.create({
@@ -325,6 +389,7 @@ async function finishCreateCase(
     id: lawCase.id,
     slug: lawCase.slug,
     name: lawCase.name,
+    canDelete: true,
     bots,
   };
 }

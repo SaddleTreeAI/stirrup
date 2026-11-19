@@ -26,6 +26,11 @@ describe("preferredCasesSpaceId", () => {
     await expect(
       preferredCasesSpaceId(prisma as never, "user-1", "space-here"),
     ).resolves.toBeNull();
+    expect(prisma.lawCase.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ deletedAt: null }),
+      }),
+    );
     expect(prisma.spaceMember.findFirst).not.toHaveBeenCalled();
   });
 
