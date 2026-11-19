@@ -64,7 +64,8 @@ Remote MCP servers that use OAuth normally register Stirrup with their provider 
 **Connect OAuth**. Some providers only accept a client you create in their console. For those,
 enter the client ID (and secret, for a confidential client) under **Advanced** when adding the
 server, and add the **Redirect URI** shown there (`<your web origin>/mcp/oauth/callback`) to the
-client's allowed redirect URIs. The client is stored encrypted with the server's other
+client's allowed redirect URIs. For Google Workspace (Gmail, Drive, Calendar) remote MCP servers,
+see [Google Workspace MCP](./self-host-google.md). The client is stored encrypted with the server's other
 credentials and survives **Disconnect**; switching to a different client drops the current grant.
 On first use the client is bound to the authorization server the MCP server pointed to, and Stirrup
 refuses to send it anywhere else afterwards. Replacing the client clears the binding.
