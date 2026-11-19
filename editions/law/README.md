@@ -105,4 +105,48 @@ pnpm dev:law
 
 Unset `LAW_OPENROUTER_API_KEY` for the slow mock. Set it to a real OpenRouter key for the pinned model. `LAW_LOGIN_FILE` must resolve outside the repository; the seed refuses paths inside the checkout. Never commit that file or put a real API key in the repo.
 
+## Media sidecar
+
+A separate process claims `law_jobs` from Postgres, shells out to local tools, and writes derived artifacts. It does not run inside Graphile Worker: the app image only ships openssl, so PDF/OCR/ffmpeg live in `editions/law/docker/media.Dockerfile` (derived `FROM` the law server image).
+
+### Run mechanism
+
+- Entry: `editions/law/src/server/media/main.ts`.
+- Local: `pnpm --filter @rakazo/edition-law media:dev` (tsx), same as the seed CLI.
+- Image: install tsx in the media image only; `ENTRYPOINT` runs that file. Api/worker still bundle edition code via `scripts/build-server.mjs`; the sidecar is a second container sharing the same workspace source already present in the law server image. No core change and no committed `dist-media`.
+
+### Commands
+
+```bash
+pnpm --filter @rakazo/edition-law media:doctor
+pnpm --filter @rakazo/edition-law media:dev
+```
+
+`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `gpu …`, and exits 1 when a required tool is missing. Override the required set with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
+
+### Env (sidecar only)
+
+| Variable                                    | Role                                                                               |
+| ------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `DATABASE_URL`                              | Runtime Postgres role (same as api); claims use RLS bypass as a system worker      |
+| `DATA_DIR`                                  | Shared data volume with api (default `./data`)                                     |
+| `ENCRYPTION_KEY` / `ENCRYPTION_MASTER_KEYS` | Same content-encryption keys as api                                                |
+| `OBJECT_STORAGE_*`                          | Same object-storage settings as api when artifacts are remote                      |
+| `LAW_MEDIA_CONCURRENCY`                     | Parallel jobs (default `1`; keep at 1 for GPU work)                                |
+| `LAW_MEDIA_STALE_MINUTES`                   | Requeue running jobs whose heartbeat is older than this (default `120`)            |
+| `LAW_MEDIA_TMP`                             | Per-job temp root (default `os.tmpdir()/law-media`)                                |
+| `LAW_MEDIA_WORKER_ID`                       | Claim owner id (default `media-<hostname>`)                                        |
+| `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default ffmpeg,ffprobe,pdftotext,tesseract,ocrmypdf,python3) |
+
+### Compose overlay
+
+```bash
+docker compose -f infra/compose/docker-compose.yml \
+  -f editions/law/docker/compose.media.yml up law-media
+```
+
+Builds `editions/law/docker/media.Dockerfile` with `SERVER_IMAGE` / `LAW_SERVER_IMAGE`, mounts the app data volume and a `law-models` volume (for later transcription models), and documents a commented NVIDIA device block for GPU hosts. A CI job that publishes the media image is a follow-up.
+
+Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest` only in M0).
+
 Demo smoke: `docs/editions/00-README.md`. Parity map: `docs/editions/law-parity.md`.

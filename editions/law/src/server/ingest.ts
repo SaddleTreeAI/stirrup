@@ -2,6 +2,7 @@
 // Copyright 2026 SaddleTree AI
 
 import type { PrismaClient } from "@rakazo/db";
+import { enqueueLawJob } from "./media/enqueue.js";
 
 export type IngestKind = "text" | "pdf" | "docx" | "audio" | "video" | "image" | "other";
 
@@ -18,6 +19,23 @@ const TEXTUAL_MIME = new Set([
   "application/json",
   "application/xhtml+xml",
 ]);
+
+/** Map an ingest kind to a media job kind, or null when no job is needed. */
+export function jobKindForIngest(kind: IngestKind | undefined): string | null {
+  switch (kind) {
+    case "pdf":
+      return "extract_pdf";
+    case "docx":
+      return "extract_docx";
+    case "audio":
+    case "video":
+      return "transcribe";
+    case "image":
+      return "ocr_image";
+    default:
+      return null;
+  }
+}
 
 /** Classify an upload by media type and filename for library ingest. */
 export function classify(mediaType: string, filename: string): Classification {
@@ -88,14 +106,31 @@ export function prepareIngestBody(
 }
 
 /**
- * Queue extraction for kinds that need it later (P1 / DOC1 / V1).
- * Today every kind returns null — nothing is enqueued.
+ * Queue extraction for kinds that need the media sidecar (P1 / DOC1 / V1).
+ * Text and unknown kinds return null. Uses enqueueLawJob (idempotent while
+ * queued or running). When `kind` is omitted, classifies from the stored
+ * document's mimeType/filename (library upload path).
  */
 export async function enqueueExtraction(
-  _prisma: Pick<PrismaClient, "lawJob">,
-  _doc: { id: string; caseId: string; kind?: string },
-): Promise<null> {
-  return null;
+  prisma: PrismaClient,
+  doc: { id: string; caseId: string; kind?: string },
+): Promise<{ id: string; created: boolean } | null> {
+  let ingestKind = doc.kind as IngestKind | undefined;
+  if (!ingestKind) {
+    const row = await prisma.lawDocument.findUnique({
+      where: { id: doc.id },
+      select: { mimeType: true, filename: true },
+    });
+    if (!row) return null;
+    ingestKind = classify(row.mimeType, row.filename).kind;
+  }
+  const jobKind = jobKindForIngest(ingestKind);
+  if (!jobKind) return null;
+  return enqueueLawJob(prisma, {
+    caseId: doc.caseId,
+    documentId: doc.id,
+    kind: jobKind,
+  });
 }
 
 function extensionOf(filename: string): string {

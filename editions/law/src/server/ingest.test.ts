@@ -69,12 +69,47 @@ describe("prepareIngestBody", () => {
 });
 
 describe("enqueueExtraction", () => {
-  it("returns null for every kind today", async () => {
+  it("returns null for text kinds", async () => {
     await expect(
-      enqueueExtraction({ lawJob: { create: async () => null } } as never, {
-        id: "doc-1",
-        caseId: "case-1",
-      }),
+      enqueueExtraction({} as never, { id: "doc-1", caseId: "case-1", kind: "text" }),
     ).resolves.toBeNull();
+  });
+
+  it("classifies from the stored document when kind is omitted", async () => {
+    const prisma = {
+      lawDocument: {
+        findUnique: async () => ({ mimeType: "text/plain", filename: "a.txt" }),
+      },
+    };
+    await expect(
+      enqueueExtraction(prisma as never, { id: "doc-1", caseId: "case-1" }),
+    ).resolves.toBeNull();
+  });
+
+  it("enqueues a media job for pdf", async () => {
+    const calls: unknown[] = [];
+    const prisma = {
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          lawJob: {
+            findFirst: async () => null,
+            create: async (args: { data: unknown }) => {
+              calls.push(args.data);
+              return { id: "job-1" };
+            },
+          },
+        }),
+    };
+    await expect(
+      enqueueExtraction(prisma as never, { id: "doc-1", caseId: "case-1", kind: "pdf" }),
+    ).resolves.toEqual({ id: "job-1", created: true });
+    expect(calls).toEqual([
+      expect.objectContaining({
+        caseId: "case-1",
+        documentId: "doc-1",
+        kind: "extract_pdf",
+        status: "queued",
+      }),
+    ]);
   });
 });

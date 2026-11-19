@@ -1,0 +1,54 @@
+# Overlay for the law media sidecar. Use with the main compose file, for example:
+#   docker compose -f infra/compose/docker-compose.yml \
+#     -f editions/law/docker/compose.media.yml up law-media
+#
+# Expects STIRRUP_EDITION=law and a law server image build. The sidecar mounts
+# the same data volume and shares DATABASE_URL / encryption / object-storage env
+# with the api (see editions/law/README.md).
+
+services:
+  law-media:
+    build:
+      context: ../../..
+      dockerfile: editions/law/docker/media.Dockerfile
+      args:
+        SERVER_IMAGE: ${LAW_SERVER_IMAGE:-stirrup-law:local}
+    image: ${LAW_MEDIA_IMAGE:-stirrup-law-media:local}
+    restart: unless-stopped
+    env_file:
+      - path: ../../../.env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATA_DIR: ${DATA_DIR:-/data}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      ENCRYPTION_MASTER_KEYS: ${ENCRYPTION_MASTER_KEYS:-}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-}
+      OBJECT_STORAGE_PROTOCOL: ${OBJECT_STORAGE_PROTOCOL:-}
+      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-}
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-}
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${OBJECT_STORAGE_ACCESS_KEY_ID:-}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${OBJECT_STORAGE_SECRET_ACCESS_KEY:-}
+      OBJECT_STORAGE_PREFIX: ${OBJECT_STORAGE_PREFIX:-}
+      OBJECT_STORAGE_PATH_STYLE: ${OBJECT_STORAGE_PATH_STYLE:-}
+      LAW_MEDIA_CONCURRENCY: ${LAW_MEDIA_CONCURRENCY:-1}
+      LAW_MEDIA_STALE_MINUTES: ${LAW_MEDIA_STALE_MINUTES:-120}
+      LAW_MEDIA_TMP: ${LAW_MEDIA_TMP:-/tmp/law-media}
+      LAW_MEDIA_REQUIRED_TOOLS: ${LAW_MEDIA_REQUIRED_TOOLS:-}
+    volumes:
+      # Same host data dir the api/worker mount (override with LAW_DATA_VOLUME).
+      - ${LAW_DATA_VOLUME:-../../../data}:/data
+      - law-models:/models
+    cpus: ${LAW_MEDIA_CPUS:-2.0}
+    mem_limit: ${LAW_MEDIA_MEMORY:-4g}
+    # GPU reservation for V1 (transcription). Uncomment when the host has NVIDIA:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  law-models:
