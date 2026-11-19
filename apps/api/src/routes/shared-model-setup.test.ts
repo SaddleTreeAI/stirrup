@@ -51,7 +51,7 @@ beforeEach(() => {
   stubEdition({});
 });
 
-describe("modelSetup needsModel (edition-seam:S6)", () => {
+describe("modelSetup needsModel (scripted edition runtime)", () => {
   it.each([
     {
       name: "scripted edition runtime skips the model gate",
