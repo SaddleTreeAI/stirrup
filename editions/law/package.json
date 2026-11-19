@@ -25,7 +25,8 @@
     "encrypt:decrypt": "tsx src/server/cli/encrypt.ts decrypt",
     "encrypt:reencrypt": "tsx src/server/cli/encrypt.ts reencrypt",
     "media:doctor": "tsx src/server/media/main.ts media:doctor",
-    "media:dev": "tsx src/server/media/main.ts"
+    "media:dev": "tsx src/server/media/main.ts",
+    "media:models": "node scripts/download-models.mjs"
   },
   "dependencies": {
     "@lingui/core": "6.12.0",
