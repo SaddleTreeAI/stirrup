@@ -41,7 +41,10 @@ migrations and generates the Prisma client before starting. A branch that adds m
 doesn't have gets its own database on the same server, copied from the shared one when possible,
 so unmerged schema changes stay out of it. When the default ports are taken, for example by
 another git worktree, it moves to the next free block and prints the URL. Set `WEB_PORT` and
-`API_PORT` to choose ports yourself.
+`API_PORT` to choose ports yourself; the script still derives `WEB_ORIGIN`, `API_URL`,
+`API_PROXY_TARGET`, and the supervisor URL from whichever ports are in effect, and leaves any of
+those you already set alone. Set `SANDBOX_PROVIDER=fake` (or any non-`docker` provider) to skip
+starting the local sandbox supervisor when you do not need Docker computers.
 
 To try a checkout from your phone or another computer, install [Tailscale](https://tailscale.com)
 on each device and set `RAKAZO_DEV_TAILNET=1` in `.env`. `pnpm dev` then serves the web app over

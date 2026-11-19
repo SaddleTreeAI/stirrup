@@ -15,6 +15,9 @@ export const API_ROUTES: Readonly<Record<string, boolean>> = {
   "/api": false,
   [DEVICE_SOCKET]: true,
   "/rpc": false,
+  // Anchored so a SPA path that only shares the prefix (for example /healthcheck) is not proxied.
+  "^/health(?:[/?#]|$)": false,
+  "^/ready(?:[/?#]|$)": false,
   // Native app domain association, served by the API from deployment settings.
   "/.well-known/apple-app-site-association": false,
   "/.well-known/assetlinks.json": false,
