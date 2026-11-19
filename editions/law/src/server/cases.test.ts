@@ -3,11 +3,50 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  lawBotAccess,
+  lawCaseAccess,
   lawDocumentFilename,
   lawTurnNote,
   limitLawTeammates,
   saveLawReviewDraft,
 } from "./cases.js";
+
+const actor = {
+  spaceId: "space-1",
+  userId: "user-1",
+  email: "user@example.test",
+  isDeploymentOwner: false,
+};
+
+describe("lawBotAccess / lawCaseAccess", () => {
+  it("allows a bot that is not on any case", async () => {
+    const prisma = {
+      lawCaseBot: { findUnique: vi.fn(async () => null) },
+      lawCaseMember: { findUnique: vi.fn() },
+    };
+    await expect(lawCaseAccess(prisma as never, actor.userId, "plain")).resolves.toBe("open");
+    await expect(lawBotAccess(prisma as never, actor, "plain")).resolves.toBe("allow");
+    expect(prisma.lawCaseMember.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("allows a linked bot when the actor is a member", async () => {
+    const prisma = {
+      lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCaseMember: { findUnique: vi.fn(async () => ({ userId: actor.userId })) },
+    };
+    await expect(lawCaseAccess(prisma as never, actor.userId, "bot-1")).resolves.toBe("member");
+    await expect(lawBotAccess(prisma as never, actor, "bot-1")).resolves.toBe("allow");
+  });
+
+  it("denies a linked bot when the actor is not a member", async () => {
+    const prisma = {
+      lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCaseMember: { findUnique: vi.fn(async () => null) },
+    };
+    await expect(lawCaseAccess(prisma as never, actor.userId, "bot-1")).resolves.toBe("denied");
+    await expect(lawBotAccess(prisma as never, actor, "bot-1")).resolves.toBe("deny");
+  });
+});
 
 describe("lawDocumentFilename", () => {
   it("uses an explicit name when provided", () => {

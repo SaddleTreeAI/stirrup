@@ -2,6 +2,7 @@
 // Copyright 2026 SaddleTree AI
 
 import { randomUUID } from "node:crypto";
+import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { isUniqueViolation } from "@rakazo/db";
 import { formatLawContext, retrieveCaseSnippets } from "./retrieval.js";
@@ -43,7 +44,7 @@ export { CASE_ROLES };
 
 /**
  * Whether a bot belongs to a case the user may open.
- * Ported from law-demo; the threads.ts call site needs a future core seam.
+ * Ported from law-demo; wired through ServerEdition.botAccess (seam S7).
  */
 export async function lawCaseAccess(
   prisma: LawDb,
@@ -62,6 +63,15 @@ export async function lawCaseAccess(
     select: { userId: true },
   });
   return member ? "member" : "denied";
+}
+
+/** ServerEdition.botAccess adapter for lawCaseAccess (seam S7). */
+export async function lawBotAccess(
+  prisma: PrismaClient,
+  actor: Actor,
+  botId: string,
+): Promise<"allow" | "deny"> {
+  return (await lawCaseAccess(prisma, actor.userId, botId)) === "denied" ? "deny" : "allow";
 }
 
 /** Case brief plus keyword hits from that case's library. Undefined for ordinary bots. */
