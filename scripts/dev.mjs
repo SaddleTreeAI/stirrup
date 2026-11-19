@@ -36,6 +36,13 @@ import {
   branchDatabaseName,
   branchDatabaseOwner,
 } from "./dev-branch-databases.ts";
+import {
+  DEFAULT_PORTS,
+  derivedEnv,
+  resolvePorts,
+  servicesFor,
+  supervisorSkipMessage,
+} from "./dev-env.mjs";
 import { runPnpm, spawnPnpm } from "./pnpm.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -44,7 +51,6 @@ const require = createRequire(path.join(dbPackage, "package.json"));
 const { Client } = require("pg");
 const dotenv = require("dotenv");
 
-const DEFAULT_PORTS = { web: 5173, api: 3100, supervisor: 7091 };
 const PORT_STEP = 10;
 const MANAGED = {
   container: "rakazo-dev-postgres",
@@ -55,7 +61,6 @@ const MANAGED = {
   database: "rakazo",
 };
 const TAILSCALE_APP_CLI = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
-const SERVICES = ["@rakazo/api", "@rakazo/worker", "@rakazo/web", "@rakazo/sandbox-supervisor"];
 
 const fileEnv = existsSync(path.join(root, ".env"))
   ? dotenv.parse(readFileSync(path.join(root, ".env")))
@@ -107,21 +112,6 @@ async function choosePorts() {
     if (free.every(Boolean)) return ports;
   }
   throw new Error("No free port block found near the defaults. Set WEB_PORT and API_PORT in .env.");
-}
-
-function portEnv({ web, api, supervisor }) {
-  const webUrl = `http://127.0.0.1:${web}`;
-  const apiUrl = `http://127.0.0.1:${api}`;
-  return {
-    WEB_PORT: String(web),
-    WEB_ORIGIN: webUrl,
-    BETTER_AUTH_URL: webUrl,
-    API_PORT: String(api),
-    API_URL: apiUrl,
-    API_PROXY_TARGET: apiUrl,
-    SUPERVISOR_PORT: String(supervisor),
-    SANDBOX_SUPERVISOR_URL: `http://127.0.0.1:${supervisor}`,
-  };
 }
 
 async function connects(url) {
@@ -421,11 +411,12 @@ function generateClientIfStale(env) {
 
 const env = { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: "0" };
 
-let ports = null;
+// Port selection still runs only when both are unset; derived env always follows the effective ports.
+let chosen = null;
 if (!setting("WEB_PORT") && !setting("API_PORT")) {
-  ports = await choosePorts();
-  Object.assign(env, portEnv(ports));
+  chosen = await choosePorts();
 }
+Object.assign(env, derivedEnv(setting, resolvePorts(setting, chosen)));
 
 // Checkouts that share a database also share its job queue, so any checkout's worker may write a
 // file another checkout's API reads. A relative DATA_DIR resolves in the main checkout for all.
@@ -483,9 +474,17 @@ if (/^(1|true)$/i.test(setting("RAKAZO_DEV_TAILNET") ?? "")) {
 }
 
 if (tailnet) log(`Open ${tailnet.origin} from any device on your tailnet`);
-else if (ports) log(`Open http://127.0.0.1:${ports.web}`);
+else if (chosen) log(`Open http://127.0.0.1:${chosen.web}`);
+const skipSupervisor = supervisorSkipMessage(setting);
+if (skipSupervisor) log(skipSupervisor);
 const turbo = spawnPnpm(
-  ["exec", "turbo", "dev", "--env-mode=loose", ...SERVICES.map((name) => `--filter=${name}`)],
+  [
+    "exec",
+    "turbo",
+    "dev",
+    "--env-mode=loose",
+    ...servicesFor(setting).map((name) => `--filter=${name}`),
+  ],
   { cwd: root, env, stdio: "inherit" },
 );
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => turbo.kill(signal));

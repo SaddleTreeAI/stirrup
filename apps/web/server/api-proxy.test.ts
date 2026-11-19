@@ -7,7 +7,7 @@ import { USER_DEVICE_CONNECT_PATH } from "@rakazo/contracts";
 import type { PreviewServer } from "vite";
 import { preview } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
-import { apiProxy, hostAllowed } from "./api-proxy.js";
+import { apiProxy, forwardsToApi, hostAllowed } from "./api-proxy.js";
 
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -84,6 +84,16 @@ function upgrade(
     request.end();
   });
 }
+
+describe("forwardsToApi", () => {
+  it.each(["/health", "/health?x=1", "/ready"])("forwards %s to the API", (url) => {
+    expect(forwardsToApi(url)).toBe(true);
+  });
+
+  it("does not forward a SPA path that only shares the /health prefix", () => {
+    expect(forwardsToApi("/healthcheck-page")).toBe(false);
+  });
+});
 
 describe("apiProxy", () => {
   it("forwards the device socket and preserves authentication, origin and address headers", async () => {
