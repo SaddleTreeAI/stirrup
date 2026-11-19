@@ -80,7 +80,7 @@ jobs:
 
           cleanup() {
             docker rm -f smoke >/dev/null 2>&1 || true
-            rm -rf "$data_dir"
+            sudo rm -rf "$data_dir"
           }
           trap cleanup EXIT
 
