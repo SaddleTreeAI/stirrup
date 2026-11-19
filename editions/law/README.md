@@ -9,27 +9,27 @@ Optional product skin selected with `STIRRUP_EDITION=law` (or `pnpm dev:law` / `
 - **Case column** — library / review document column and overlays (`MainAside`).
 - **Roster filtering** — sidebar and create-menu show only the selected case's bots (`useShellExtension`).
 - **Chat pin** — always pins chat to the OpenRouter model in `constants.ts`.
-- **Mock** — when `LAW_OPENROUTER_API_KEY` is unset, replies stream from `law-mock` (~30–60 s).
+- **Mock** — when chat is pinned and `LAW_OPENROUTER_API_KEY` is blank, replies stream from `law-mock` (~30–60 s).
 - **Seed** — synthetic attorney, three cases, four bots each, library + review docs; login written only to `LAW_LOGIN_FILE`.
 
 ## Web
 
-`editions/law/src/web.ts` exports a `WebEdition` wired into the core shell through seams W2–W7 (`docs/editions/README.md`).
+`editions/law/src/web.ts` exports a `WebEdition` wired into the core shell through seams W2–W8 (`docs/editions/README.md`).
 
-| Export                           | Role                                                                                                           | Core seam |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------- |
-| `ShellProvider` (`LawProvider`)  | Owns case list, selected case, environment (`cases` / `general`), and roster filter; fetches `/api/law/cases`. | W2        |
-| `ChromeFrame` (`LawChromeFrame`) | Far-left `w-12` spacer, `LawEnvironmentRail`, and the `left-12` offset wrapper around the core shell.          | W3        |
-| `SidebarLeading` (`LawCaseTabs`) | Case tab strip above the bots list (cases environment only).                                                   | W4        |
-| `MainAside` (`LawCaseColumn`)    | Case file library / review column and document overlays.                                                       | W5        |
-| `useShellExtension`              | Memoized `transformSidebarGroups` / `filterCreateMenuBots` / `onBotCreated` over the current roster.           | W6        |
-| `hideStarPrompt: true`           | Hides the Star on GitHub prompt when the law edition is active.                                                | W7        |
+| Export                           | Role                                                                                                                        | Core seam |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `ShellProvider` (`LawProvider`)  | Owns case list, selected case, environment (`cases` / `general`), and roster filter; fetches `/api/law/cases`.              | W2        |
+| `ChromeFrame` (`LawChromeFrame`) | Far-left `w-12` spacer, `LawEnvironmentRail`, and the `left-12` offset wrapper around the core shell.                       | W3        |
+| `SidebarLeading` (`LawCaseTabs`) | Case tab strip above the bots list (cases environment only).                                                                | W4        |
+| `MainAside` (`LawCaseColumn`)    | Case file library / review column and document overlays.                                                                    | W5        |
+| `useShellExtension`              | Memoized `transformSidebarGroups` / `filterCreateMenuBots` / `onBotCreated` / `chooseDefaultRoute` over the current roster. | W6 / W8   |
+| `hideStarPrompt: true`           | Hides the Star on GitHub prompt when the law edition is active.                                                             | W7        |
 
 Supporting modules under `src/web/`: `shell.tsx`, `roster.ts`, `files.tsx`, `lib.ts` (local `withSpaceHeaders` using `rakazo:space-id` localStorage).
 
 ## Server
 
-`editions/law/src/server.ts` exports a `ServerEdition` mounted through seams S1–S5 and run hooks R1–R4.
+`editions/law/src/server.ts` exports a `ServerEdition` mounted through seams S1 to S6, run hooks R0 to R4, and database and dev seams C1 to C3.
 
 ### Tables
 
@@ -60,18 +60,28 @@ Unauthenticated calls return 401.
 
 ### Hooks
 
-| Hook               | Function                 | Role                                               |
-| ------------------ | ------------------------ | -------------------------------------------------- |
-| `turnNote`         | `lawTurnNote`            | Case brief + keyword snippets into the turn prompt |
-| `limitTeammates`   | `limitLawTeammates`      | Hide other cases' bots from the teammate list      |
-| `onReplyFinalized` | `saveLawReviewDraftHook` | Persist generator replies as review drafts         |
-| `streamsProgress`  | `lawStreamsProgress`     | Flush scripted progress for the `law-mock` runtime |
+| Hook               | Function                 | Seam | Role                                               |
+| ------------------ | ------------------------ | ---- | -------------------------------------------------- |
+| `turnNote`         | `lawTurnNote`            | R1   | Case brief + keyword snippets into the turn prompt |
+| `limitTeammates`   | `limitLawTeammates`      | R2   | Hide other cases' bots from the teammate list      |
+| `onReplyFinalized` | `saveLawReviewDraftHook` | R3   | Persist generator replies as review drafts         |
+| `streamsProgress`  | `lawStreamsProgress`     | R4   | Flush scripted progress for the `law-mock` runtime |
+
+Other edition members and their seams:
+
+| Member           | Seam              | Role                                                                |
+| ---------------- | ----------------- | ------------------------------------------------------------------- |
+| `onProcessStart` | S1                | Apply the chat pin at process start                                 |
+| `mountRoutes`    | S2                | Mount `/api/law/*`                                                  |
+| `runHooks`       | S3                | Wire the hooks table into `createRunRuntime`                        |
+| `agentRuntime`   | S4 (plus S6 gate) | Slow mock when pinned with no OpenRouter key; S6 skips `needsModel` |
+| `afterBootstrap` | S5                | Refuse a deployment default model other than the pin                |
 
 `lawCaseAccess` is ported in `cases.ts` but has **no core caller yet** (needs a future seam).
 
 ### Pin and mock
 
-`onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`). `agentRuntime` returns the slow mock when `LAW_OPENROUTER_API_KEY` is unset. `afterBootstrap` refuses a deployment default model other than the pin.
+`onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`) and sets `LAW_ENFORCE_CHAT_PIN=1`. `agentRuntime` returns the slow mock only when `LAW_ENFORCE_CHAT_PIN` is `1` and `LAW_OPENROUTER_API_KEY` is blank; otherwise it returns undefined. Seam S6 treats that scripted runtime as not needing a model credential, so chat works without one. Optional `LAW_MOCK_LATENCY_MS` overrides the mock delay: values from 30000 to 60000 (inclusive) are used as-is; anything else falls back to 40000. `afterBootstrap` refuses a deployment default model other than the pin.
 
 ## Run
 
