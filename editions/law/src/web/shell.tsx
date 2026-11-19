@@ -407,6 +407,14 @@ export function LawChromeFrame({ children }: { children: ReactNode }) {
   );
 }
 
+/** Focus ring that meets 3:1 against sidebar and accent fills (ring-ring/50 does not). */
+const LAW_FOCUS =
+  "focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-foreground/50 focus-visible:outline-none";
+
+/** Selected control: fill alone is ~1.2:1; inset ring-foreground/50 reaches 3:1. */
+const LAW_SELECTED =
+  "bg-sidebar-accent font-medium text-foreground ring-2 ring-inset ring-foreground/50";
+
 export function LawEnvironmentRail() {
   const { environment, setEnvironment } = useLawShell();
   return (
@@ -420,10 +428,8 @@ export function LawEnvironmentRail() {
         aria-label={t`General Stirrup`}
         aria-pressed={environment === "general"}
         onClick={() => setEnvironment("general")}
-        className={`flex size-9 items-center justify-center rounded-md focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${
-          environment === "general"
-            ? "bg-sidebar-accent text-foreground"
-            : "text-muted-foreground hover:bg-sidebar-accent"
+        className={`flex size-9 items-center justify-center rounded-md ${LAW_FOCUS} ${
+          environment === "general" ? LAW_SELECTED : "text-muted-foreground hover:bg-sidebar-accent"
         }`}
       >
         <Scale size={18} strokeWidth={1.7} aria-hidden="true" />
@@ -434,10 +440,8 @@ export function LawEnvironmentRail() {
         aria-label={t`Cases`}
         aria-pressed={environment === "cases"}
         onClick={() => setEnvironment("cases")}
-        className={`flex size-9 items-center justify-center rounded-md focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${
-          environment === "cases"
-            ? "bg-sidebar-accent text-foreground"
-            : "text-muted-foreground hover:bg-sidebar-accent"
+        className={`flex size-9 items-center justify-center rounded-md ${LAW_FOCUS} ${
+          environment === "cases" ? LAW_SELECTED : "text-muted-foreground hover:bg-sidebar-accent"
         }`}
       >
         <Briefcase size={18} strokeWidth={1.7} aria-hidden="true" />
@@ -472,7 +476,11 @@ export function LawCaseTabs() {
   if (environment !== "cases") return null;
   if (error && cases.length === 0) {
     return (
-      <button type="button" className="mx-2.5 mt-3 text-body-sm underline" onClick={reload}>
+      <button
+        type="button"
+        className={`mx-2.5 mt-3 text-body-sm underline ${LAW_FOCUS}`}
+        onClick={reload}
+      >
         {t`Retry`}
       </button>
     );
@@ -503,13 +511,13 @@ export function LawCaseTabs() {
               onChange={(event) => setDraft(event.target.value)}
               placeholder={t`Case name`}
               aria-label={t`Case name`}
-              className="h-7 w-28 rounded-full bg-card px-2 py-1 text-body-sm"
+              className={`h-7 w-28 rounded-full border-foreground/50 bg-card px-2 py-1 text-body-sm placeholder:text-muted-foreground ${LAW_FOCUS}`}
             />
             <Button
               type="submit"
               size="sm"
               disabled={busy || !draft.trim()}
-              className="rounded-full"
+              className={`rounded-full ${LAW_FOCUS}`}
             >
               {t`Add`}
             </Button>
@@ -521,7 +529,7 @@ export function LawCaseTabs() {
                 type="button"
                 data-testid="law-cases-empty-open"
                 onClick={openCasesSpace}
-                className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
+                className={`rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground ${LAW_FOCUS}`}
               >
                 {t`Open cases`}
               </button>
@@ -530,7 +538,7 @@ export function LawCaseTabs() {
                 type="button"
                 data-testid="law-cases-empty-create"
                 onClick={() => setCreating(true)}
-                className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
+                className={`rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground ${LAW_FOCUS}`}
               >
                 {t`Create case`}
               </button>
@@ -539,7 +547,7 @@ export function LawCaseTabs() {
               type="button"
               data-testid="law-cases-empty-switch-org"
               onClick={openOrganizationMenu}
-              className="rounded-md px-2.5 py-1 text-body-sm text-muted-foreground underline-offset-2 hover:underline"
+              className={`rounded-md px-2.5 py-1 text-body-sm text-muted-foreground underline-offset-2 hover:underline ${LAW_FOCUS}`}
             >
               {t`Switch organization`}
             </button>
@@ -549,7 +557,7 @@ export function LawCaseTabs() {
     );
   }
   return (
-    <div data-testid="law-case-tabs" className="flex gap-1 overflow-x-auto px-2.5 pt-3 pb-1">
+    <div data-testid="law-case-tabs" className="flex gap-1 overflow-x-auto px-2.5 pt-3 pb-2">
       <Tabs
         value={selected?.id ?? cases[0]?.id ?? ""}
         onValueChange={selectCase}
@@ -565,7 +573,7 @@ export function LawCaseTabs() {
               key={item.id}
               value={item.id}
               data-testid={`law-case-tab-${item.slug}`}
-              className="h-auto shrink-0 rounded-full px-3 py-1 text-body-sm data-active:bg-sidebar-accent data-active:text-foreground data-active:shadow-none"
+              className={`h-auto shrink-0 rounded-full px-3 py-1 text-body-sm text-muted-foreground after:hidden ${LAW_FOCUS} data-active:bg-sidebar-accent data-active:font-medium data-active:text-foreground data-active:shadow-none data-active:ring-2 data-active:ring-inset data-active:ring-foreground/50`}
             >
               {item.name.replace("Commonwealth v. ", "")}
             </TabsTrigger>
@@ -594,9 +602,14 @@ export function LawCaseTabs() {
             onChange={(event) => setDraft(event.target.value)}
             placeholder={t`Case name`}
             aria-label={t`Case name`}
-            className="h-7 w-28 rounded-full bg-card px-2 py-1 text-body-sm"
+            className={`h-7 w-28 rounded-full border-foreground/50 bg-card px-2 py-1 text-body-sm placeholder:text-muted-foreground ${LAW_FOCUS}`}
           />
-          <Button type="submit" size="sm" disabled={busy || !draft.trim()} className="rounded-full">
+          <Button
+            type="submit"
+            size="sm"
+            disabled={busy || !draft.trim()}
+            className={`rounded-full ${LAW_FOCUS}`}
+          >
             {t`Add`}
           </Button>
         </form>
@@ -606,7 +619,7 @@ export function LawCaseTabs() {
           data-testid="law-case-add"
           aria-label={t`Add case`}
           onClick={() => setCreating(true)}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className={`flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground ${LAW_FOCUS}`}
         >
           <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
         </button>
@@ -740,7 +753,7 @@ function LawCaseDocuments({
         {shellError || docError ? (
           <button
             type="button"
-            className="border-t border-border px-3 py-2 text-start text-body-sm underline"
+            className={`border-t border-border px-3 py-2 text-start text-body-sm underline ${LAW_FOCUS}`}
             onClick={reload}
           >
             {t`Retry`}

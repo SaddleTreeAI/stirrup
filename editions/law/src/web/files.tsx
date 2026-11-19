@@ -112,7 +112,7 @@ export function LawFileCard({
         </span>
         <button
           type="button"
-          className="min-w-0 flex-1 rounded-sm text-start focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="min-w-0 flex-1 rounded-sm text-start focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-foreground/50 focus-visible:outline-none"
           onClick={open}
           aria-label={doc.title}
         >
@@ -127,7 +127,7 @@ export function LawFileCard({
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="size-7 shrink-0 text-muted-foreground opacity-70 group-hover:opacity-100 focus-visible:opacity-100"
+          className="size-7 shrink-0 text-muted-foreground focus-visible:ring-inset focus-visible:ring-foreground/50"
           aria-label={t`Download ${doc.filename}`}
           data-testid={`law-file-download-${doc.id}`}
           onClick={(event) => {
@@ -241,7 +241,7 @@ export function LawDocumentEditor({
             data-testid="law-doc-editor"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            className="min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-10 py-8 text-body leading-relaxed shadow-none focus-visible:ring-3"
+            className="min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-10 py-8 text-body leading-relaxed shadow-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-foreground/50"
             spellCheck
           />
         </div>
