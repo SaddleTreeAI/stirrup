@@ -1,6 +1,7 @@
 export {
   defineServerEdition,
   type EditionBotAccess,
+  type EditionFiles,
   type EditionRouteDeps,
   type EditionRunHooks,
   resolveEdition,

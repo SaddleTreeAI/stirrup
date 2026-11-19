@@ -52,15 +52,22 @@ Row-level security is enabled and forced on every law table; tenant policies key
 
 Mounted at `/api/law/*` by `mountRoutes`:
 
-| Method | Path                                           | Behavior                                     |
-| ------ | ---------------------------------------------- | -------------------------------------------- |
-| GET    | `/api/law/cases`                               | List the caller's cases and role bots        |
-| POST   | `/api/law/cases`                               | Create a case and the four role bots         |
-| POST   | `/api/law/cases/:id/bots`                      | Attach an existing Space bot to the case     |
-| GET    | `/api/law/cases/:id/documents`                 | List library / review documents              |
-| POST   | `/api/law/cases/:id/documents/:docId/versions` | Save a new review draft version (`{ body }`) |
+| Method | Path                                           | Behavior                                                          |
+| ------ | ---------------------------------------------- | ----------------------------------------------------------------- |
+| GET    | `/api/law/cases`                               | List the caller's cases and role bots                             |
+| POST   | `/api/law/cases`                               | Create a case and the four role bots                              |
+| POST   | `/api/law/cases/:id/bots`                      | Attach an existing Space bot to the case                          |
+| GET    | `/api/law/cases/:id/documents`                 | List library / review documents (excludes soft-deleted)           |
+| POST   | `/api/law/cases/:id/documents/upload`          | Multipart upload (`file`, optional `title`) into the case library |
+| POST   | `/api/law/cases/:id/documents`                 | Create a blank or pasted text note (`{ title, body? }`)           |
+| PATCH  | `/api/law/cases/:id/documents/:docId`          | Rename a document version family (`{ title }`)                    |
+| DELETE | `/api/law/cases/:id/documents/:docId`          | Soft-delete the version family; cancel queued jobs; audit         |
+| GET    | `/api/law/cases/:id/documents/:docId/file`     | Download original bytes (`?inline=1` for pdf/audio/video only)    |
+| POST   | `/api/law/cases/:id/documents/:docId/versions` | Save a new review draft version (`{ body }`)                      |
 
-Unauthenticated calls return 401.
+Unauthenticated calls return 401. Non-members get 404 on every case-scoped route (same as the list).
+
+**Library permissions (L0):** any case member may upload, create notes, rename, and soft-delete. Tighten later (for example creator-only delete) without changing the route shapes.
 
 ### Hooks
 

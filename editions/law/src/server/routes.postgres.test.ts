@@ -231,4 +231,68 @@ describePostgres("law cases under row-level security", () => {
     });
     expect(outsiderDocs.status).toBe(404);
   });
+
+  it("excludes soft-deleted rows from the documents list", async () => {
+    const caseId = caseIds[0]!;
+    const doomed = await system.lawDocument.create({
+      data: {
+        caseId,
+        title: "To delete",
+        filename: "to-delete.txt",
+        body: "SYNTHETIC doomed",
+        kind: "library",
+        version: 1,
+      },
+    });
+    await system.lawDocument.update({
+      where: { id: doomed.id },
+      data: { deletedAt: new Date() },
+    });
+    const response = await app.request(`/api/law/cases/${caseId}/documents`, {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { documents: Array<{ id: string }> };
+    expect(body.documents.map((doc) => doc.id)).not.toContain(doomed.id);
+  });
+
+  it("renames every version in a document family", async () => {
+    const caseId = caseIds[0]!;
+    const root = await system.lawDocument.create({
+      data: {
+        caseId,
+        title: "Original",
+        filename: "original.md",
+        body: "SYNTHETIC v1",
+        kind: "review",
+        version: 1,
+      },
+    });
+    const child = await system.lawDocument.create({
+      data: {
+        caseId,
+        title: "Original",
+        filename: "original.md",
+        body: "SYNTHETIC v2",
+        kind: "review",
+        version: 2,
+        rootId: root.id,
+      },
+    });
+    const renamed = await app.request(`/api/law/cases/${caseId}/documents/${child.id}`, {
+      method: "PATCH",
+      headers: { authorization: "Bearer test", "content-type": "application/json" },
+      body: JSON.stringify({ title: "Renamed family" }),
+    });
+    expect(renamed.status).toBe(200);
+    const rows = await system.lawDocument.findMany({
+      where: { id: { in: [root.id, child.id] } },
+      select: { id: true, title: true, filename: true },
+      orderBy: { version: "asc" },
+    });
+    expect(rows).toEqual([
+      { id: root.id, title: "Renamed family", filename: "renamed-family.md" },
+      { id: child.id, title: "Renamed family", filename: "renamed-family.md" },
+    ]);
+  });
 });
