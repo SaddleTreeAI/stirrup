@@ -23,6 +23,7 @@ async function fixture() {
   await mkdir(path.join(dir, "bin"));
   await exec("git", ["init", "-q", dir]);
   await copyFile(path.join(root, "scripts/dev.mjs"), path.join(dir, "scripts/dev.mjs"));
+  await copyFile(path.join(root, "scripts/dev-env.mjs"), path.join(dir, "scripts/dev-env.mjs"));
   await copyFile(path.join(root, "scripts/pnpm.mjs"), path.join(dir, "scripts/pnpm.mjs"));
   await copyFile(
     path.join(root, "scripts/dev-branch-databases.ts"),
