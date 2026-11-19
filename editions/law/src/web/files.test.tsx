@@ -161,6 +161,41 @@ describe("law file primitives", () => {
     });
   });
 
+  it("shows a download original card for non-text files", async () => {
+    const binary: LawFileDoc = {
+      id: "pdf-1",
+      title: "Report",
+      filename: "report.pdf",
+      kind: "upload",
+      body: "",
+      version: 1,
+      rootId: "pdf-1",
+      source: "upload",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      hasOriginal: true,
+    };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(LawFileViewer, {
+          doc: binary,
+          onClose: () => {},
+          originalHref: "/api/law/cases/c/documents/pdf-1/file",
+        }),
+      );
+    });
+    expect(document.querySelector('[data-testid="law-viewer-original-card"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="law-viewer-download-original"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="law-viewer-edit"]')).toBeNull();
+    expect(document.body.textContent).toContain("2.0 KB");
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("opens from a single click without requiring double-click", async () => {
     const onOpen = vi.fn();
     const container = document.createElement("div");
