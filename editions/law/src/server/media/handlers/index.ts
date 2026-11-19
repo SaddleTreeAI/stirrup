@@ -2,6 +2,7 @@
 // Copyright 2026 SaddleTree AI
 
 import type { Handler } from "../types.js";
+import { PURGE_CASE_KIND, purgeCaseHandler } from "./purge-case.js";
 import { selftestHandler } from "./selftest.js";
 
 /**
@@ -12,4 +13,5 @@ import { selftestHandler } from "./selftest.js";
  */
 export const handlers: Record<string, Handler> = {
   selftest: selftestHandler,
+  [PURGE_CASE_KIND]: purgeCaseHandler,
 };

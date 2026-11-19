@@ -25,7 +25,9 @@
     "encrypt:decrypt": "tsx src/server/cli/encrypt.ts decrypt",
     "encrypt:reencrypt": "tsx src/server/cli/encrypt.ts reencrypt",
     "media:doctor": "tsx src/server/media/main.ts media:doctor",
-    "media:dev": "tsx src/server/media/main.ts"
+    "media:dev": "tsx src/server/media/main.ts",
+    "case:purge": "tsx src/server/cli/case-purge.ts",
+    "case:hold": "tsx src/server/cli/case-hold.ts"
   },
   "dependencies": {
     "@lingui/core": "6.12.0",

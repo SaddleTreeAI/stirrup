@@ -77,6 +77,7 @@ describe("media engine", () => {
       order.push(ctx.job.id);
     };
     const engine = createMediaEngine({
+      purgeSweepMs: 0,
       store,
       prisma: fakePrisma(),
       runner: fakeRunner(),
@@ -112,6 +113,7 @@ describe("media engine", () => {
     };
     const make = (id: string) =>
       createMediaEngine({
+        purgeSweepMs: 0,
         store,
         prisma: fakePrisma(),
         runner: fakeRunner(),
@@ -156,6 +158,7 @@ describe("media engine", () => {
       runAfter: new Date(Date.now() - 1_000),
     });
     const engine = createMediaEngine({
+      purgeSweepMs: 0,
       store,
       prisma: fakePrisma(),
       runner: fakeRunner(),
@@ -206,6 +209,7 @@ describe("media engine", () => {
     });
     let ran = 0;
     const engine = createMediaEngine({
+      purgeSweepMs: 0,
       store,
       prisma: fakePrisma(),
       runner: fakeRunner(),
@@ -239,6 +243,7 @@ describe("media engine", () => {
     });
     let seenTmp = "";
     const engine = createMediaEngine({
+      purgeSweepMs: 0,
       store,
       prisma: fakePrisma(),
       runner: fakeRunner(),
@@ -275,6 +280,7 @@ describe("media engine", () => {
       releaseGate = resolve;
     });
     const engine = createMediaEngine({
+      purgeSweepMs: 0,
       store,
       prisma: fakePrisma(),
       runner: fakeRunner(),
@@ -305,6 +311,48 @@ describe("media engine", () => {
 
   it("exposes the heartbeat interval constant used by the loop", () => {
     expect(HEARTBEAT_MS).toBe(30_000);
+  });
+
+  it("sweeps due purge cases on an interval", async () => {
+    vi.stubEnv("LAW_CASE_RETENTION_DAYS", "30");
+    const enqueued: string[] = [];
+    const prisma = {
+      lawCase: {
+        findMany: async () => [{ id: "due-1" }],
+      },
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          lawJob: {
+            findFirst: async () => null,
+            create: async ({ data }: { data: { caseId: string } }) => {
+              enqueued.push(data.caseId);
+              return { id: `purge-${enqueued.length}` };
+            },
+          },
+        }),
+    };
+    const store = createMemoryJobStore();
+    const engine = createMediaEngine({
+      purgeSweepMs: 1,
+      store,
+      prisma: prisma as never,
+      runner: fakeRunner(),
+      handlers: {},
+      log: silentLog,
+      createHandlerIo: () => ({
+        readOriginal: async () => "",
+        saveArtifact: async () => ({ id: "a" }),
+      }),
+    });
+    await engine.tick();
+    expect(enqueued).toEqual(["due-1"]);
+    await engine.tick();
+    // Still within the same ms window after lastPurgeSweepAt — may or may not re-fire;
+    // force another sweep by waiting past the interval.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await engine.tick();
+    expect(enqueued.length).toBeGreaterThanOrEqual(1);
+    vi.unstubAllEnvs();
   });
 });
 

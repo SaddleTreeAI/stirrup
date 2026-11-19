@@ -70,7 +70,27 @@ Mounted at `/api/law/*` by `mountRoutes`:
 
 Unauthenticated calls return 401. Non-members get 404 on every case-scoped route (same as the list). Soft-deleted cases return 404 on library and document routes; their bots stay in `deletedBotIds` so General never shows them.
 
-**Case delete permissions (CASE1):** the case `createdBy`, or a space owner, or an organization owner/admin. When `createdBy` is null (older multi-member cases), only a space owner or org admin may delete or restore. Other members get 403; non-members get 404. A case with `legalHold` cannot be deleted (409). Retention defaults to 30 days (`LAW_CASE_RETENTION_DAYS`; `0` means never auto-purge). Hard purge of bots, threads, documents, and artifacts is CASE2.
+**Case delete permissions (CASE1):** the case `createdBy`, or a space owner, or an organization owner/admin. When `createdBy` is null (older multi-member cases), only a space owner or org admin may delete or restore. Other members get 403; non-members get 404. A case with `legalHold` cannot be deleted (409). Retention defaults to 30 days (`LAW_CASE_RETENTION_DAYS`; `0` means never auto-purge). Hard purge after retention is CASE2 (below).
+
+### Retention and purge
+
+Soft-deleted cases stay recoverable until `purgeAfter`. The default retention is **30 days** (`LAW_CASE_RETENTION_DAYS`). Set `LAW_CASE_RETENTION_DAYS=0` to disable the sweeper and leave `purgeAfter` null on delete (no automatic purge).
+
+The media sidecar sweeps every `LAW_PURGE_SWEEP_MINUTES` (default `60`) and enqueues idempotent `purge_case` jobs for rows where `deletedAt` is set, `purgeAfter < now()`, and `legalHold` is false. A case on legal hold is never purged until hold is cleared (`pnpm --filter @rakazo/edition-law case:hold <id> on|off`).
+
+What purge removes: Library documents and their pages / transcript segments / media frames; original, derived, and frame artifacts in the artifact store; `law_jobs` for the case; `law_case_members` and `law_case_bots`; archives the linked bots (cancels active runs, pauses routines, sets `archivedAt`); writes `law.case.purged` (case id and counts only); deletes the `law_cases` row last.
+
+What purge does **not** remove: database backups and any copies outside the artifact store (object-storage replicas, snapshots, offline exports). Those remain until JT's backup retention policy covers them — confirm that policy before enabling purge in production. Bot rows and their threads stay in the core tables as archived (hidden); a future generic core repo method (e.g. `archiveBotsByIds`) could own full adapter teardown including thread deletion.
+
+CLI:
+
+```bash
+pnpm --filter @rakazo/edition-law case:purge --case <id> [--dry-run]
+pnpm --filter @rakazo/edition-law case:purge --case <id> --force-before-retention --confirm <id>
+pnpm --filter @rakazo/edition-law case:hold <id> on|off
+```
+
+Dry-run prints counts only and changes nothing. `--force-before-retention` still requires a soft-deleted case that is not on hold, and must repeat the id as `--confirm`. Do not enable automatic purge in production until JT confirms the retention window (30 days is only the default).
 
 **Library permissions (L0):** any case member may upload, create notes, rename, and soft-delete. Tighten later (for example creator-only delete) without changing the route shapes.
 
@@ -131,17 +151,19 @@ pnpm --filter @rakazo/edition-law media:dev
 
 ### Env (sidecar only)
 
-| Variable                                    | Role                                                                               |
-| ------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `DATABASE_URL`                              | Runtime Postgres role (same as api); claims use RLS bypass as a system worker      |
-| `DATA_DIR`                                  | Shared data volume with api (default `./data`)                                     |
-| `ENCRYPTION_KEY` / `ENCRYPTION_MASTER_KEYS` | Same content-encryption keys as api                                                |
-| `OBJECT_STORAGE_*`                          | Same object-storage settings as api when artifacts are remote                      |
-| `LAW_MEDIA_CONCURRENCY`                     | Parallel jobs (default `1`; keep at 1 for GPU work)                                |
-| `LAW_MEDIA_STALE_MINUTES`                   | Requeue running jobs whose heartbeat is older than this (default `120`)            |
-| `LAW_MEDIA_TMP`                             | Per-job temp root (default `os.tmpdir()/law-media`)                                |
-| `LAW_MEDIA_WORKER_ID`                       | Claim owner id (default `media-<hostname>`)                                        |
-| `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default ffmpeg,ffprobe,pdftotext,tesseract,ocrmypdf,python3) |
+| Variable                                    | Role                                                                                    |
+| ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                              | Runtime Postgres role (same as api); claims use RLS bypass as a system worker           |
+| `DATA_DIR`                                  | Shared data volume with api (default `./data`)                                          |
+| `ENCRYPTION_KEY` / `ENCRYPTION_MASTER_KEYS` | Same content-encryption keys as api                                                     |
+| `OBJECT_STORAGE_*`                          | Same object-storage settings as api when artifacts are remote                           |
+| `LAW_MEDIA_CONCURRENCY`                     | Parallel jobs (default `1`; keep at 1 for GPU work)                                     |
+| `LAW_MEDIA_STALE_MINUTES`                   | Requeue running jobs whose heartbeat is older than this (default `120`)                 |
+| `LAW_MEDIA_TMP`                             | Per-job temp root (default `os.tmpdir()/law-media`)                                     |
+| `LAW_MEDIA_WORKER_ID`                       | Claim owner id (default `media-<hostname>`)                                             |
+| `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default ffmpeg,ffprobe,pdftotext,tesseract,ocrmypdf,python3)      |
+| `LAW_PURGE_SWEEP_MINUTES`                   | How often to enqueue due `purge_case` jobs (default `60`; disabled when retention is 0) |
+| `LAW_CASE_RETENTION_DAYS`                   | Soft-delete retention before purge (default `30`; `0` disables the sweeper)             |
 
 ### Compose overlay
 

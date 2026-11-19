@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { PrismaClient } from "@rakazo/db";
+import { purgeSweepEnabled, purgeSweepMinutes, sweepPurgeCases } from "./handlers/purge-case.js";
 import { shortJobError } from "./job-store.js";
 import type { Handler, HandlerContext, JobStore, LawJobRow, MediaLog, Runner } from "./types.js";
 
@@ -26,6 +27,8 @@ export type EngineOptions = {
   heartbeatMs?: number;
   idleMs?: number;
   log?: MediaLog;
+  /** Override purge sweep interval (ms). Default from LAW_PURGE_SWEEP_MINUTES. */
+  purgeSweepMs?: number;
   /** Build handler I/O helpers for one job (artifact read/write). */
   createHandlerIo: (input: {
     job: LawJobRow;
@@ -94,13 +97,28 @@ export function createMediaEngine(options: EngineOptions): MediaEngine {
   const heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS;
   const idleMs = options.idleMs ?? POLL_IDLE_MS;
   const log = options.log ?? defaultLog();
+  const purgeSweepMs = options.purgeSweepMs ?? purgeSweepMinutes() * 60_000;
 
   let stopping: "finish" | "release" | null = null;
   let loopAbort: AbortController | undefined;
   let loopPromise: Promise<void> | undefined;
+  let lastPurgeSweepAt = 0;
   const inFlight = new Set<Promise<void>>();
   const runningJobs = new Map<string, LawJobRow>();
   const releasedIds = new Set<string>();
+
+  const maybeSweepPurge = async () => {
+    // purgeSweepMs <= 0 disables the hook (tests); retention 0 also disables.
+    if (purgeSweepMs <= 0 || !purgeSweepEnabled()) return;
+    const now = Date.now();
+    if (lastPurgeSweepAt !== 0 && now - lastPurgeSweepAt < purgeSweepMs) return;
+    lastPurgeSweepAt = now;
+    try {
+      await sweepPurgeCases(options.prisma, { log });
+    } catch (error) {
+      log.warn("purge sweep failed", { error: shortJobError(error) });
+    }
+  };
 
   const runOne = async (job: LawJobRow): Promise<void> => {
     runningJobs.set(job.id, job);
@@ -151,6 +169,7 @@ export function createMediaEngine(options: EngineOptions): MediaEngine {
   const tick = async (): Promise<boolean> => {
     if (stopping) return false;
     await options.store.requeueStale(staleMinutes);
+    await maybeSweepPurge();
     if (inFlight.size >= concurrency) return true;
 
     const job = await options.store.claim(workerId);
