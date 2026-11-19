@@ -4,26 +4,18 @@
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { createRepos, runAsTenant } from "@rakazo/db";
+import type { EditionRouteDeps } from "@rakazo/edition-sdk";
 import { getLogger } from "@rakazo/logging";
 import type { Hono } from "hono";
-import {
-  attachBotToLawCase,
-  CASE_ROLES,
-  lawDocumentFilename,
-  saveLawDocumentVersion,
-} from "./cases.js";
+import { attachBotToLawCase, CASE_ROLES, saveLawDocumentVersion } from "./cases.js";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "./constants.js";
+import { mountLibraryRoutes, serializeDocument } from "./library-routes.js";
 import { preferredCasesSpaceId } from "./preferred-space.js";
 
 const ROLE_ORDER = ["manager", "documents", "transcripts", "generator"];
 
-export function mountLawRoutes(
-  app: Hono,
-  deps: {
-    prisma: PrismaClient;
-    sessionActor: (request: Request) => Promise<Actor | null>;
-  },
-) {
+export function mountLawRoutes(app: Hono, deps: EditionRouteDeps) {
+  mountLibraryRoutes(app, deps);
   app.get("/api/law/cases", async (c) => {
     try {
       const actor = await deps.sessionActor(c.req.raw);
@@ -205,7 +197,7 @@ async function listDocuments(prisma: PrismaClient, userId: string, caseId: strin
   });
   if (!member) return null;
   const documents = await prisma.lawDocument.findMany({
-    where: { caseId },
+    where: { caseId, deletedAt: null },
     orderBy: [{ createdAt: "asc" }, { version: "asc" }],
     select: {
       id: true,
@@ -216,14 +208,17 @@ async function listDocuments(prisma: PrismaClient, userId: string, caseId: strin
       version: true,
       rootId: true,
       createdAt: true,
+      source: true,
+      mimeType: true,
+      sizeBytes: true,
+      status: true,
+      statusDetail: true,
+      pageCount: true,
+      durationMs: true,
+      artifactId: true,
     },
   });
-  return documents.map((doc) => ({
-    ...doc,
-    filename: doc.filename || lawDocumentFilename(doc.title, doc.kind),
-    rootId: doc.rootId ?? doc.id,
-    createdAt: doc.createdAt.toISOString(),
-  }));
+  return documents.map((doc) => serializeDocument(doc));
 }
 
 async function createCaseWithBots(

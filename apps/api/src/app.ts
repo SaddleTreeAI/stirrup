@@ -153,6 +153,7 @@ import {
 import { cspReportRoutes } from "./csp-report.js";
 // edition-seam:S2
 import { getEdition } from "./edition/active.js";
+import { createEditionFiles } from "./edition-files.js";
 import { configuredEmailProvider } from "./email.js";
 import { mountEmailInboundRoute } from "./email-inbound.js";
 import type { AppEnv } from "./env.js";
@@ -1157,7 +1158,15 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   );
   mountWebhookHttpRoutes(app, { prisma, secrets, events, jobs });
   // edition-seam:S2
-  getEdition().mountRoutes?.(app, { prisma, sessionActor });
+  getEdition().mountRoutes?.(app, {
+    prisma,
+    sessionActor,
+    files: createEditionFiles({
+      prisma,
+      artifacts,
+      maxBytes: env.maxUploadSizeBytes,
+    }),
+  });
   if (env.inboundEmail) {
     mountEmailInboundRoute(app, {
       prisma,

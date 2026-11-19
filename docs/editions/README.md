@@ -53,7 +53,7 @@ Regenerate this table with `git grep -n "edition-seam:"` (excluding `docs/` and 
 | R3        | `packages/adapters/src/run-turn.ts`                                                     | `onReplyFinalized` after a successful reply                                                    |
 | R4        | `packages/adapters/src/run-turn.ts`, `packages/adapters/src/run-progress.ts`            | `streamsProgress` may flush progress while scripted                                            |
 | S1        | `apps/api/src/index.ts`, `apps/worker/src/index.ts`                                     | `onProcessStart` after env load                                                                |
-| S2        | `apps/api/src/app.ts`                                                                   | `mountRoutes` beside other HTTP mounts                                                         |
+| S2        | `apps/api/src/app.ts`                                                                   | `mountRoutes` beside other HTTP mounts; optional `files` store/open for edition libraries      |
 | S3        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                       | Pass `runHooks` into `createRunRuntime`                                                        |
 | S4        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                       | Optional `agentRuntime` before Pi                                                              |
 | S5        | `apps/api/src/app.ts`                                                                   | `afterBootstrap` after deployment settings upsert                                              |

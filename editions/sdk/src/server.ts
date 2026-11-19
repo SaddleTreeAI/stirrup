@@ -3,9 +3,26 @@ import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import type { Hono } from "hono";
 
+/** Optional file store/open helpers core passes to editions that mount library routes. */
+export type EditionFiles = {
+  store(input: {
+    spaceId: string;
+    userId: string;
+    filename: string;
+    mediaType: string;
+    bytes: Uint8Array;
+  }): Promise<{ artifactId: string; sizeBytes: number; mediaType: string }>;
+  open(input: {
+    spaceId: string;
+    artifactId: string;
+  }): Promise<{ stream: ReadableStream<Uint8Array>; size: number; mediaType: string } | null>;
+  maxBytes: number;
+};
+
 export type EditionRouteDeps = {
   prisma: PrismaClient;
   sessionActor: (request: Request) => Promise<Actor | null>;
+  files?: EditionFiles;
 };
 
 export type EditionRunHooks = {
