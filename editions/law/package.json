@@ -19,7 +19,9 @@
   "scripts": {
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --root ../.. editions/law/src",
-    "seed": "tsx src/server/cli/seed.ts"
+    "seed": "tsx src/server/cli/seed.ts",
+    "media:doctor": "tsx src/server/media/main.ts media:doctor",
+    "media:dev": "tsx src/server/media/main.ts"
   },
   "dependencies": {
     "@lingui/core": "6.12.0",
