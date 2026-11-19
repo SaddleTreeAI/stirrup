@@ -37,9 +37,11 @@ test("styles.css has a W9 @source that resolves to the editions folder", () => {
     const editionsRoot = path.resolve(root, "editions");
     if (real !== editionsRoot) return false;
     const previous = lines[index - 1] ?? "";
+    // Build the marker at runtime so this check file is not scanned as a live seam.
+    const w9Marker = ["edition-seam", "W9"].join(":");
     assert.ok(
-      previous.includes("edition-seam:W9"),
-      `Line above editions @source must contain edition-seam:W9 (got: ${previous})`,
+      previous.includes(w9Marker),
+      `Line above editions @source must contain ${w9Marker} (got: ${previous})`,
     );
     return true;
   });
