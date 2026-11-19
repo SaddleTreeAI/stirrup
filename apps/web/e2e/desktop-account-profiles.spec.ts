@@ -33,8 +33,18 @@ test("desktop account menu shows separate accounts on the same host", async ({
             activeProfileId = profileId;
             return true;
           },
-          rename: async () => true,
-          remove: async () => true,
+          rename: async (profileId: string, label: string) => {
+            const profile = currentProfiles.find((candidate) => candidate.id === profileId);
+            if (!profile) return false;
+            profile.label = label;
+            return true;
+          },
+          remove: async (profileId: string) => {
+            const index = currentProfiles.findIndex((profile) => profile.id === profileId);
+            if (index < 0 || profileId === activeProfileId) return false;
+            currentProfiles.splice(index, 1);
+            return true;
+          },
         },
         server: { change: async () => {}, addProfile: async () => {} },
       } satisfies Partial<RakazoDesktop>,
@@ -47,9 +57,14 @@ test("desktop account menu shows separate accounts on the same host", async ({
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
 
-  await page.getByTestId("user-menu-trigger").click();
   const profiles = page.getByTestId("desktop-account-profiles");
-  await expect(profiles).toBeVisible();
+  const openProfiles = async () => {
+    await page.getByTestId("user-menu-trigger").click();
+    await expect(profiles).toBeHidden();
+    await page.getByRole("button", { name: "Saved accounts for Profile Tester" }).click();
+    await expect(profiles).toBeVisible();
+  };
+  await openProfiles();
   const personal = profiles.getByRole("button", { name: /^Personal account https:/ });
   const pokebedrock = profiles.getByRole("button", { name: /^PokéBedrock account https:/ });
   await expect(personal).toHaveAttribute("aria-current", "true");
@@ -61,4 +76,24 @@ test("desktop account menu shows separate accounts on the same host", async ({
   await expect(personal).not.toHaveAttribute("aria-current", "true");
   await page.mouse.move(1, 1);
   await captureScreenshot(page, testInfo, "desktop-account-profiles-same-host-switcher");
+
+  await profiles.getByRole("button", { name: "Rename Personal account" }).click();
+  const rename = page.getByRole("dialog", { name: "Rename account" });
+  const name = rename.getByRole("textbox", { name: "Account name" });
+  await expect(name).toHaveValue("Personal account");
+  await name.fill("Side project");
+  await rename.getByRole("button", { name: "Save" }).click();
+  await expect(rename).toBeHidden();
+
+  await openProfiles();
+  await expect(profiles.getByRole("button", { name: /^Side project https:/ })).toBeVisible();
+  await expect(profiles.getByRole("button", { name: "Remove PokéBedrock account" })).toBeDisabled();
+  await profiles.getByRole("button", { name: "Remove Side project" }).click();
+  const remove = page.getByRole("alertdialog", { name: "Remove Side project from this device?" });
+  await remove.getByRole("button", { name: "Remove" }).click();
+  await expect(remove).toBeHidden();
+
+  await openProfiles();
+  await expect(pokebedrock).toBeVisible();
+  await expect(profiles.getByText("Side project")).toHaveCount(0);
 });

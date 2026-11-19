@@ -23,7 +23,8 @@ import { switchOrganization, useOrganizations } from "../lib/organizations";
 import { useQueryUserId } from "../lib/query";
 import { DeleteOrganizationDialog, removeOrganization } from "../pages/OrganizationSettingsPanel";
 import { DeleteAccountForm, hasDeleteRedirectError } from "./AccountAccess";
-import { DesktopAccountProfiles } from "./DesktopAccountProfiles";
+import type { DesktopProfileAction } from "./DesktopAccountProfiles";
+import { DesktopAccountProfiles, DesktopProfileDialog } from "./DesktopAccountProfiles";
 
 /**
  * The way out before the app opens (plan choice, onboarding): switch organization, delete an
@@ -45,12 +46,14 @@ export function AccountMenu({
   // An SSO sign-in to confirm deletion returns here; reopen so its error is seen.
   const [deleting, setDeleting] = useState(hasDeleteRedirectError);
   const [deletingOrganization, setDeletingOrganization] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileAction, setProfileAction] = useState<DesktopProfileAction | null>(null);
   const active = organizations.find((organization) => organization.id === activeOrganizationId);
   const deletableOrganization =
     active && canDeleteOrganization(organizations, active) ? active : null;
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger
           aria-label={t`Account`}
           data-testid="account-menu"
@@ -93,7 +96,12 @@ export function AccountMenu({
               <DropdownMenuSeparator />
             </>
           ) : null}
-          <DesktopAccountProfiles />
+          <DesktopAccountProfiles
+            onAction={(action) => {
+              setProfileAction(action);
+              setMenuOpen(false);
+            }}
+          />
           {window.rakazoDesktop?.profiles ? <DropdownMenuSeparator /> : null}
           {deletableOrganization ? (
             <DropdownMenuItem onClick={() => setDeletingOrganization(true)}>
@@ -108,6 +116,9 @@ export function AccountMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {profileAction ? (
+        <DesktopProfileDialog action={profileAction} onClose={() => setProfileAction(null)} />
+      ) : null}
       <Dialog open={deleting} onOpenChange={setDeleting}>
         <DialogContent>
           <DialogHeader>
