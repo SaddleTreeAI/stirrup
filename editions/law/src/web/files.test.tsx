@@ -196,6 +196,71 @@ describe("law file primitives", () => {
     });
   });
 
+  it("shows an Extracted from .docx chip and Download original for docx text", async () => {
+    const docx: LawFileDoc = {
+      id: "docx-1",
+      title: "Motion",
+      filename: "motion.docx",
+      kind: "upload",
+      body: "Extracted body text",
+      version: 1,
+      rootId: "docx-1",
+      source: "upload",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      hasOriginal: true,
+      statusDetail: "Word document: no page numbers",
+    };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(LawFileViewer, {
+          doc: docx,
+          onClose: () => {},
+          originalHref: "/api/law/cases/c/documents/docx-1/file",
+          onEdit: () => {},
+        }),
+      );
+    });
+    expect(document.querySelector('[data-testid="law-viewer-docx-chip"]')?.textContent).toBe(
+      "Extracted from .docx",
+    );
+    expect(document.querySelector('[data-testid="law-viewer-download"]')?.textContent).toBe(
+      "Download original",
+    );
+    expect(document.body.textContent).toContain("Extracted body text");
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("uses a docx-specific editor subtitle", async () => {
+    const docx: LawFileDoc = {
+      id: "docx-2",
+      title: "Motion",
+      filename: "motion.docx",
+      kind: "review",
+      body: "Extracted body",
+      version: 1,
+      rootId: "docx-2",
+    };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(LawDocumentEditor, { doc: docx, onClose: () => {}, onSave: async () => {} }),
+      );
+    });
+    expect(document.body.textContent).toContain(
+      "Editing the extracted text; the original .docx is kept",
+    );
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("opens from a single click without requiring double-click", async () => {
     const onOpen = vi.fn();
     const container = document.createElement("div");

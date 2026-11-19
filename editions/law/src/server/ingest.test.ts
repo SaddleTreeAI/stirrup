@@ -14,6 +14,8 @@ describe("classify", () => {
     ["application/xhtml+xml", "page.htm", "text", true],
     ["application/rtf", "memo.rtf", "other", false],
     ["text/rtf", "memo.rtf", "other", false],
+    ["application/msword", "memo.doc", "other", false],
+    ["application/octet-stream", "memo.doc", "other", false],
     ["application/pdf", "complaint.pdf", "pdf", false],
     [
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -21,6 +23,7 @@ describe("classify", () => {
       "docx",
       false,
     ],
+    ["application/octet-stream", "brief.docx", "docx", false],
     ["audio/mpeg", "interview.mp3", "audio", false],
     ["video/mp4", "hearing.mp4", "video", false],
     ["image/png", "scan.png", "image", false],
@@ -53,12 +56,49 @@ describe("prepareIngestBody", () => {
     expect(result.body).toBe("Hello world");
   });
 
-  it("leaves a placeholder for non-textual kinds", () => {
+  it("marks extractable binaries as processing", () => {
     const result = prepareIngestBody(
       classify("application/pdf", "a.pdf"),
       new Uint8Array([1, 2, 3]),
       "application/pdf",
       "a.pdf",
+    );
+    expect(result).toEqual({
+      body: "",
+      status: "processing",
+      statusDetail: "Extracting text",
+    });
+  });
+
+  it("tells the user to convert legacy Word and RTF", () => {
+    expect(
+      prepareIngestBody(
+        classify("application/msword", "a.doc"),
+        new Uint8Array([1]),
+        "application/msword",
+        "a.doc",
+      ),
+    ).toEqual({
+      body: "",
+      status: "ready",
+      statusDetail: "Legacy format: convert to .docx or PDF",
+    });
+    expect(
+      prepareIngestBody(
+        classify("application/rtf", "a.rtf"),
+        new Uint8Array([1]),
+        "application/rtf",
+        "a.rtf",
+      ).statusDetail,
+    ).toBe("Legacy format: convert to .docx or PDF");
+  });
+
+  it("leaves a placeholder for unknown non-textual kinds", () => {
+    const result = prepareIngestBody(
+      classify("application/octet-stream", "unknown.bin"),
+      new Uint8Array([1, 2, 3]),
+      "application/octet-stream",
+      "unknown.bin",
     );
     expect(result).toEqual({
       body: "",
@@ -108,6 +148,32 @@ describe("enqueueExtraction", () => {
         caseId: "case-1",
         documentId: "doc-1",
         kind: "extract_pdf",
+        status: "queued",
+      }),
+    ]);
+  });
+
+  it("enqueues import_docx for docx", async () => {
+    const calls: unknown[] = [];
+    const prisma = {
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          lawJob: {
+            findFirst: async () => null,
+            create: async (args: { data: unknown }) => {
+              calls.push(args.data);
+              return { id: "job-2" };
+            },
+          },
+        }),
+    };
+    await expect(
+      enqueueExtraction(prisma as never, { id: "doc-2", caseId: "case-1", kind: "docx" }),
+    ).resolves.toEqual({ id: "job-2", created: true });
+    expect(calls).toEqual([
+      expect.objectContaining({
+        documentId: "doc-2",
+        kind: "import_docx",
         status: "queued",
       }),
     ]);
