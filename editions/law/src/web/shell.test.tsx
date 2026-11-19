@@ -563,7 +563,7 @@ describe("law shell chrome", () => {
       "/app/bot-ruiz-manager",
     );
     expect(
-      container.querySelector('[data-testid="law-case-tab-ruiz"]')?.getAttribute("aria-pressed"),
+      container.querySelector('[data-testid="law-case-tab-ruiz"]')?.getAttribute("aria-selected"),
     ).toBe("true");
     await act(async () => {
       root.unmount();
@@ -758,7 +758,7 @@ describe("law shell chrome", () => {
     await act(async () => {});
     await vi.waitFor(() => {
       expect(
-        container.querySelector('[data-testid="law-case-tab-ward"]')?.getAttribute("aria-pressed"),
+        container.querySelector('[data-testid="law-case-tab-ward"]')?.getAttribute("aria-selected"),
       ).toBe("true");
     });
     expect(
@@ -807,16 +807,18 @@ describe("law shell chrome", () => {
     });
     await act(async () => {
       container
-        .querySelector<HTMLButtonElement>('[data-testid="law-file-card-ruiz-pdf"] button')
-        ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="law-file-card-ruiz-pdf"] button[aria-label="Ruiz Report"]',
+        )
+        ?.click();
     });
     expect(
-      container.querySelector('[data-testid="law-file-overlay"]')?.getAttribute("aria-label"),
+      document.querySelector('[data-testid="law-file-overlay"]')?.getAttribute("aria-label"),
     ).toBe("Ruiz Report");
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
     });
-    expect(container.querySelector('[data-testid="law-file-overlay"]')).toBeNull();
+    expect(document.querySelector('[data-testid="law-file-overlay"]')).toBeNull();
     wardDocs.resolve(jsonResponse({ documents: [] }));
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ruiz"]')?.click();
@@ -827,15 +829,97 @@ describe("law shell chrome", () => {
     });
     await act(async () => {
       container
-        .querySelector<HTMLButtonElement>('[data-testid="law-file-card-ruiz-memo"] button')
-        ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="law-file-card-ruiz-memo"] button[aria-label="Ruiz Draft"]',
+        )
+        ?.click();
     });
-    expect(container.querySelector('[data-testid="law-doc-editor"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="law-doc-editor"]')).not.toBeNull();
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
     });
-    expect(container.querySelector('[data-testid="law-file-overlay"]')).toBeNull();
-    expect(container.querySelector('[data-testid="law-doc-editor"]')).toBeNull();
+    expect(document.querySelector('[data-testid="law-file-overlay"]')).toBeNull();
+    expect(document.querySelector('[data-testid="law-doc-editor"]')).toBeNull();
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("moves focus between case tabs with ArrowRight and selects on activation", async () => {
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+        createElement(RouteMark),
+      ),
+      "/app/bot-ruiz-manager",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-case-tab-ruiz"]')).not.toBeNull();
+    });
+    const ruiz = container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ruiz"]');
+    const ward = container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]');
+    expect(ruiz).not.toBeNull();
+    expect(ward).not.toBeNull();
+    ruiz!.focus();
+    expect(document.activeElement).toBe(ruiz);
+    await act(async () => {
+      ruiz!.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(ward);
+    });
+    await act(async () => {
+      ward!.click();
+      await flush();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="route"]')?.getAttribute("data-path")).toBe(
+        "/app/bot-ward-manager",
+      );
+      expect(ward?.getAttribute("aria-selected")).toBe("true");
+    });
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("gives the case name input an accessible name", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ cases: [] })),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+      ),
+      "/app/general-bot",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-env-cases"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-env-cases"]')?.click();
+      await flush();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-cases-empty-create"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-cases-empty-create"]')?.click();
+    });
+    const input = container.querySelector<HTMLInputElement>('[data-testid="law-case-name-input"]');
+    expect(input).not.toBeNull();
+    expect(input?.getAttribute("aria-label")).toBe("Case name");
     await act(async () => {
       root.unmount();
     });
