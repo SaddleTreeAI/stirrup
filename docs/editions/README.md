@@ -46,6 +46,7 @@ Regenerate this table with `git grep -n "edition-seam:"` (excluding `docs/` and 
 | W6c       | `apps/web/src/pages/Shell.tsx`                                                          | `onBotCreated` after a bot is created                                            |
 | W7        | `apps/web/src/components/GitHubStarPrompt.tsx`, `apps/web/src/pages/shell/composer.tsx` | Skips the GitHub star prompt and its message count when `hideStarPrompt` is true |
 | W8        | `apps/web/src/pages/shell/use-space-roster.ts`                                          | `chooseDefaultRoute` may replace the chat a missing route opens                  |
+| W9        | `apps/web/src/styles.css`                                                               | Tailwind scans `editions/*/src` so edition components can use utility classes    |
 | R0        | `packages/adapters/src/executor-deps.ts`, `packages/adapters/src/edition-run-hooks.ts`  | Optional `editionRunHooks` on executor deps                                      |
 | R1        | `packages/adapters/src/run-assembly-context.ts`                                         | `turnNote` appended to the turn prompt                                           |
 | R2        | `packages/adapters/src/run-assembly-context.ts`                                         | `limitTeammates` before the bot directory                                        |
