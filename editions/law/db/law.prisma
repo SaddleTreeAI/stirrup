@@ -2,16 +2,22 @@
 // between these models — so prepare-db can append them without editing core.
 
 model LawCase {
-  id        String   @id @default(uuid())
-  spaceId   String
-  slug      String
-  name      String
-  brief     String   @db.Text
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
+  id         String    @id @default(uuid())
+  spaceId    String
+  slug       String
+  name       String
+  brief      String    @db.Text
+  position   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+  deletedBy  String?
+  purgeAfter DateTime?
+  createdBy  String?
+  legalHold  Boolean   @default(false)
 
   @@unique([spaceId, slug])
   @@index([spaceId, position])
+  @@index([spaceId, deletedAt])
   @@map("law_cases")
 }
 
@@ -25,20 +31,95 @@ model LawCaseMember {
 }
 
 model LawDocument {
-  id          String   @id @default(uuid())
-  caseId      String
-  title       String
-  filename    String   @default("")
-  body        String   @db.Text
-  kind        String
-  version     Int      @default(1)
-  rootId      String?
-  sourceRunId String?  @unique
-  createdAt   DateTime @default(now())
+  id                String    @id @default(uuid())
+  caseId            String
+  title             String
+  filename          String    @default("")
+  body              String    @db.Text
+  kind              String
+  version           Int       @default(1)
+  rootId            String?
+  sourceRunId       String?   @unique
+  createdAt         DateTime  @default(now())
+  source            String    @default("bot")
+  mimeType          String    @default("")
+  sizeBytes         Int       @default(0)
+  sha256            String    @default("")
+  artifactId        String?
+  derivedArtifactId String?
+  speakerNames      Json      @default("{}")
+  status            String    @default("ready")
+  statusDetail      String    @default("")
+  pageCount         Int?
+  durationMs        Int?
+  uploadedBy        String?
+  deletedAt         DateTime?
+  updatedAt         DateTime  @default(now())
 
   @@index([caseId, kind, createdAt])
   @@index([caseId, rootId, version])
+  @@index([caseId, deletedAt])
   @@map("law_documents")
+}
+
+model LawDocumentPage {
+  id         String  @id @default(uuid())
+  documentId String
+  page       Int
+  text       String  @db.Text
+  ocr        Boolean @default(false)
+
+  @@unique([documentId, page])
+  @@index([documentId])
+  @@map("law_document_pages")
+}
+
+model LawTranscriptSegment {
+  id         String  @id @default(uuid())
+  documentId String
+  idx        Int
+  startMs    Int
+  endMs      Int
+  speaker    String?
+  text       String  @db.Text
+
+  @@unique([documentId, idx])
+  @@index([documentId, startMs])
+  @@map("law_transcript_segments")
+}
+
+model LawMediaFrame {
+  id         String  @id @default(uuid())
+  documentId String
+  tMs        Int
+  artifactId String?
+  caption    String  @db.Text @default("")
+
+  @@unique([documentId, tMs])
+  @@map("law_media_frames")
+}
+
+model LawJob {
+  id          String    @id @default(uuid())
+  caseId      String
+  documentId  String?
+  kind        String
+  status      String    @default("queued")
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  error       String    @db.Text @default("")
+  payload     Json      @default("{}")
+  runAfter    DateTime  @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([status, runAfter])
+  @@index([caseId])
+  @@index([documentId])
+  @@map("law_jobs")
 }
 
 model LawCaseBot {

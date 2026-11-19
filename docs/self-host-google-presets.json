@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "notes": "Documentation data only. Not read by Stirrup code. Paste these values into Settings → MCP servers when connecting Google's remote MCP endpoints. Client ID and secret come from the operator's Google Cloud Web application OAuth client. Redirect URI is always <WEB_ORIGIN>/mcp/oauth/callback.",
+  "authorizationParams": "access_type=offline&prompt=consent",
+  "servers": [
+    {
+      "name": "Gmail",
+      "url": "https://gmailmcp.googleapis.com/mcp/v1",
+      "scopes": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.modify",
+      "authorizationParams": "access_type=offline&prompt=consent",
+      "notes": "Enable gmail.googleapis.com and gmailmcp.googleapis.com. Tick Use this client for an AI-powered agent on the Web application OAuth client. gmail.readonly, gmail.compose and gmail.modify are restricted scopes."
+    },
+    {
+      "name": "Drive",
+      "url": "https://drivemcp.googleapis.com/mcp/v1",
+      "scopes": "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file",
+      "authorizationParams": "access_type=offline&prompt=consent",
+      "notes": "Enable drive.googleapis.com and drivemcp.googleapis.com. drive.file is non-sensitive; drive.readonly is restricted. Prefer drive.file alone when per-file access is enough."
+    },
+    {
+      "name": "Calendar",
+      "url": "https://calendarmcp.googleapis.com/mcp/v1",
+      "scopes": "https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events.freebusy https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.events",
+      "authorizationParams": "access_type=offline&prompt=consent",
+      "notes": "Enable calendar-json.googleapis.com and calendarmcp.googleapis.com. Confirm each Calendar scope's sensitivity class on the Cloud console Data Access page; treat them as sensitive for verification planning."
+    }
+  ]
+}

@@ -35,12 +35,16 @@ Supporting modules under `src/web/`: `shell.tsx`, `roster.ts`, `files.tsx`, `lib
 
 Prisma models in `db/law.prisma` (scalar fields only). Migrations under `db/migrations/` (9999 prefix):
 
-| Table              | Purpose                                                              |
-| ------------------ | -------------------------------------------------------------------- |
-| `law_cases`        | Case file per Space (`slug`, `name`, `brief`)                        |
-| `law_case_members` | Which users may open a case                                          |
-| `law_documents`    | Library files and review drafts (versioned)                          |
-| `law_case_bots`    | Role → bot link (`manager`, `documents`, `transcripts`, `generator`) |
+| Table                     | Purpose                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `law_cases`               | Case file per Space (`slug`, `name`, `brief`); soft delete / legal hold |
+| `law_case_members`        | Which users may open a case                                             |
+| `law_documents`           | Library files and review drafts (versioned; upload / status metadata)   |
+| `law_document_pages`      | Per-page text for PDFs (OCR flag)                                       |
+| `law_transcript_segments` | Timed transcript lines for audio / video                                |
+| `law_media_frames`        | Sampled video frames with optional caption                              |
+| `law_jobs`                | Background extract / OCR / transcribe / purge work                      |
+| `law_case_bots`           | Role → bot link (`manager`, `documents`, `transcripts`, `generator`)    |
 
 Row-level security is enabled and forced on every law table; tenant policies key off `app.space_id`, with an `app.rls_bypass` system policy.
 
@@ -77,7 +81,17 @@ Other edition members and their seams:
 | `agentRuntime`   | S4 (plus S6 gate) | Slow mock when pinned with no OpenRouter key; S6 skips `needsModel` |
 | `afterBootstrap` | S5                | Refuse a deployment default model other than the pin                |
 
-`lawCaseAccess` is ported in `cases.ts` but has **no core caller yet** (needs a future seam).
+`lawCaseAccess` is wired through `botAccess` (S7).
+
+Other server edition members:
+
+| Member           | Seam                          | Role                                                             |
+| ---------------- | ----------------------------- | ---------------------------------------------------------------- |
+| `onProcessStart` | S1                            | Apply the chat pin at process start                              |
+| `mountRoutes`    | S2                            | Mount `/api/law/*`                                               |
+| `runHooks`       | S3                            | Wire the hooks above into `createRunRuntime`                     |
+| `agentRuntime`   | S4 (S6 for the scripted gate) | Return the slow mock when enabled; S6 skips the model credential |
+| `afterBootstrap` | S5                            | Refuse a deployment default model other than the pin             |
 
 ### Pin and mock
 
