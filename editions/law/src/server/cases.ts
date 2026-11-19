@@ -3,11 +3,19 @@
 
 import { randomUUID } from "node:crypto";
 import type { Actor } from "@rakazo/contracts";
+import { parseBotAvatarValue } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { isUniqueViolation } from "@rakazo/db";
+import { isLawCaseRole, lawRoleAvatar } from "../shared/avatars.js";
 import { formatLawContext, retrieveCaseSnippets } from "./retrieval.js";
 
 type LawDb = Pick<PrismaClient, "lawCaseBot" | "lawCaseMember" | "lawDocument" | "lawCase">;
+
+/** Hex or organic shape — not a user-picked picture. */
+export function isPlainGeneratedAvatar(color: string): boolean {
+  const parsed = parseBotAvatarValue(color);
+  return parsed.kind === "color" || parsed.kind === "shape";
+}
 
 const CASE_ROLES = [
   {
@@ -177,7 +185,7 @@ export async function saveLawReviewDraftHook(
 
 /** Attach an existing Space bot to a case so it stays out of other environments. */
 export async function attachBotToLawCase(
-  prisma: Pick<PrismaClient, "lawCase" | "lawCaseMember" | "lawCaseBot">,
+  prisma: Pick<PrismaClient, "lawCase" | "lawCaseMember" | "lawCaseBot" | "bot">,
   input: { caseId: string; userId: string; botId: string; role?: string },
 ): Promise<{ role: string } | null> {
   const member = await prisma.lawCaseMember.findUnique({
@@ -197,7 +205,61 @@ export async function attachBotToLawCase(
   await prisma.lawCaseBot.create({
     data: { caseId: input.caseId, role, botId: input.botId },
   });
+  if (isLawCaseRole(role)) {
+    const picture = lawRoleAvatar(role);
+    if (picture) {
+      const bot = await prisma.bot.findUnique({
+        where: { id: input.botId },
+        select: { color: true },
+      });
+      if (bot && isPlainGeneratedAvatar(bot.color)) {
+        await prisma.bot.update({
+          where: { id: input.botId },
+          data: { color: picture },
+        });
+      }
+    }
+  }
   return { role };
+}
+
+/**
+ * Set role pictures on case bots that still carry a generated hex/shape.
+ * Skips any bot whose color is already a data image (user-chosen).
+ */
+export async function backfillLawAvatars(
+  prisma: Pick<PrismaClient, "lawCaseBot" | "bot">,
+): Promise<{ updated: number; skipped: number }> {
+  const links = await prisma.lawCaseBot.findMany({
+    select: { botId: true, role: true },
+  });
+  let updated = 0;
+  let skipped = 0;
+  for (const link of links) {
+    if (!isLawCaseRole(link.role)) {
+      skipped += 1;
+      continue;
+    }
+    const picture = lawRoleAvatar(link.role);
+    if (!picture) {
+      skipped += 1;
+      continue;
+    }
+    const bot = await prisma.bot.findUnique({
+      where: { id: link.botId },
+      select: { color: true },
+    });
+    if (!bot || !isPlainGeneratedAvatar(bot.color)) {
+      skipped += 1;
+      continue;
+    }
+    await prisma.bot.update({
+      where: { id: link.botId },
+      data: { color: picture },
+    });
+    updated += 1;
+  }
+  return { updated, skipped };
 }
 
 /** Save an edited review draft as a new version; the previous body stays. */

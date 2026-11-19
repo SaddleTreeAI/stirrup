@@ -4,7 +4,10 @@
 import type { Actor } from "@rakazo/contracts";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
+import { LAW_CASE_ROLES, LAW_ROLE_AVATARS } from "../shared/avatars.js";
 import { mountLawRoutes } from "./routes.js";
+
+const { createBot } = vi.hoisted(() => ({ createBot: vi.fn() }));
 
 vi.mock("@rakazo/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@rakazo/db")>();
@@ -12,6 +15,7 @@ vi.mock("@rakazo/db", async (importOriginal) => {
     ...actual,
     runAsTenant: async <T>(_actor: Actor, work: () => Promise<T>) => work(),
     runAsSystem: async <T>(_reason: string, work: () => Promise<T>) => work(),
+    createRepos: () => ({ createBot }),
   };
 });
 
@@ -229,5 +233,51 @@ describe("mountLawRoutes auth and shapes", () => {
     expect(prisma.lawDocument.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { caseId: "case-1", deletedAt: null } }),
     );
+  });
+
+  it("creates case bots with the role picture in color", async () => {
+    createBot.mockReset();
+    let botIndex = 0;
+    createBot.mockImplementation(async (_actor: Actor, input: { name: string }) => {
+      botIndex += 1;
+      return { id: `bot-${botIndex}`, name: input.name };
+    });
+    const prisma = {
+      lawCase: {
+        findUnique: vi.fn(async () => null),
+        aggregate: vi.fn(async () => ({ _max: { position: -1 } })),
+        create: vi.fn(async () => ({
+          id: "case-new",
+          slug: "commonwealth-v-demo",
+          name: "Commonwealth v. Demo",
+        })),
+      },
+      lawCaseMember: {
+        create: vi.fn(async () => ({})),
+      },
+      lawCaseBot: {
+        create: vi.fn(async () => ({})),
+      },
+    };
+    const app = mount(prisma);
+    const response = await app.request("/api/law/cases", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ name: "Commonwealth v. Demo", brief: "Synthetic brief." }),
+    });
+    expect(response.status).toBe(201);
+    expect(createBot).toHaveBeenCalledTimes(LAW_CASE_ROLES.length);
+    for (const role of LAW_CASE_ROLES) {
+      expect(createBot).toHaveBeenCalledWith(
+        actor,
+        expect.objectContaining({
+          color: LAW_ROLE_AVATARS[role],
+          spawnKey: `law:commonwealth-v-demo:${role}`,
+        }),
+      );
+    }
   });
 });

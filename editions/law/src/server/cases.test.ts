@@ -2,7 +2,11 @@
 // Copyright 2026 SaddleTree AI
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LAW_ROLE_AVATARS } from "../shared/avatars.js";
 import {
+  attachBotToLawCase,
+  backfillLawAvatars,
+  isPlainGeneratedAvatar,
   lawBotAccess,
   lawCaseAccess,
   lawDocumentFilename,
@@ -114,6 +118,99 @@ describe("lawTurnNote", () => {
     expect(note).toContain("Commonwealth v. Ward");
     expect(note).toContain("caffeine");
     expect(note).not.toContain("No match here");
+  });
+});
+
+describe("isPlainGeneratedAvatar", () => {
+  it("treats hex and shape values as generated", () => {
+    expect(isPlainGeneratedAvatar("#2A92FE")).toBe(true);
+    expect(isPlainGeneratedAvatar("#2A92FE::shape_3")).toBe(true);
+  });
+
+  it("treats data images as user-chosen", () => {
+    expect(isPlainGeneratedAvatar(LAW_ROLE_AVATARS.manager)).toBe(false);
+  });
+});
+
+describe("backfillLawAvatars", () => {
+  it("sets role pictures only when color is still generated", async () => {
+    const updates: Array<{ id: string; color: string }> = [];
+    const prisma = {
+      lawCaseBot: {
+        findMany: vi.fn(async () => [
+          { botId: "bot-m", role: "manager" },
+          { botId: "bot-d", role: "documents" },
+          { botId: "bot-custom", role: "custom:x" },
+        ]),
+      },
+      bot: {
+        findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
+          if (where.id === "bot-m") return { color: "#2A92FE::shape_1" };
+          if (where.id === "bot-d") return { color: LAW_ROLE_AVATARS.documents };
+          return { color: "#FFFFFF" };
+        }),
+        update: vi.fn(
+          async ({ where, data }: { where: { id: string }; data: { color: string } }) => {
+            updates.push({ id: where.id, color: data.color });
+            return {};
+          },
+        ),
+      },
+    };
+    await expect(backfillLawAvatars(prisma as never)).resolves.toEqual({
+      updated: 1,
+      skipped: 2,
+    });
+    expect(updates).toEqual([{ id: "bot-m", color: LAW_ROLE_AVATARS.manager }]);
+  });
+});
+
+describe("attachBotToLawCase avatars", () => {
+  it("applies a role picture when attaching a known role with a generated color", async () => {
+    const prisma = {
+      lawCaseMember: { findUnique: vi.fn(async () => ({ userId: actor.userId })) },
+      lawCaseBot: {
+        findUnique: vi.fn(async () => null),
+        create: vi.fn(async () => ({})),
+      },
+      bot: {
+        findUnique: vi.fn(async () => ({ color: "#FF781C" })),
+        update: vi.fn(async () => ({})),
+      },
+    };
+    await expect(
+      attachBotToLawCase(prisma as never, {
+        caseId: "case-1",
+        userId: actor.userId,
+        botId: "bot-1",
+        role: "transcripts",
+      }),
+    ).resolves.toEqual({ role: "transcripts" });
+    expect(prisma.bot.update).toHaveBeenCalledWith({
+      where: { id: "bot-1" },
+      data: { color: LAW_ROLE_AVATARS.transcripts },
+    });
+  });
+
+  it("does not overwrite a user-chosen picture", async () => {
+    const prisma = {
+      lawCaseMember: { findUnique: vi.fn(async () => ({ userId: actor.userId })) },
+      lawCaseBot: {
+        findUnique: vi.fn(async () => null),
+        create: vi.fn(async () => ({})),
+      },
+      bot: {
+        findUnique: vi.fn(async () => ({ color: LAW_ROLE_AVATARS.generator })),
+        update: vi.fn(async () => ({})),
+      },
+    };
+    await attachBotToLawCase(prisma as never, {
+      caseId: "case-1",
+      userId: actor.userId,
+      botId: "bot-1",
+      role: "generator",
+    });
+    expect(prisma.bot.update).not.toHaveBeenCalled();
   });
 });
 

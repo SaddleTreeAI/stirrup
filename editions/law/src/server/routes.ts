@@ -7,6 +7,7 @@ import { createRepos, runAsTenant } from "@rakazo/db";
 import type { EditionRouteDeps } from "@rakazo/edition-sdk";
 import { getLogger } from "@rakazo/logging";
 import type { Hono } from "hono";
+import { lawRoleAvatar } from "../shared/avatars.js";
 import { attachBotToLawCase, CASE_ROLES, saveLawDocumentVersion } from "./cases.js";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "./constants.js";
 import { mountLibraryRoutes, serializeDocument } from "./library-routes.js";
@@ -272,6 +273,7 @@ async function finishCreateCase(
       notifyOnFinish: false,
       dailyCheckIns: false,
       fleetManagement: false,
+      color: lawRoleAvatar(role.role),
       spawnKey: `law:${input.slug}:${role.role}`,
       modelProvider: LAW_CHAT_PROVIDER,
       modelId: LAW_CHAT_MODEL_ID,

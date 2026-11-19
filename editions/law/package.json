@@ -20,6 +20,7 @@
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --root ../.. editions/law/src",
     "seed": "tsx src/server/cli/seed.ts",
+    "avatars:backfill": "tsx src/server/cli/avatars-backfill.ts",
     "media:doctor": "tsx src/server/media/main.ts media:doctor",
     "media:dev": "tsx src/server/media/main.ts"
   },
@@ -44,6 +45,7 @@
   "devDependencies": {
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "sharp": "0.35.5",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vitest": "5.1.0"
