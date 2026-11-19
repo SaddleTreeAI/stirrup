@@ -13,6 +13,7 @@ import {
   saveLawDocumentVersion,
 } from "./cases.js";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "./constants.js";
+import { preferredCasesSpaceId } from "./preferred-space.js";
 
 const ROLE_ORDER = ["manager", "documents", "transcripts", "generator"];
 
@@ -28,7 +29,9 @@ export function mountLawRoutes(
       const actor = await deps.sessionActor(c.req.raw);
       if (!actor) return c.json({ error: "Sign in required" }, 401);
       const cases = await runAsTenant(actor, () => listCases(deps.prisma, actor.userId));
-      return c.json({ cases });
+      if (cases.length > 0) return c.json({ cases });
+      const casesSpaceId = await preferredCasesSpaceId(deps.prisma, actor.userId, actor.spaceId);
+      return casesSpaceId ? c.json({ cases, casesSpaceId }) : c.json({ cases });
     } catch (error) {
       getLogger().error("law cases", error);
       return c.json({ error: "Couldn't load cases" }, 500);

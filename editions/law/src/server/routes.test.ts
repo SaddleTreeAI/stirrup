@@ -11,6 +11,7 @@ vi.mock("@rakazo/db", async (importOriginal) => {
   return {
     ...actual,
     runAsTenant: async <T>(_actor: Actor, work: () => Promise<T>) => work(),
+    runAsSystem: async <T>(_reason: string, work: () => Promise<T>) => work(),
   };
 });
 
@@ -90,6 +91,32 @@ describe("mountLawRoutes auth and shapes", () => {
           ],
         },
       ],
+    });
+  });
+
+  it("names the Space that holds cases when the current organization has none", async () => {
+    const prisma = {
+      lawCaseMember: {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ caseId: "case-elsewhere" }]),
+      },
+      lawCase: {
+        findMany: vi.fn(async () => [{ spaceId: "space-defense", position: 0 }]),
+      },
+      spaceMember: {
+        findFirst: vi.fn(async () => ({ spaceId: "space-defense" })),
+      },
+    };
+    const app = mount(prisma);
+    const response = await app.request("/api/law/cases", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      cases: [],
+      casesSpaceId: "space-defense",
     });
   });
 

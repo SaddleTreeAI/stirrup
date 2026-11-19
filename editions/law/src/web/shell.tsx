@@ -23,7 +23,7 @@ import {
   LawFileViewer,
   latestLawDocuments,
 } from "./files.js";
-import { selectedSpaceId, withSpaceHeaders } from "./lib.js";
+import { landInCasesSpace, selectedSpaceId, withSpaceHeaders } from "./lib.js";
 import type { LawEnvironment, LawRosterFilter } from "./roster.js";
 
 interface LawBot {
@@ -128,10 +128,18 @@ export function LawProvider({ children }: { children: ReactNode }) {
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(String(response.status));
-        return (await response.json()) as { cases: LawCase[] };
+        return (await response.json()) as { cases: LawCase[]; casesSpaceId?: string };
       })
       .then((body) => {
         if (cancelled) return;
+        if (
+          body.cases.length === 0 &&
+          body.casesSpaceId &&
+          body.casesSpaceId !== spaceId &&
+          landInCasesSpace(body.casesSpaceId)
+        ) {
+          return;
+        }
         setCases(body.cases);
         setError(null);
         setLoaded(true);
@@ -423,6 +431,11 @@ export function LawEnvironmentRail() {
   );
 }
 
+function openOrganizationMenu() {
+  const trigger = document.querySelector<HTMLElement>('[data-testid="organization-menu-trigger"]');
+  trigger?.click();
+}
+
 export function LawCaseTabs() {
   const { cases, selected, error, reload, selectCase, createCase, environment } = useLawShell();
   const sidebar = useSidebar();
@@ -437,6 +450,65 @@ export function LawCaseTabs() {
       <button type="button" className="mx-2.5 mt-3 text-body-sm underline" onClick={reload}>
         Retry
       </button>
+    );
+  }
+  if (cases.length === 0) {
+    return (
+      <div data-testid="law-cases-empty" className="mx-2.5 mt-3 space-y-2">
+        <p className="text-body-sm text-muted-foreground">No cases in this organization</p>
+        {creating ? (
+          <form
+            className="flex items-center gap-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = draft.trim();
+              if (!name || busy) return;
+              setBusy(true);
+              void createCase(name)
+                .then(() => {
+                  setDraft("");
+                  setCreating(false);
+                })
+                .finally(() => setBusy(false));
+            }}
+          >
+            <input
+              data-testid="law-case-name-input"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Case name"
+              aria-label="Case name"
+              className="w-28 rounded-full border border-border bg-card px-2 py-1 text-body-sm outline-none"
+            />
+            <button
+              type="submit"
+              disabled={busy || !draft.trim()}
+              className="rounded-full bg-sidebar-accent px-2 py-1 text-body-sm"
+            >
+              Add
+            </button>
+          </form>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="law-cases-empty-create"
+              onClick={() => setCreating(true)}
+              className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
+            >
+              Create case
+            </button>
+            <button
+              type="button"
+              data-testid="law-cases-empty-switch-org"
+              onClick={openOrganizationMenu}
+              className="rounded-md px-2.5 py-1 text-body-sm text-muted-foreground underline-offset-2 hover:underline"
+            >
+              Switch organization
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
   return (

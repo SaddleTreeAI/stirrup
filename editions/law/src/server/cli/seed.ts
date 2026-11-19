@@ -163,6 +163,11 @@ export async function seedLawPlatform(input: {
         });
       }
     }
+    // Prefer Demonstration Defense over a newer empty organization on sign-in.
+    await db.session.updateMany({
+      where: { userId },
+      data: { activeOrganizationId: spaceId },
+    });
     if (!input.quiet) process.stdout.write(`Seeded ${cases.length} cases for ${LAW_SEED_EMAIL}.\n`);
     return { userId, spaceId, cases };
   } finally {
