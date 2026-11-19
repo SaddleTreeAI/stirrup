@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
+import { randomUUID } from "node:crypto";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { createRepos, runAsTenant } from "@rakazo/db";
@@ -12,6 +13,7 @@ import { attachBotToLawCase, CASE_ROLES, saveLawDocumentVersion } from "./cases.
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "./constants.js";
 import { mountLibraryRoutes, serializeDocument } from "./library-routes.js";
 import { preferredCasesSpaceId } from "./preferred-space.js";
+import { openLawText, sealLawText } from "./seal.js";
 
 const ROLE_ORDER = ["manager", "documents", "transcripts", "generator"];
 
@@ -197,6 +199,11 @@ async function listDocuments(prisma: PrismaClient, userId: string, caseId: strin
     select: { userId: true },
   });
   if (!member) return null;
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: caseId },
+    select: { spaceId: true },
+  });
+  if (!lawCase) return null;
   const documents = await prisma.lawDocument.findMany({
     where: { caseId, deletedAt: null },
     orderBy: [{ createdAt: "asc" }, { version: "asc" }],
@@ -219,7 +226,24 @@ async function listDocuments(prisma: PrismaClient, userId: string, caseId: strin
       artifactId: true,
     },
   });
-  return documents.map((doc) => serializeDocument(doc));
+  return Promise.all(
+    documents.map(async (doc) =>
+      serializeDocument({
+        ...doc,
+        body: await openLawText(
+          prisma,
+          {
+            table: "law_documents",
+            column: "body",
+            rowId: doc.id,
+            spaceId: lawCase.spaceId,
+            owner: caseId,
+          },
+          doc.body,
+        ),
+      }),
+    ),
+  );
 }
 
 async function createCaseWithBots(
@@ -251,12 +275,25 @@ async function finishCreateCase(
     _max: { position: true },
   });
   const position = (max._max.position ?? -1) + 1;
+  const caseId = randomUUID();
+  const brief = await sealLawText(
+    prisma,
+    {
+      table: "law_cases",
+      column: "brief",
+      rowId: caseId,
+      spaceId: actor.spaceId,
+      owner: actor.spaceId,
+    },
+    input.brief,
+  );
   const lawCase = await prisma.lawCase.create({
     data: {
+      id: caseId,
       spaceId: actor.spaceId,
       slug: input.slug,
       name: input.name,
-      brief: input.brief,
+      brief,
       position,
     },
   });

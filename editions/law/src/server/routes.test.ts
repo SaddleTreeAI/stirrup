@@ -144,6 +144,9 @@ describe("mountLawRoutes auth and shapes", () => {
       lawCaseMember: {
         findUnique: vi.fn(async () => ({ userId: actor.userId })),
       },
+      lawCase: {
+        findUnique: vi.fn(async () => ({ spaceId: actor.spaceId })),
+      },
       lawDocument: {
         findMany: vi.fn(async () => [
           {

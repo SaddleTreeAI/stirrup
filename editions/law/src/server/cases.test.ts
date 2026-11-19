@@ -103,14 +103,16 @@ describe("lawTurnNote", () => {
       lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
       lawCase: {
         findUnique: vi.fn(async () => ({
+          id: "case-1",
           name: "Commonwealth v. Ward",
           brief: "Ward brief.",
+          spaceId: "space-1",
         })),
       },
       lawDocument: {
         findMany: vi.fn(async () => [
-          { title: "Lab report", body: "Item was caffeine." },
-          { title: "Other", body: "No match here." },
+          { id: "doc-1", title: "Lab report", body: "Item was caffeine." },
+          { id: "doc-2", title: "Other", body: "No match here." },
         ]),
       },
     };
@@ -224,6 +226,9 @@ describe("saveLawReviewDraft", () => {
       lawCaseBot: {
         findUnique: vi.fn(async () => ({ caseId: "case-1", role: "generator" })),
       },
+      lawCase: {
+        findUnique: vi.fn(async () => ({ spaceId: "space-1" })),
+      },
       lawDocument: {
         create: vi.fn(async () => {
           throw Object.assign(new Error("unique"), { code: "P2002" });
@@ -244,6 +249,9 @@ describe("saveLawReviewDraft", () => {
     const prisma = {
       lawCaseBot: {
         findUnique: vi.fn(async () => ({ caseId: "case-1", role: "generator" })),
+      },
+      lawCase: {
+        findUnique: vi.fn(async () => ({ spaceId: "space-1" })),
       },
       lawDocument: {
         create: vi.fn(async () => {
