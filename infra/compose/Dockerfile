@@ -57,10 +57,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lo
 # Normalize modes: a restrictive host umask (e.g. 077 on hardened hosts) would otherwise
 # leave the copied tree unreadable to USER node at runtime.
 COPY --chmod=755 . .
-RUN pnpm --filter @rakazo/db generate
-RUN pnpm --filter @rakazo/api --filter @rakazo/worker build
+# The edition decides which migrations and marker generate bakes into the image;
+# blank means default.
 ARG STIRRUP_EDITION=
 ENV STIRRUP_EDITION=$STIRRUP_EDITION
+RUN pnpm --filter @rakazo/db generate
+RUN pnpm --filter @rakazo/api --filter @rakazo/worker build
 RUN RAKAZO_ALLOW_DEV_SECRETS=1 pnpm --filter @rakazo/web build
 # Build and test tooling stays here; the runtime takes its dependencies from the deps stage.
 RUN find . -name node_modules -type d -prune -exec rm -rf {} + \
@@ -84,6 +86,8 @@ COPY --link --from=build /app /app
 RUN install -d -m 750 -o node -g node /data /app/apps/web/node_modules/.vite-temp /app/apps/web/asset-archive
 # Last root step, so a cached earlier layer cannot be the filesystem that ships.
 RUN /tmp/apt-security.sh --check && rm -f /tmp/apt-security.sh
+ARG STIRRUP_EDITION=
+ENV STIRRUP_EDITION=$STIRRUP_EDITION
 ARG GIT_SHA
 ENV NODE_ENV=production
 ENV GIT_SHA=$GIT_SHA

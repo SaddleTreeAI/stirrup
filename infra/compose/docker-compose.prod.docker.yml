@@ -64,6 +64,7 @@ services:
       dockerfile: infra/compose/Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-}
+        STIRRUP_EDITION: ${STIRRUP_EDITION:-}
     restart: unless-stopped
     command: ["pnpm", "--filter", "@rakazo/sandbox-supervisor", "start"]
     init: true

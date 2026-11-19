@@ -17,7 +17,7 @@ pnpm dev:law
 - **Seed login** — `LAW_LOGIN_FILE` must resolve **outside** the repository. The seed writes `email=` / `password=` there (mode 600) and never prints the password.
 - **Mock vs real key** — leave `LAW_OPENROUTER_API_KEY` unset for the slow streaming mock (`law-mock`). Set it to a real OpenRouter key to call the pinned chat model. Optional `LAW_MOCK_LATENCY_MS` (30000–60000) overrides mock delay. Those law env vars are read by the api/worker process (from the shell or `.env` via `loadRootEnv`); they are **not** passed through Compose.
 
-The law demo runs with `pnpm dev:law`. A law Docker deployment needs the generate step built with `STIRRUP_EDITION=law` (not wired yet): the web image accepts `ARG STIRRUP_EDITION` at build time, but the shared api/worker image's Prisma tree is prepared without it today.
+Build a law image with `docker build -f infra/compose/Dockerfile --build-arg STIRRUP_EDITION=law -t stirrup-law .`, or set `STIRRUP_EDITION=law` in `.env` and run `docker compose -f infra/compose/docker-compose.yml up --build` (Compose passes the same value to build args, migrate, api, and worker). One image is one edition; empty or unset is the default edition. Published GHCR images stay default. The seed cannot run inside the image (it needs `tsx`), so seed from a checkout against the same database with `LAW_LOGIN_FILE` outside the repo. `LAW_*` variables are not passed by Compose — run the law demo with `pnpm dev:law`.
 
 Demo smoke checklist: [`00-README.md`](./00-README.md). Law ↔ law-demo file map: [`law-parity.md`](./law-parity.md).
 

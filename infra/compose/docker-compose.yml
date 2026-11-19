@@ -409,12 +409,15 @@ services:
     build:
       context: ../..
       dockerfile: infra/compose/Dockerfile
+      args:
+        STIRRUP_EDITION: ${STIRRUP_EDITION:-}
     working_dir: /app/apps/api
     command: ["pnpm", "db:deploy"]
     restart: "no"
     environment:
       DATABASE_URL: postgres://rakazo_app:${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rakazo}
       DATABASE_MIGRATION_URL: postgres://${POSTGRES_USER:-rakazo}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rakazo}
+      STIRRUP_EDITION: ${STIRRUP_EDITION:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -423,6 +426,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/compose/Dockerfile
+      args:
+        STIRRUP_EDITION: ${STIRRUP_EDITION:-}
     # Node runs directly, not through pnpm: pnpm does not pass SIGTERM on, so a stop would kill the
     # process before its graceful shutdown finishes in-flight requests and jobs.
     working_dir: /app/apps/api
@@ -514,6 +519,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/compose/Dockerfile
+      args:
+        STIRRUP_EDITION: ${STIRRUP_EDITION:-}
     # Directly, not through pnpm, so a stop reaches it (see the api command).
     working_dir: /app/apps/worker
     # Busy runs allocate fast; a larger young generation cuts the garbage collection that otherwise

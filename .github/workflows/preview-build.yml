@@ -11,6 +11,7 @@ on:
       - "apps/web/**"
       - "apps/worker/**"
       - "packages/**"
+      - "editions/**"
       - "infra/compose/Dockerfile"
       - "infra/preview/**"
       - "patches/**"
@@ -22,6 +23,7 @@ on:
       # Nothing a preview runs or shows.
       - "!**/*.test.*"
       - "!**/*.spec.*"
+      - "!editions/**/*.test.*"
       - "!apps/web/e2e/**"
       - "!packages/testkit/**"
       - "!scripts/checks/**"

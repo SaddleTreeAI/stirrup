@@ -1,0 +1,169 @@
+name: edition-image-smoke
+
+# Builds a server image for each edition (law and blank/default), wraps it in the
+# preview stack, boots it, and checks the baked Prisma marker, migrations, tables,
+# and route mount. Path-filtered so only edition/image-related PRs pay for it.
+on:
+  pull_request:
+    paths:
+      - "editions/**"
+      - "infra/compose/Dockerfile"
+      - "infra/preview/**"
+      - "scripts/editions/**"
+      - "scripts/build-server.mjs"
+      - "packages/db/prisma/**"
+      - "packages/db/prisma.config.ts"
+      - "packages/db/package.json"
+      - "apps/api/src/cli/migrate-database.ts"
+      - "apps/api/src/edition/**"
+      - "apps/worker/src/edition/**"
+      - ".dockerignore"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/edition-image-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edition-image-smoke-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  smoke:
+    name: Edition image smoke (${{ matrix.edition }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [law, default]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Build server image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: infra/compose/Dockerfile
+          push: false
+          load: true
+          tags: stirrup-server:smoke-${{ matrix.edition }}
+          # Empty STIRRUP_EDITION= for default exercises the blank path.
+          build-args: |
+            STIRRUP_EDITION=${{ matrix.edition == 'law' && 'law' || '' }}
+          cache-from: type=gha,scope=edition-image-smoke-${{ matrix.edition }}
+          cache-to: type=gha,mode=max,scope=edition-image-smoke-${{ matrix.edition }}
+          provenance: false
+          sbom: false
+      - name: Build preview wrapper
+        run: |
+          docker build --build-arg SERVER_IMAGE=stirrup-server:smoke-${{ matrix.edition }} \
+            -t stirrup-preview:smoke-${{ matrix.edition }} infra/preview
+      - name: Boot and verify
+        env:
+          EDITION: ${{ matrix.edition }}
+        run: |
+          set -euo pipefail
+          # Bind-mount a fresh host dir at /data. The image's /data is 750 node:node;
+          # a named volume copies that owner/mode, so postgres still cannot traverse
+          # it for initdb. A host dir with mode 755 is traversable.
+          data_dir="$(mktemp -d)"
+          chmod 755 "$data_dir"
+          docker run -d --name smoke -p 127.0.0.1:8080:8080 \
+            -v "$data_dir:/data" \
+            -e PREVIEW_HOST=localhost:8080 -e PREVIEW_SCHEME=http \
+            "stirrup-preview:smoke-${EDITION}"
+
+          cleanup() {
+            docker rm -f smoke >/dev/null 2>&1 || true
+            sudo rm -rf "$data_dir"
+          }
+          trap cleanup EXIT
+
+          deadline=$((SECONDS + 300))
+          while true; do
+            if ! docker inspect -f '{{.State.Running}}' smoke | grep -qx true; then
+              echo "Container exited early:"
+              docker logs smoke | tail -n 200
+              exit 1
+            fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/ || true)
+            if [[ "$code" == "200" ]]; then
+              break
+            fi
+            if (( SECONDS >= deadline )); then
+              echo "Timed out waiting for preview (last status=$code)"
+              docker logs smoke | tail -n 200
+              exit 1
+            fi
+            sleep 3
+          done
+
+          on_fail() {
+            echo "Verification failed; last 200 lines of docker logs:"
+            docker logs smoke | tail -n 200
+            exit 1
+          }
+          trap 'on_fail' ERR
+
+          echo "=== edition marker ==="
+          edition_marker=$(docker exec smoke cat /app/packages/db/prisma/.edition/edition | tr -d '[:space:]')
+          echo "edition=$edition_marker"
+          if [[ "$EDITION" == "law" ]]; then
+            [[ "$edition_marker" == "law" ]]
+          else
+            [[ "$edition_marker" == "default" ]]
+          fi
+
+          echo "=== migrations tree ==="
+          if [[ "$EDITION" == "law" ]]; then
+            docker exec smoke ls /app/packages/db/prisma/.edition/migrations
+            docker exec smoke ls /app/packages/db/prisma/.edition/migrations | grep -qx 99990001000000_law_cases
+            docker exec smoke ls /app/packages/db/prisma/.edition/migrations | grep -qx 99990001000100_law_document_versions
+          else
+            if docker exec smoke test -d /app/packages/db/prisma/.edition/migrations; then
+              echo "default image must not have .edition/migrations"
+              exit 1
+            fi
+            echo "no .edition/migrations (expected)"
+          fi
+
+          echo "=== postgres tables ==="
+          # Credentials live in /data/secrets.env; query from inside with the owner psql.
+          # Build SQL on the runner so nested-quote escaping cannot corrupt the IN list.
+          sql="SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('law_cases','law_case_members','law_documents','law_case_bots')"
+          table_count=$(docker exec -e SQL="$sql" smoke bash -lc '
+            set -a
+            # shellcheck disable=SC1091
+            source /data/secrets.env
+            set +a
+            export PGPASSWORD="$PG_OWNER_PASSWORD"
+            /usr/lib/postgresql/18/bin/psql -h 127.0.0.1 -U rakazo -d rakazo -Atc "$SQL"
+          ')
+          echo "law_table_count=$table_count"
+          if [[ "$EDITION" == "law" ]]; then
+            [[ "$table_count" == "4" ]]
+          else
+            [[ "$table_count" == "0" ]]
+          fi
+
+          echo "=== /api/law/cases ==="
+          law_status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/law/cases || true)
+          echo "law_cases_status=$law_status"
+          if [[ "$EDITION" == "law" ]]; then
+            [[ "$law_status" == "401" ]]
+          else
+            [[ "$law_status" != "401" ]]
+          fi
+
+          echo "=== /ready ==="
+          ready_status=$(docker exec smoke curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/ready)
+          echo "ready_status=$ready_status"
+          [[ "$ready_status" == "200" ]]
+
+          trap cleanup EXIT
+          echo "Edition image smoke (${EDITION}) passed"

@@ -83,6 +83,41 @@ function prepareFailure(root, args = []) {
   }
 }
 
+test("blank or whitespace STIRRUP_EDITION is default; alpha writes its marker", () => {
+  for (const value of ["", "   "]) {
+    const root = fixtureRoot();
+    try {
+      const out = execFileSync(process.execPath, [script, "--root", root], {
+        encoding: "utf8",
+        env: { ...process.env, STIRRUP_EDITION: value },
+      });
+      assert.match(out, /edition=default/);
+      assert.equal(
+        readFileSync(path.join(root, "packages/db/prisma/.edition/edition"), "utf8"),
+        "default\n",
+      );
+      assert.equal(existsSync(path.join(root, "packages/db/prisma/.edition/migrations")), false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  const root = fixtureRoot();
+  try {
+    const out = execFileSync(process.execPath, [script, "--root", root], {
+      encoding: "utf8",
+      env: { ...process.env, STIRRUP_EDITION: "alpha" },
+    });
+    assert.match(out, /edition=alpha/);
+    assert.equal(
+      readFileSync(path.join(root, "packages/db/prisma/.edition/edition"), "utf8"),
+      "alpha\n",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("rewrites generator output and appends every edition model", () => {
   const root = fixtureRoot();
   try {
