@@ -68,15 +68,19 @@ jobs:
           EDITION: ${{ matrix.edition }}
         run: |
           set -euo pipefail
-          # Named volume at /data (as Fly mounts) so postgres can traverse it; the
-          # image's /data is 750 node:node and blocks initdb without a mount.
+          # Bind-mount a fresh host dir at /data. The image's /data is 750 node:node;
+          # a named volume copies that owner/mode, so postgres still cannot traverse
+          # it for initdb. A host dir with mode 755 is traversable.
+          data_dir="$(mktemp -d)"
+          chmod 755 "$data_dir"
           docker run -d --name smoke -p 127.0.0.1:8080:8080 \
-            -v "smoke-data-${EDITION}:/data" \
+            -v "$data_dir:/data" \
             -e PREVIEW_HOST=localhost:8080 -e PREVIEW_SCHEME=http \
             "stirrup-preview:smoke-${EDITION}"
 
           cleanup() {
             docker rm -f smoke >/dev/null 2>&1 || true
+            rm -rf "$data_dir"
           }
           trap cleanup EXIT
 
@@ -130,14 +134,15 @@ jobs:
 
           echo "=== postgres tables ==="
           # Credentials live in /data/secrets.env; query from inside with the owner psql.
-          table_count=$(docker exec smoke bash -lc '
+          # Build SQL on the runner so nested-quote escaping cannot corrupt the IN list.
+          sql="SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('law_cases','law_case_members','law_documents','law_case_bots')"
+          table_count=$(docker exec -e SQL="$sql" smoke bash -lc '
             set -a
             # shellcheck disable=SC1091
             source /data/secrets.env
             set +a
             export PGPASSWORD="$PG_OWNER_PASSWORD"
-            /usr/lib/postgresql/18/bin/psql -h 127.0.0.1 -U rakazo -d rakazo -Atc \
-              "SELECT count(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_name IN ('\''law_cases'\'',\''law_case_members'\'',\''law_documents'\'',\''law_case_bots'\'')"
+            /usr/lib/postgresql/18/bin/psql -h 127.0.0.1 -U rakazo -d rakazo -Atc "$SQL"
           ')
           echo "law_table_count=$table_count"
           if [[ "$EDITION" == "law" ]]; then
