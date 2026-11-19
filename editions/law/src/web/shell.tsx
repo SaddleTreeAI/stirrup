@@ -113,6 +113,9 @@ export function LawProvider({ children }: { children: ReactNode }) {
   const generalBotRef = useRef<string | null>(readStoredGeneralBot(spaceId));
   /** True after General is chosen until the URL names a bot that is not on a case. */
   const pendingGeneral = useRef(false);
+  /** True after Cases is chosen, so the case roster stays up if the route bounces. */
+  const pendingCases = useRef(false);
+  const caseNavAttempts = useRef(0);
   const reload = useCallback(() => setTick((value) => value + 1), []);
 
   useEffect(() => {
@@ -157,8 +160,9 @@ export function LawProvider({ children }: { children: ReactNode }) {
   // Until then, show no case. The stored choice applies only to a bare /app.
   const environmentFromUrl: LawEnvironment | null =
     loaded && botId ? (caseForBot ? "cases" : "general") : null;
-  const environment: LawEnvironment =
-    (pendingGeneral.current && caseForBot) || (botId && !loaded)
+  const environment: LawEnvironment = pendingCases.current
+    ? "cases"
+    : (pendingGeneral.current && caseForBot) || (botId && !loaded)
       ? "general"
       : (environmentFromUrl ??
         environmentChoice ??
@@ -172,7 +176,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
   }, [botId, caseForBot, loaded, spaceId]);
 
   useEffect(() => {
-    if (!environmentFromUrl || pendingGeneral.current) return;
+    if (!environmentFromUrl || pendingGeneral.current || pendingCases.current) return;
     setEnvironmentChoice((current) =>
       current === environmentFromUrl ? current : environmentFromUrl,
     );
@@ -192,18 +196,28 @@ export function LawProvider({ children }: { children: ReactNode }) {
   }, [botId, caseBotIds, caseForBot, loaded, navigate, spaceId]);
 
   useEffect(() => {
+    if (!pendingCases.current || !loaded || caseForBot || caseNavAttempts.current >= 2) return;
+    const bot = cases[0]?.bots[0];
+    if (!bot || bot.botId === botId) return;
+    caseNavAttempts.current += 1;
+    navigate(`/app/${bot.botId}`);
+  }, [botId, caseForBot, cases, loaded, navigate]);
+
+  useEffect(() => {
     if (!loaded || environment !== "cases" || caseForBot || pendingGeneral.current) return;
+    if (pendingCases.current) return;
     const bot = cases[0]?.bots[0];
     if (bot && bot.botId !== botId) navigate(`/app/${bot.botId}`);
   }, [botId, caseForBot, cases, environment, loaded, navigate]);
 
-  const selected = environment === "cases" && caseForBot ? caseForBot : null;
+  const selected = environment === "cases" ? (caseForBot ?? cases[0] ?? null) : null;
 
   const setEnvironment = useCallback(
     (next: LawEnvironment) => {
       setEnvironmentChoice(next);
       writeStoredEnvironment(spaceId, next);
       if (next === "general") {
+        pendingCases.current = false;
         pendingGeneral.current = true;
         if (!(botId && caseBotIds.has(botId))) return;
         const target = generalBotRef.current ?? readStoredGeneralBot(spaceId);
@@ -211,9 +225,14 @@ export function LawProvider({ children }: { children: ReactNode }) {
         return;
       }
       pendingGeneral.current = false;
+      pendingCases.current = true;
+      caseNavAttempts.current = 0;
       const target = caseForBot ?? cases[0];
       const bot = target?.bots[0];
-      if (bot && bot.botId !== botId) navigate(`/app/${bot.botId}`);
+      if (bot && bot.botId !== botId) {
+        caseNavAttempts.current = 1;
+        navigate(`/app/${bot.botId}`);
+      }
     },
     [botId, caseBotIds, caseForBot, cases, navigate, spaceId],
   );
@@ -223,6 +242,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       const next = cases.find((item) => item.id === caseId);
       if (!next) return;
       pendingGeneral.current = false;
+      pendingCases.current = true;
       if (environment !== "cases") {
         setEnvironmentChoice("cases");
         writeStoredEnvironment(spaceId, "cases");
@@ -246,6 +266,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
       const body = (await response.json()) as { case: LawCase };
       setCases((current) => [...current, body.case]);
       pendingGeneral.current = false;
+      pendingCases.current = false;
       setEnvironmentChoice("cases");
       writeStoredEnvironment(spaceId, "cases");
       const bot = body.case.bots[0];
@@ -340,8 +361,12 @@ export function useLawShell(): LawShellValue {
 const LAW_CHROME_STYLE = `
 .law-chrome-spacer,.law-chrome-rail{width:3rem}
 .law-chrome-frame{contain:paint}
+.law-chrome-frame [data-slot="sidebar-container"][data-side="left"]{left:3rem}
+.law-chrome-frame [data-slot="sidebar-container"][data-side="right"]{right:3rem}
 @media (max-width:767px){
   .law-chrome-spacer,.law-chrome-rail{display:none}
+  .law-chrome-frame [data-slot="sidebar-container"][data-side="left"]{left:0}
+  .law-chrome-frame [data-slot="sidebar-container"][data-side="right"]{right:0}
 }
 `;
 
@@ -483,8 +508,10 @@ export function LawCaseTabs() {
 }
 
 export function LawCaseColumn() {
+  const { botId } = useParams();
   const { selected, error, reload, environment, spaceId } = useLawShell();
-  if (environment !== "cases" || !selected) return null;
+  const urlIsSelected = selected?.bots.some((bot) => bot.botId === botId) ?? false;
+  if (environment !== "cases" || !selected || !urlIsSelected) return null;
   return (
     <LawCaseDocuments
       key={selected.id}

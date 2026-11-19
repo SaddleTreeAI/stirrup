@@ -127,6 +127,19 @@ function RouteMark() {
   return createElement("div", { "data-testid": "route", "data-path": location.pathname });
 }
 
+/** Sends the first landing on a case bot back to General, once. */
+function StealCaseOnce() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const stole = useRef(false);
+  useEffect(() => {
+    if (stole.current || location.pathname !== "/app/bot-ruiz") return;
+    stole.current = true;
+    navigate("/app/general-bot", { replace: true });
+  }, [location.pathname, navigate]);
+  return createElement("div", { "data-testid": "route", "data-path": location.pathname });
+}
+
 /** Stands in for core sending a bare /app to the first unfiltered bot, which is a case bot. */
 function StealBareApp() {
   const location = useLocation();
@@ -342,6 +355,49 @@ describe("law shell chrome", () => {
     expect(frame?.className ?? "").not.toContain("left-12");
     expect(container.querySelector(".law-chrome-spacer")).not.toBeNull();
     expect(container.querySelector(".law-chrome-rail")).not.toBeNull();
+    const css = container.querySelector("style")?.textContent ?? "";
+    expect(css).toContain('[data-slot="sidebar-container"][data-side="left"]{left:3rem}');
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("opens the case workers when Cases is clicked, even if the route bounces once", async () => {
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(StealCaseOnce),
+        createElement(RosterProbe),
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+      ),
+      "/app/general-bot",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-loading"),
+      ).toBe("false");
+    });
+    expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
+      "general-bot",
+    );
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-env-cases"]')?.click();
+      await flush();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
+        "bot-ruiz",
+      );
+    });
+    expect(container.querySelector('[data-testid="route"]')?.getAttribute("data-path")).toBe(
+      "/app/bot-ruiz",
+    );
+    expect(
+      container.querySelector('[data-testid="law-case-tab-ruiz"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
     await act(async () => {
       root.unmount();
     });
