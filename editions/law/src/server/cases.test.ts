@@ -36,6 +36,7 @@ describe("lawBotAccess / lawCaseAccess", () => {
   it("allows a linked bot when the actor is a member", async () => {
     const prisma = {
       lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCase: { findUnique: vi.fn(async () => ({ deletedAt: null })) },
       lawCaseMember: { findUnique: vi.fn(async () => ({ userId: actor.userId })) },
     };
     await expect(lawCaseAccess(prisma as never, actor.userId, "bot-1")).resolves.toBe("member");
@@ -45,10 +46,22 @@ describe("lawBotAccess / lawCaseAccess", () => {
   it("denies a linked bot when the actor is not a member", async () => {
     const prisma = {
       lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCase: { findUnique: vi.fn(async () => ({ deletedAt: null })) },
       lawCaseMember: { findUnique: vi.fn(async () => null) },
     };
     await expect(lawCaseAccess(prisma as never, actor.userId, "bot-1")).resolves.toBe("denied");
     await expect(lawBotAccess(prisma as never, actor, "bot-1")).resolves.toBe("deny");
+  });
+
+  it("denies a linked bot when the case is soft-deleted", async () => {
+    const prisma = {
+      lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCase: { findUnique: vi.fn(async () => ({ deletedAt: new Date() })) },
+      lawCaseMember: { findUnique: vi.fn() },
+    };
+    await expect(lawCaseAccess(prisma as never, actor.userId, "bot-1")).resolves.toBe("denied");
+    await expect(lawBotAccess(prisma as never, actor, "bot-1")).resolves.toBe("deny");
+    expect(prisma.lawCaseMember.findUnique).not.toHaveBeenCalled();
   });
 });
 
@@ -107,6 +120,7 @@ describe("lawTurnNote", () => {
           name: "Commonwealth v. Ward",
           brief: "Ward brief.",
           spaceId: "space-1",
+          deletedAt: null,
         })),
       },
       lawDocument: {
@@ -120,6 +134,27 @@ describe("lawTurnNote", () => {
     expect(note).toContain("Commonwealth v. Ward");
     expect(note).toContain("caffeine");
     expect(note).not.toContain("No match here");
+    expect(prisma.lawDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { caseId: "case-1", kind: "library", deletedAt: null } }),
+    );
+  });
+
+  it("returns undefined when the case is soft-deleted", async () => {
+    const prisma = {
+      lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCase: {
+        findUnique: vi.fn(async () => ({
+          id: "case-1",
+          name: "Commonwealth v. Ward",
+          brief: "Ward brief.",
+          spaceId: "space-1",
+          deletedAt: new Date(),
+        })),
+      },
+      lawDocument: { findMany: vi.fn() },
+    };
+    await expect(lawTurnNote(prisma as never, "bot-1", "question")).resolves.toBeUndefined();
+    expect(prisma.lawDocument.findMany).not.toHaveBeenCalled();
   });
 });
 
@@ -170,6 +205,7 @@ describe("backfillLawAvatars", () => {
 describe("attachBotToLawCase avatars", () => {
   it("applies a role picture when attaching a known role with a generated color", async () => {
     const prisma = {
+      lawCase: { findUnique: vi.fn(async () => ({ deletedAt: null })) },
       lawCaseMember: { findUnique: vi.fn(async () => ({ userId: actor.userId })) },
       lawCaseBot: {
         findUnique: vi.fn(async () => null),
@@ -196,6 +232,7 @@ describe("attachBotToLawCase avatars", () => {
 
   it("does not overwrite a user-chosen picture", async () => {
     const prisma = {
+      lawCase: { findUnique: vi.fn(async () => ({ deletedAt: null })) },
       lawCaseMember: { findUnique: vi.fn(async () => ({ userId: actor.userId })) },
       lawCaseBot: {
         findUnique: vi.fn(async () => null),

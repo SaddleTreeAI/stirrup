@@ -81,6 +81,7 @@ describePostgres("law cases under row-level security", () => {
           name,
           brief: `${name} brief`,
           position,
+          createdBy: userId,
         },
       });
       caseIds.push(created.id);
@@ -306,6 +307,45 @@ describePostgres("law cases under row-level security", () => {
       select: { body: true },
     });
     expect(after?.body.startsWith("rkz1:")).toBe(true);
+  });
+
+  it("soft-deletes a case, hides it from the list, then restores it", async () => {
+    const caseId = caseIds[1]!;
+    const deleted = await app.request(`/api/law/cases/${caseId}`, {
+      method: "DELETE",
+      headers: { authorization: "Bearer test" },
+    });
+    expect(deleted.status).toBe(200);
+    const deletedBody = (await deleted.json()) as { id: string; purgeAfter: string | null };
+    expect(deletedBody.id).toBe(caseId);
+    expect(deletedBody.purgeAfter).toEqual(expect.any(String));
+
+    const listed = await app.request("/api/law/cases", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(listed.status).toBe(200);
+    const listBody = (await listed.json()) as {
+      cases: Array<{ id: string }>;
+      deletedBotIds: string[];
+    };
+    expect(listBody.cases.map((item) => item.id)).not.toContain(caseId);
+    expect(listBody.deletedBotIds.length).toBeGreaterThan(0);
+
+    const docs = await app.request(`/api/law/cases/${caseId}/documents`, {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(docs.status).toBe(404);
+
+    const restored = await app.request(`/api/law/cases/${caseId}/restore`, {
+      method: "POST",
+      headers: { authorization: "Bearer test" },
+    });
+    expect(restored.status).toBe(200);
+    const again = await app.request("/api/law/cases", {
+      headers: { authorization: "Bearer test" },
+    });
+    const againBody = (await again.json()) as { cases: Array<{ id: string }> };
+    expect(againBody.cases.map((item) => item.id)).toContain(caseId);
   });
 
   it("renames every version in a document family", async () => {

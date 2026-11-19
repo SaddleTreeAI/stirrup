@@ -2,9 +2,8 @@
 // Copyright 2026 SaddleTree AI
 
 import { t } from "@lingui/core/macro";
-import { Button, Input, Tabs, TabsList, TabsTrigger } from "@rakazo/ui-web";
-import { useSidebar } from "@rakazo/ui-web/components/ui/sidebar";
-import { Briefcase, Plus, Scale } from "lucide-react";
+import { toast } from "@rakazo/ui-web";
+import { Briefcase, Scale } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   createContext,
@@ -16,9 +15,12 @@ import {
   useState,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import type { DeletedCaseRow } from "./case-actions.js";
 import { landInCasesSpace, selectedSpaceId, withSpaceHeaders } from "./lib.js";
 import { LawCaseDocuments } from "./library.js";
 import type { LawEnvironment, LawRosterFilter } from "./roster.js";
+
+export { LawCaseTabs } from "./case-actions.js";
 
 interface LawBot {
   role: string;
@@ -30,6 +32,7 @@ interface LawCase {
   id: string;
   slug: string;
   name: string;
+  canDelete?: boolean;
   bots: LawBot[];
 }
 
@@ -41,10 +44,15 @@ interface LawShellValue {
   error: string | null;
   /** Another Space that holds cases when the current organization has none. */
   casesSpaceId: string | null;
+  retentionDays: number;
+  canViewDeleted: boolean;
   reload: () => void;
   selectCase: (caseId: string) => void;
   setEnvironment: (environment: LawEnvironment) => void;
   createCase: (name: string) => Promise<LawCase>;
+  deleteCase: (caseId: string) => Promise<void>;
+  restoreCase: (caseId: string) => Promise<void>;
+  listDeletedCases: () => Promise<DeletedCaseRow[]>;
   attachBot: (botId: string) => Promise<void>;
   openCasesSpace: () => void;
   /** Space captured when this shell mounted. Later storage changes do not retarget fetches. */
@@ -101,6 +109,9 @@ export function LawProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [spaceId] = useState(selectedSpaceId);
   const [cases, setCases] = useState<LawCase[]>([]);
+  const [deletedBotIds, setDeletedBotIds] = useState<string[]>([]);
+  const [retentionDays, setRetentionDays] = useState(30);
+  const [canViewDeleted, setCanViewDeleted] = useState(false);
   const [casesSpaceId, setCasesSpaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -126,11 +137,24 @@ export function LawProvider({ children }: { children: ReactNode }) {
     })
       .then(async (response) => {
         if (!response.ok) throw new Error(String(response.status));
-        return (await response.json()) as { cases: LawCase[]; casesSpaceId?: string };
+        return (await response.json()) as {
+          cases: LawCase[];
+          casesSpaceId?: string;
+          deletedBotIds?: string[];
+          retentionDays?: number;
+          canViewDeleted?: boolean;
+        };
       })
       .then((body) => {
         if (cancelled) return;
         setCases(body.cases);
+        setDeletedBotIds(body.deletedBotIds ?? []);
+        setRetentionDays(
+          typeof body.retentionDays === "number" && body.retentionDays >= 0
+            ? body.retentionDays
+            : 30,
+        );
+        setCanViewDeleted(Boolean(body.canViewDeleted));
         setCasesSpaceId(
           body.cases.length === 0 && body.casesSpaceId && body.casesSpaceId !== spaceId
             ? body.casesSpaceId
@@ -303,6 +327,68 @@ export function LawProvider({ children }: { children: ReactNode }) {
     [reload, selected, spaceId],
   );
 
+  const deleteCase = useCallback(
+    async (caseId: string) => {
+      const index = cases.findIndex((item) => item.id === caseId);
+      const removed = index >= 0 ? cases[index] : undefined;
+      const response = await fetch(`/api/law/cases/${caseId}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: withSpaceHeaders(undefined, spaceId),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      const nextCases = cases.filter((item) => item.id !== caseId);
+      const nextDeletedBotIds = [
+        ...new Set([...deletedBotIds, ...(removed?.bots.map((bot) => bot.botId) ?? [])]),
+      ];
+      setCases(nextCases);
+      setDeletedBotIds(nextDeletedBotIds);
+      toast(t`Case deleted`);
+      const next = nextCases[index] ?? nextCases[index - 1] ?? null;
+      if (next) {
+        pendingGeneral.current = false;
+        pendingCases.current = true;
+        // Skip the Cases bounce that would open cases[0] while the URL still names the deleted bot.
+        caseNavAttempts.current = 2;
+        const role = removed?.bots.find((bot) => bot.botId === botId)?.role;
+        const bot = next.bots.find((item) => item.role === role) ?? next.bots[0];
+        if (bot && bot.botId !== botId) navigate(`/app/${bot.botId}`);
+        return;
+      }
+      pendingCases.current = false;
+      pendingGeneral.current = true;
+      setEnvironmentChoice("general");
+      writeStoredEnvironment(spaceId, "general");
+      const target = generalBotRef.current ?? readStoredGeneralBot(spaceId);
+      const hidden = new Set(nextDeletedBotIds);
+      navigate(target && !hidden.has(target) ? `/app/${target}` : "/app");
+    },
+    [botId, cases, deletedBotIds, navigate, spaceId],
+  );
+
+  const restoreCase = useCallback(
+    async (caseId: string) => {
+      const response = await fetch(`/api/law/cases/${caseId}/restore`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: withSpaceHeaders(undefined, spaceId),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      reload();
+    },
+    [reload, spaceId],
+  );
+
+  const listDeletedCases = useCallback(async () => {
+    const response = await fetch("/api/law/cases?deleted=1", {
+      credentials: "same-origin",
+      headers: withSpaceHeaders(undefined, spaceId),
+    });
+    if (!response.ok) throw new Error(String(response.status));
+    const body = (await response.json()) as { cases: DeletedCaseRow[] };
+    return body.cases;
+  }, [spaceId]);
+
   const noteSidebarBotIds = useCallback(
     (botIds: readonly string[]) => {
       if (!loaded) return;
@@ -321,9 +407,14 @@ export function LawProvider({ children }: { children: ReactNode }) {
     return {
       environment,
       caseBotIds: selected?.bots.map((bot) => bot.botId) ?? [],
-      allCaseBotIds: cases.flatMap((item) => item.bots.map((bot) => bot.botId)),
+      allCaseBotIds: [
+        ...new Set([
+          ...cases.flatMap((item) => item.bots.map((bot) => bot.botId)),
+          ...deletedBotIds,
+        ]),
+      ],
     };
-  }, [cases, environment, loaded, selected]);
+  }, [cases, deletedBotIds, environment, loaded, selected]);
 
   const value = useMemo(
     () => ({
@@ -333,10 +424,15 @@ export function LawProvider({ children }: { children: ReactNode }) {
       roster,
       error,
       casesSpaceId,
+      retentionDays,
+      canViewDeleted,
       reload,
       selectCase,
       setEnvironment,
       createCase,
+      deleteCase,
+      restoreCase,
+      listDeletedCases,
       attachBot,
       openCasesSpace,
       spaceId,
@@ -344,14 +440,19 @@ export function LawProvider({ children }: { children: ReactNode }) {
     }),
     [
       attachBot,
+      canViewDeleted,
       cases,
       casesSpaceId,
       createCase,
+      deleteCase,
       environment,
       error,
+      listDeletedCases,
       noteSidebarBotIds,
       openCasesSpace,
       reload,
+      restoreCase,
+      retentionDays,
       roster,
       selectCase,
       selected,
@@ -440,184 +541,6 @@ export function LawEnvironmentRail() {
         <Briefcase size={18} strokeWidth={1.7} aria-hidden="true" />
       </button>
     </aside>
-  );
-}
-
-function openOrganizationMenu() {
-  const trigger = document.querySelector<HTMLElement>('[data-testid="organization-menu-trigger"]');
-  trigger?.click();
-}
-
-export function LawCaseTabs() {
-  const {
-    cases,
-    selected,
-    error,
-    reload,
-    selectCase,
-    createCase,
-    environment,
-    casesSpaceId,
-    openCasesSpace,
-  } = useLawShell();
-  const sidebar = useSidebar();
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  if (!sidebar.isMobile && sidebar.state === "collapsed") return null;
-  if (environment !== "cases") return null;
-  if (error && cases.length === 0) {
-    return (
-      <button
-        type="button"
-        className={`mx-2.5 mt-3 text-body-sm underline ${LAW_FOCUS}`}
-        onClick={reload}
-      >
-        {t`Retry`}
-      </button>
-    );
-  }
-  if (cases.length === 0) {
-    return (
-      <div data-testid="law-cases-empty" className="mx-2.5 mt-3 space-y-2">
-        <p className="text-body-sm text-muted-foreground">{t`No cases in this organization`}</p>
-        {creating ? (
-          <form
-            className="flex items-center gap-1"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const name = draft.trim();
-              if (!name || busy) return;
-              setBusy(true);
-              void createCase(name)
-                .then(() => {
-                  setDraft("");
-                  setCreating(false);
-                })
-                .finally(() => setBusy(false));
-            }}
-          >
-            <Input
-              data-testid="law-case-name-input"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder={t`Case name`}
-              aria-label={t`Case name`}
-              className={`h-7 w-28 rounded-full border-foreground/50 bg-card px-2 py-1 text-body-sm placeholder:text-muted-foreground ${LAW_FOCUS}`}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={busy || !draft.trim()}
-              className={`rounded-full ${LAW_FOCUS}`}
-            >
-              {t`Add`}
-            </Button>
-          </form>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {casesSpaceId ? (
-              <button
-                type="button"
-                data-testid="law-cases-empty-open"
-                onClick={openCasesSpace}
-                className={`rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground ${LAW_FOCUS}`}
-              >
-                {t`Open cases`}
-              </button>
-            ) : (
-              <button
-                type="button"
-                data-testid="law-cases-empty-create"
-                onClick={() => setCreating(true)}
-                className={`rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground ${LAW_FOCUS}`}
-              >
-                {t`Create case`}
-              </button>
-            )}
-            <button
-              type="button"
-              data-testid="law-cases-empty-switch-org"
-              onClick={openOrganizationMenu}
-              className={`rounded-md px-2.5 py-1 text-body-sm text-muted-foreground underline-offset-2 hover:underline ${LAW_FOCUS}`}
-            >
-              {t`Switch organization`}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-  return (
-    <div data-testid="law-case-tabs" className="flex gap-1 overflow-x-auto px-2.5 pt-3 pb-2">
-      <Tabs
-        value={selected?.id ?? cases[0]?.id ?? ""}
-        onValueChange={selectCase}
-        className="min-w-0 gap-0"
-      >
-        <TabsList
-          variant="line"
-          aria-label={t`Cases`}
-          className="h-auto w-auto gap-1 rounded-none bg-transparent p-0"
-        >
-          {cases.map((item) => (
-            <TabsTrigger
-              key={item.id}
-              value={item.id}
-              data-testid={`law-case-tab-${item.slug}`}
-              className={`h-auto shrink-0 rounded-full px-3 py-1 text-body-sm text-muted-foreground after:hidden ${LAW_FOCUS} data-active:bg-sidebar-accent data-active:font-medium data-active:text-foreground data-active:shadow-none data-active:ring-2 data-active:ring-inset data-active:ring-foreground/50`}
-            >
-              {item.name.replace("Commonwealth v. ", "")}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-      {creating ? (
-        <form
-          className="flex shrink-0 items-center gap-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const name = draft.trim();
-            if (!name || busy) return;
-            setBusy(true);
-            void createCase(name)
-              .then(() => {
-                setDraft("");
-                setCreating(false);
-              })
-              .finally(() => setBusy(false));
-          }}
-        >
-          <Input
-            data-testid="law-case-name-input"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t`Case name`}
-            aria-label={t`Case name`}
-            className={`h-7 w-28 rounded-full border-foreground/50 bg-card px-2 py-1 text-body-sm placeholder:text-muted-foreground ${LAW_FOCUS}`}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={busy || !draft.trim()}
-            className={`rounded-full ${LAW_FOCUS}`}
-          >
-            {t`Add`}
-          </Button>
-        </form>
-      ) : (
-        <button
-          type="button"
-          data-testid="law-case-add"
-          aria-label={t`Add case`}
-          onClick={() => setCreating(true)}
-          className={`flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground ${LAW_FOCUS}`}
-        >
-          <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-      )}
-    </div>
   );
 }
 

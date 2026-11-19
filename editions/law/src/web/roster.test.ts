@@ -50,6 +50,27 @@ describe("applyLawRoster", () => {
     expect(result[0]?.bots.map((bot) => bot.chat.id)).toEqual(["general-bot"]);
   });
 
+  it("hides bots of deleted cases from General when they stay in allCaseBotIds", () => {
+    const withDeleted: Group[] = [
+      {
+        key: "space",
+        title: "Space",
+        bots: [
+          { chat: { id: "case-bot-1" }, label: "Open case" },
+          { chat: { id: "deleted-bot" }, label: "Deleted case" },
+          { chat: { id: "general-bot" }, label: "General bot" },
+        ],
+      },
+    ];
+    const filter: LawRosterFilter = {
+      environment: "general",
+      caseBotIds: [],
+      allCaseBotIds: ["case-bot-1", "deleted-bot"],
+    };
+    const result = applyLawRoster(withDeleted, filter);
+    expect(result[0]?.bots.map((bot) => bot.chat.id)).toEqual(["general-bot"]);
+  });
+
   it("returns a copy of the groups when the filter is null", () => {
     const result = applyLawRoster(groups, null);
     expect(result).toEqual(groups);
