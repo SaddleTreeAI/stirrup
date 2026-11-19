@@ -256,6 +256,58 @@ describePostgres("law cases under row-level security", () => {
     expect(body.documents.map((doc) => doc.id)).not.toContain(doomed.id);
   });
 
+  it("stores document bodies as ciphertext and reads them back plain", async () => {
+    const caseId = caseIds[0]!;
+    const created = await app.request(`/api/law/cases/${caseId}/documents`, {
+      method: "POST",
+      headers: { authorization: "Bearer test", "content-type": "application/json" },
+      body: JSON.stringify({ title: "Sealed note", body: "SYNTHETIC sealed body" }),
+    });
+    expect(created.status).toBe(201);
+    const createdBody = (await created.json()) as { document: { id: string; body: string } };
+    expect(createdBody.document.body).toBe("SYNTHETIC sealed body");
+
+    const stored = await system.lawDocument.findUnique({
+      where: { id: createdBody.document.id },
+      select: { body: true },
+    });
+    expect(stored?.body.startsWith("rkz1:")).toBe(true);
+    expect(stored?.body).not.toContain("SYNTHETIC sealed body");
+
+    const listed = await app.request(`/api/law/cases/${caseId}/documents`, {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(listed.status).toBe(200);
+    const listBody = (await listed.json()) as { documents: Array<{ id: string; body: string }> };
+    const again = listBody.documents.find((doc) => doc.id === createdBody.document.id);
+    expect(again?.body).toBe("SYNTHETIC sealed body");
+
+    // Legacy plaintext row: backfill seals it (migrateLawText).
+    const legacy = await system.lawDocument.create({
+      data: {
+        caseId,
+        title: "Legacy plain",
+        filename: "legacy.txt",
+        body: "SYNTHETIC legacy plaintext",
+        kind: "library",
+        version: 1,
+      },
+    });
+    expect(legacy.body.startsWith("rkz1:")).toBe(false);
+    const { migrateLawText } = await import("./cli/encrypt.js");
+    const progress = await migrateLawText(system, {
+      mode: "backfill",
+      caseId,
+    });
+    const docs = progress.find((row) => row.table === "law_documents");
+    expect(docs?.updated).toBeGreaterThanOrEqual(1);
+    const after = await system.lawDocument.findUnique({
+      where: { id: legacy.id },
+      select: { body: true },
+    });
+    expect(after?.body.startsWith("rkz1:")).toBe(true);
+  });
+
   it("renames every version in a document family", async () => {
     const caseId = caseIds[0]!;
     const root = await system.lawDocument.create({

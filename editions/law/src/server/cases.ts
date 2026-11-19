@@ -6,6 +6,7 @@ import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { isUniqueViolation } from "@rakazo/db";
 import { formatLawContext, retrieveCaseSnippets } from "./retrieval.js";
+import { openLawText, sealLawText } from "./seal.js";
 
 type LawDb = Pick<PrismaClient, "lawCaseBot" | "lawCaseMember" | "lawDocument" | "lawCase">;
 
@@ -87,17 +88,44 @@ export async function lawTurnNote(
   if (!link) return undefined;
   const lawCase = await prisma.lawCase.findUnique({
     where: { id: link.caseId },
-    select: { name: true, brief: true },
+    select: { id: true, name: true, brief: true, spaceId: true },
   });
   if (!lawCase) return undefined;
   const documents = await prisma.lawDocument.findMany({
     where: { caseId: link.caseId, kind: "library" },
-    select: { title: true, body: true },
+    select: { id: true, title: true, body: true },
   });
+  const brief = await openLawText(
+    prisma,
+    {
+      table: "law_cases",
+      column: "brief",
+      rowId: lawCase.id,
+      spaceId: lawCase.spaceId,
+      owner: lawCase.spaceId,
+    },
+    lawCase.brief,
+  );
+  const opened = await Promise.all(
+    documents.map(async (doc) => ({
+      title: doc.title,
+      body: await openLawText(
+        prisma,
+        {
+          table: "law_documents",
+          column: "body",
+          rowId: doc.id,
+          spaceId: lawCase.spaceId,
+          owner: link.caseId,
+        },
+        doc.body,
+      ),
+    })),
+  );
   return formatLawContext({
     name: lawCase.name,
-    brief: lawCase.brief,
-    snippets: retrieveCaseSnippets(prompt, documents),
+    brief,
+    snippets: retrieveCaseSnippets(prompt, opened),
   });
 }
 
@@ -133,7 +161,7 @@ export function lawDocumentFilename(title: string, kind: string, explicit?: stri
 
 /** The Legal Doc Generator's reply is the draft waiting for review. */
 export async function saveLawReviewDraft(
-  prisma: Pick<PrismaClient, "lawCaseBot" | "lawDocument">,
+  prisma: Pick<PrismaClient, "lawCaseBot" | "lawDocument" | "lawCase">,
   input: { botId: string; runId: string; text: string },
 ): Promise<void> {
   const text = input.text.trim();
@@ -143,19 +171,37 @@ export async function saveLawReviewDraft(
     select: { caseId: true, role: true },
   });
   if (link?.role !== "generator") return;
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: link.caseId },
+    select: { spaceId: true },
+  });
+  if (!lawCase) return;
   const title =
     text
       .split("\n")
       .map((line) => line.trim())
       .find((line) => line && !line.startsWith("SYNTHETIC DRAFT"))
       ?.slice(0, 120) ?? "Draft";
+  const id = randomUUID();
+  const body = await sealLawText(
+    prisma,
+    {
+      table: "law_documents",
+      column: "body",
+      rowId: id,
+      spaceId: lawCase.spaceId,
+      owner: link.caseId,
+    },
+    text,
+  );
   try {
     await prisma.lawDocument.create({
       data: {
+        id,
         caseId: link.caseId,
         title,
         filename: lawDocumentFilename(title, "review"),
-        body: text,
+        body,
         kind: "review",
         version: 1,
         sourceRunId: input.runId,
@@ -202,7 +248,7 @@ export async function attachBotToLawCase(
 
 /** Save an edited review draft as a new version; the previous body stays. */
 export async function saveLawDocumentVersion(
-  prisma: Pick<PrismaClient, "lawCaseMember" | "lawDocument">,
+  prisma: Pick<PrismaClient, "lawCaseMember" | "lawDocument" | "lawCase">,
   input: { caseId: string; userId: string; documentId: string; body: string; title?: string },
 ): Promise<
   | {
@@ -223,6 +269,11 @@ export async function saveLawDocumentVersion(
     select: { userId: true },
   });
   if (!member) return "forbidden";
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: input.caseId },
+    select: { spaceId: true },
+  });
+  if (!lawCase) return null;
   const current = await prisma.lawDocument.findFirst({
     where: { id: input.documentId, caseId: input.caseId },
     select: {
@@ -248,13 +299,25 @@ export async function saveLawDocumentVersion(
   const version = (latest?.version ?? current.version) + 1;
   const title = input.title?.trim() || current.title;
   const filename = editableFilename(current.filename, title);
+  const id = randomUUID();
+  const sealed = await sealLawText(
+    prisma,
+    {
+      table: "law_documents",
+      column: "body",
+      rowId: id,
+      spaceId: lawCase.spaceId,
+      owner: input.caseId,
+    },
+    input.body,
+  );
   const created = await prisma.lawDocument.create({
     data: {
-      id: randomUUID(),
+      id,
       caseId: input.caseId,
       title,
       filename,
-      body: input.body,
+      body: sealed,
       kind: "review",
       version,
       rootId,
@@ -270,7 +333,11 @@ export async function saveLawDocumentVersion(
       createdAt: true,
     },
   });
-  return { ...created, rootId: created.rootId ?? rootId };
+  return {
+    ...created,
+    body: input.body,
+    rootId: created.rootId ?? rootId,
+  };
 }
 
 function editableFilename(existing: string, title: string): string {

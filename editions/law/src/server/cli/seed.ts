@@ -11,6 +11,7 @@ import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import type { PrismaClient } from "@rakazo/db";
 import { asSystem, createDb, createOrganizationWithDefaultSpace, createRepos } from "@rakazo/db";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "../constants.js";
+import { sealLawText } from "../seal.js";
 
 export const LAW_SEED_EMAIL = "rowan.ellis@demonstration-defense.example";
 const ATTORNEY = "Rowan Ellis";
@@ -115,11 +116,27 @@ export async function seedLawPlatform(input: {
     const cases = ["ruiz", "ward", "nunez"].filter((slug) => present.has(slug));
     for (const [position, slug] of cases.entries()) {
       const dir = path.join(ROOT, slug);
-      const brief = readFileSync(path.join(dir, "brief.txt"), "utf8").trim();
+      const briefPlain = readFileSync(path.join(dir, "brief.txt"), "utf8").trim();
       const name = caseName(slug);
+      const existingCase = await db.lawCase.findUnique({
+        where: { spaceId_slug: { spaceId, slug } },
+        select: { id: true },
+      });
+      const caseId = existingCase?.id ?? randomUUID();
+      const brief = await sealLawText(
+        db,
+        {
+          table: "law_cases",
+          column: "brief",
+          rowId: caseId,
+          spaceId,
+          owner: spaceId,
+        },
+        briefPlain,
+      );
       const lawCase = await db.lawCase.upsert({
         where: { spaceId_slug: { spaceId, slug } },
-        create: { id: randomUUID(), spaceId, slug, name, brief, position },
+        create: { id: caseId, spaceId, slug, name, brief, position },
         update: { name, brief, position },
       });
       await db.lawCaseMember.upsert({
@@ -132,7 +149,7 @@ export async function seedLawPlatform(input: {
         const bot = await repos.createBot(actor, {
           name: role.name,
           description: role.description,
-          instructions: role.instructions(brief),
+          instructions: role.instructions(briefPlain),
           notifyOnFinish: false,
           dailyCheckIns: false,
           fleetManagement: false,
@@ -150,16 +167,28 @@ export async function seedLawPlatform(input: {
       for (const file of readdirSync(dir)) {
         if (!file.endsWith(".txt") || file === "brief.txt") continue;
         const title = file.replace(/\.txt$/, "").replaceAll("-", " ");
-        const body = readFileSync(path.join(dir, file), "utf8").trim();
+        const bodyPlain = readFileSync(path.join(dir, file), "utf8").trim();
         const filename = libraryFilename(file);
         const existing = await db.lawDocument.findFirst({
           where: { caseId: lawCase.id, kind: "library", title },
           select: { id: true },
         });
+        const docId = existing?.id ?? randomUUID();
+        const body = await sealLawText(
+          db,
+          {
+            table: "law_documents",
+            column: "body",
+            rowId: docId,
+            spaceId,
+            owner: lawCase.id,
+          },
+          bodyPlain,
+        );
         if (!existing) {
           await db.lawDocument.create({
             data: {
-              id: randomUUID(),
+              id: docId,
               caseId: lawCase.id,
               title,
               filename,
@@ -176,15 +205,27 @@ export async function seedLawPlatform(input: {
         }
       }
       const draftTitle = `${name} intake memo`;
-      const draftBody = `SYNTHETIC DRAFT — NOT FOR FILING\n\n# ${draftTitle}\n\nWorking notes for counsel. Edit and save to create a new version.\n`;
+      const draftBodyPlain = `SYNTHETIC DRAFT — NOT FOR FILING\n\n# ${draftTitle}\n\nWorking notes for counsel. Edit and save to create a new version.\n`;
       const draft = await db.lawDocument.findFirst({
         where: { caseId: lawCase.id, kind: "review", title: draftTitle, version: 1 },
         select: { id: true },
       });
       if (!draft) {
+        const draftId = randomUUID();
+        const draftBody = await sealLawText(
+          db,
+          {
+            table: "law_documents",
+            column: "body",
+            rowId: draftId,
+            spaceId,
+            owner: lawCase.id,
+          },
+          draftBodyPlain,
+        );
         await db.lawDocument.create({
           data: {
-            id: randomUUID(),
+            id: draftId,
             caseId: lawCase.id,
             title: draftTitle,
             filename: `${slug}-intake-memo.md`,

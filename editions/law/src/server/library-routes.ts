@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { runAsTenant, tryRecordAuditEvent } from "@rakazo/db";
@@ -10,6 +10,7 @@ import { getLogger } from "@rakazo/logging";
 import type { Hono } from "hono";
 import { lawDocumentFilename } from "./cases.js";
 import { classify, enqueueExtraction, prepareIngestBody } from "./ingest.js";
+import { openLawText, sealLawText } from "./seal.js";
 
 const TITLE_MAX = 200;
 const FILENAME_MAX = 200;
@@ -217,12 +218,25 @@ async function uploadDocument(
     input.titleOverride?.slice(0, TITLE_MAX) ||
     titleFromFilename(input.filename).slice(0, TITLE_MAX);
 
+  const id = randomUUID();
+  const body = await sealLawText(
+    prisma,
+    {
+      table: "law_documents",
+      column: "body",
+      rowId: id,
+      spaceId: actor.spaceId,
+      owner: input.caseId,
+    },
+    ingest.body,
+  );
   const created = await prisma.lawDocument.create({
     data: {
+      id,
       caseId: input.caseId,
       title,
       filename: input.filename,
-      body: ingest.body,
+      body,
       kind: "upload",
       version: 1,
       source: "upload",
@@ -241,7 +255,7 @@ async function uploadDocument(
     caseId: created.caseId,
     kind: classification.kind,
   });
-  return created;
+  return { ...created, body: ingest.body };
 }
 
 async function createNoteDocument(
@@ -251,12 +265,25 @@ async function createNoteDocument(
 ) {
   if (!(await requireMember(prisma, actor.userId, input.caseId))) return null;
   const filename = `${slugify(input.title) || "note"}.md`;
-  return prisma.lawDocument.create({
+  const id = randomUUID();
+  const body = await sealLawText(
+    prisma,
+    {
+      table: "law_documents",
+      column: "body",
+      rowId: id,
+      spaceId: actor.spaceId,
+      owner: input.caseId,
+    },
+    input.body,
+  );
+  const created = await prisma.lawDocument.create({
     data: {
+      id,
       caseId: input.caseId,
       title: input.title,
       filename,
-      body: input.body,
+      body,
       kind: "note",
       version: 1,
       source: "edit",
@@ -268,6 +295,7 @@ async function createNoteDocument(
       updatedAt: new Date(),
     },
   });
+  return { ...created, body: input.body };
 }
 
 async function renameDocumentFamily(
@@ -301,9 +329,29 @@ async function renameDocumentFamily(
       },
     });
   }
-  return prisma.lawDocument.findFirst({
+  const updated = await prisma.lawDocument.findFirst({
     where: { id: input.docId, caseId: input.caseId },
   });
+  if (!updated) return null;
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: input.caseId },
+    select: { spaceId: true },
+  });
+  if (!lawCase) return updated;
+  return {
+    ...updated,
+    body: await openLawText(
+      prisma,
+      {
+        table: "law_documents",
+        column: "body",
+        rowId: updated.id,
+        spaceId: lawCase.spaceId,
+        owner: input.caseId,
+      },
+      updated.body,
+    ),
+  };
 }
 
 async function softDeleteDocumentFamily(

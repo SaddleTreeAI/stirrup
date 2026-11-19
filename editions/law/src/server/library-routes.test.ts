@@ -63,6 +63,7 @@ function mount(
 
 type FakePrisma = {
   lawCaseMember: { findUnique: ReturnType<typeof vi.fn> };
+  lawCase?: { findUnique?: ReturnType<typeof vi.fn> };
   lawDocument?: {
     findFirst?: ReturnType<typeof vi.fn>;
     findMany?: ReturnType<typeof vi.fn>;
@@ -77,6 +78,9 @@ function memberPrisma(extra: Partial<FakePrisma> = {}): FakePrisma {
   return {
     lawCaseMember: {
       findUnique: vi.fn(async () => ({ userId: actor.userId })),
+    },
+    lawCase: {
+      findUnique: vi.fn(async () => ({ spaceId: actor.spaceId })),
     },
     ...extra,
   };
@@ -93,11 +97,11 @@ describe("library routes", () => {
       lawDocument: {
         findFirst: vi.fn(async () => null),
         create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+          ...data,
           id: "doc-1",
           rootId: null,
           version: 1,
           createdAt,
-          ...data,
         })),
       },
     });
@@ -222,12 +226,12 @@ describe("library routes", () => {
     const prisma = memberPrisma({
       lawDocument: {
         create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+          ...data,
           id: "note-1",
           rootId: null,
           version: 1,
           createdAt,
           artifactId: null,
-          ...data,
         })),
       },
     });

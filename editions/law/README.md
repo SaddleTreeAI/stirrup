@@ -150,3 +150,33 @@ Builds `editions/law/docker/media.Dockerfile` with `SERVER_IMAGE` / `LAW_SERVER_
 Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest` only in M0).
 
 Demo smoke: `docs/editions/00-README.md`. Parity map: `docs/editions/law-parity.md`.
+
+## Content encryption
+
+Law text columns use the same space data keys and `rkz1:` ciphertext as core content (`docs/content-encryption.md`). Sealed columns: `law_cases.brief`, `law_documents.body`, `law_document_pages.text`, `law_transcript_segments.text`, `law_media_frames.caption`. Titles, filenames, ids, timestamps and statuses stay plaintext. Original uploaded bytes are already sealed through the artifact store.
+
+`CONTENT_ENCRYPTION=off` writes plaintext; reads still decrypt existing ciphertext. SQL `LIKE` / full-text search over sealed columns is impossible; case chat retrieval scores decrypted snippets in memory (SRCH1 will extend that). Do not add Postgres FTS indexes on these columns.
+
+### Backfill
+
+After turning encryption on (or after upgrading a database that already holds plaintext law rows):
+
+```bash
+pnpm --filter @rakazo/edition-law encrypt:backfill [--dry-run] [--case <id>]
+```
+
+Idempotent: skips rows that already start with `rkz1:`. Prints per-column counts only (never text). Emergency exit:
+
+```bash
+pnpm --filter @rakazo/edition-law encrypt:decrypt [--dry-run] [--case <id>]
+```
+
+### Rotation
+
+Core `content-encryption rotate` / `reencrypt` only know core tables. After rotating space data keys, re-seal law text with:
+
+```bash
+pnpm --filter @rakazo/edition-law encrypt:reencrypt [--dry-run] [--case <id>]
+```
+
+That rewrites rows still sealed under an older key version. Master-key rewrap of `space_keys` remains a core CLI step.
