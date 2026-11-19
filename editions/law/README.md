@@ -35,12 +35,16 @@ Supporting modules under `src/web/`: `shell.tsx`, `roster.ts`, `files.tsx`, `lib
 
 Prisma models in `db/law.prisma` (scalar fields only). Migrations under `db/migrations/` (9999 prefix):
 
-| Table              | Purpose                                                              |
-| ------------------ | -------------------------------------------------------------------- |
-| `law_cases`        | Case file per Space (`slug`, `name`, `brief`)                        |
-| `law_case_members` | Which users may open a case                                          |
-| `law_documents`    | Library files and review drafts (versioned)                          |
-| `law_case_bots`    | Role → bot link (`manager`, `documents`, `transcripts`, `generator`) |
+| Table                     | Purpose                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `law_cases`               | Case file per Space (`slug`, `name`, `brief`); soft delete / legal hold |
+| `law_case_members`        | Which users may open a case                                             |
+| `law_documents`           | Library files and review drafts (versioned; upload / status metadata)   |
+| `law_document_pages`      | Per-page text for PDFs (OCR flag)                                       |
+| `law_transcript_segments` | Timed transcript lines for audio / video                                |
+| `law_media_frames`        | Sampled video frames with optional caption                              |
+| `law_jobs`                | Background extract / OCR / transcribe / purge work                      |
+| `law_case_bots`           | Role → bot link (`manager`, `documents`, `transcripts`, `generator`)    |
 
 Row-level security is enabled and forced on every law table; tenant policies key off `app.space_id`, with an `app.rls_bypass` system policy.
 
