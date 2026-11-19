@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import type { PrismaClient } from "@rakazo/db";
 import { asSystem, createDb, createOrganizationWithDefaultSpace, createRepos } from "@rakazo/db";
+import { lawRoleAvatar } from "../../shared/avatars.js";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "../constants.js";
 import { sealLawText } from "../seal.js";
 
@@ -153,6 +154,7 @@ export async function seedLawPlatform(input: {
           notifyOnFinish: false,
           dailyCheckIns: false,
           fleetManagement: false,
+          color: lawRoleAvatar(role.role),
           spawnKey,
           modelProvider: LAW_CHAT_PROVIDER,
           modelId: LAW_CHAT_MODEL_ID,
