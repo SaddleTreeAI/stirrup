@@ -284,9 +284,11 @@ describe("api and worker environment allowlists", () => {
       expect(stackEnvironment(files, "api")).not.toHaveProperty("POSTGRES_PASSWORD");
       // The owner login goes only to the migrate container, which gets nothing else.
       expect(stackEnvironment(files, "api")).not.toHaveProperty("DATABASE_MIGRATION_URL");
+      // Migrate must see the edition to pick the prepared migrations.
       expect(Object.keys(stackEnvironment(files, "migrate")).sort()).toEqual([
         "DATABASE_MIGRATION_URL",
         "DATABASE_URL",
+        "STIRRUP_EDITION",
       ]);
     },
   );
