@@ -3,6 +3,8 @@
 
 @source "../../packages/ui-web/src/**/*.{ts,tsx}";
 @source "./src/**/*.{ts,tsx}";
+/* edition-seam:W9 - Tailwind must scan edition sources too */
+@source "../../../editions/*/src/**/*.{ts,tsx}";
 
 html,
 body,
