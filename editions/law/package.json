@@ -20,6 +20,9 @@
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --root ../.. editions/law/src",
     "seed": "tsx src/server/cli/seed.ts",
+    "encrypt:backfill": "tsx src/server/cli/encrypt.ts backfill",
+    "encrypt:decrypt": "tsx src/server/cli/encrypt.ts decrypt",
+    "encrypt:reencrypt": "tsx src/server/cli/encrypt.ts reencrypt",
     "media:doctor": "tsx src/server/media/main.ts media:doctor",
     "media:dev": "tsx src/server/media/main.ts"
   },
