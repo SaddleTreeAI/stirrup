@@ -70,6 +70,37 @@ describe("API request body limits", () => {
     expect(upload.status).toBe(200);
   });
 
+  it.each([false, true])(
+    "preserves a signed-out invite preview body (content-length present: %s)",
+    async (hasContentLength) => {
+      const { app, parse } = rpcApp(false);
+      const payload = { json: { token: "example-platform-invitation-token-1234" } };
+      const body = JSON.stringify(payload);
+      const response = await app.request("/rpc/platformInvite/preview", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(hasContentLength ? { "content-length": String(body.length) } : {}),
+        },
+        body,
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(payload);
+      expect(parse).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("rejects an oversized signed-out invite preview before parsing it", async () => {
+    const { app, parse } = rpcApp(false);
+    const response = await app.request("/rpc/platformInvite/preview", {
+      method: "POST",
+      headers: { "content-length": String(MAX_AUTH_REQUEST_BYTES + 1) },
+      body: "{}",
+    });
+    expect(response.status).toBe(413);
+    expect(parse).not.toHaveBeenCalled();
+  });
+
   it("keeps the RPC allowance above the largest supported attachment envelope", () => {
     expect(MAX_RPC_REQUEST_BYTES).toBeGreaterThan(ATTACHMENT_MAX_BASE64_LENGTH);
     expect(MAX_AUTH_REQUEST_BYTES).toBeLessThan(MAX_RPC_REQUEST_BYTES);
