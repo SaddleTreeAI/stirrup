@@ -47,7 +47,7 @@ describe("prepareIngestBody", () => {
 
   it("strips HTML tags for html uploads", () => {
     const bytes = new TextEncoder().encode(
-      "<p>Hello <b>world</b></p><script>hide()</script ><style>x{}</style >",
+      "<p>Hello <b>world</b></p><script>hide()</script\t\n bar><style>x{}</style >",
     );
     const result = prepareIngestBody(classify("text/html", "a.html"), bytes, "text/html", "a.html");
     expect(result.body).toBe("Hello world");

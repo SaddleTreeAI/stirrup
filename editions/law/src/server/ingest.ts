@@ -113,11 +113,11 @@ function isHtml(mediaType: string, filename: string): boolean {
 }
 
 function stripHtml(html: string): string {
-  // Closing tags may include space before `>` (e.g. </script >). Named entities
-  // stay as-is so we never unescape into a second entity pass.
+  // Closing tags may carry junk before `>` (e.g. </script\t\n bar>). Named
+  // entities stay as-is so we never unescape into a second entity pass.
   return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, " ")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/\s+/g, " ")
