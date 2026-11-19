@@ -1,7 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
-import { Button } from "@rakazo/ui-web";
+import { t } from "@lingui/core/macro";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  Textarea,
+} from "@rakazo/ui-web";
 import { Download, File, FileCode2, FileImage, FileText, FileType2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -83,6 +100,7 @@ export function LawFileCard({
   editableHint?: boolean;
 }) {
   const ext = fileExtension(doc.filename);
+  const open = () => onOpen(doc);
   return (
     <li>
       <div
@@ -94,15 +112,15 @@ export function LawFileCard({
         </span>
         <button
           type="button"
-          className="min-w-0 flex-1 text-start"
-          onDoubleClick={() => onOpen(doc)}
+          className="min-w-0 flex-1 rounded-sm text-start focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          onClick={open}
           aria-label={doc.title}
         >
           <span className="block truncate text-body-sm text-foreground">{doc.title}</span>
           <span className="block truncate text-label text-muted-foreground">
             .{ext}
             {doc.version > 1 ? ` · v${doc.version}` : ""}
-            {editableHint ? " · edit" : ""}
+            {editableHint ? t` · edit` : ""}
           </span>
         </button>
         <Button
@@ -110,7 +128,7 @@ export function LawFileCard({
           variant="ghost"
           size="icon-sm"
           className="size-7 shrink-0 text-muted-foreground opacity-70 group-hover:opacity-100 focus-visible:opacity-100"
-          aria-label={`Download ${doc.filename}`}
+          aria-label={t`Download ${doc.filename}`}
           data-testid={`law-file-download-${doc.id}`}
           onClick={(event) => {
             event.stopPropagation();
@@ -147,11 +165,11 @@ export function LawFileViewer({
             onClick={() => downloadLawFile(doc)}
             data-testid="law-viewer-download"
           >
-            Download
+            {t`Download`}
           </Button>
           {onEdit ? (
             <Button type="button" size="sm" onClick={onEdit} data-testid="law-viewer-edit">
-              Edit
+              {t`Edit`}
             </Button>
           ) : null}
         </>
@@ -177,6 +195,7 @@ export function LawDocumentEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const surface = useRef<HTMLDivElement>(null);
+  const dirty = value !== doc.body;
 
   useEffect(() => {
     setValue(doc.body);
@@ -186,25 +205,26 @@ export function LawDocumentEditor({
   return (
     <LawOverlay
       title={doc.title}
-      subtitle={`Editing ${doc.filename} · saves as v${doc.version + 1}`}
+      subtitle={t`Editing ${doc.filename} · saves as v${doc.version + 1}`}
       onClose={onClose}
+      dirty={dirty}
       actions={
         <Button
           type="button"
           size="sm"
-          disabled={saving || value === doc.body}
+          disabled={saving || !dirty}
           data-testid="law-editor-save"
           onClick={() => {
             setSaving(true);
             setError(null);
             void onSave(value)
               .catch((caught: unknown) => {
-                setError(caught instanceof Error ? caught.message : "Couldn't save");
+                setError(caught instanceof Error ? caught.message : t`Couldn't save`);
               })
               .finally(() => setSaving(false));
           }}
         >
-          {saving ? "Saving…" : "Save version"}
+          {saving ? t`Saving…` : t`Save version`}
         </Button>
       }
     >
@@ -214,14 +234,14 @@ export function LawDocumentEditor({
           className="mx-auto flex min-h-0 w-full max-w-[720px] flex-1 flex-col rounded-sm border border-border bg-card shadow-sm"
         >
           <label className="sr-only" htmlFor="law-doc-editor">
-            Document body
+            {t`Document body`}
           </label>
-          <textarea
+          <Textarea
             id="law-doc-editor"
             data-testid="law-doc-editor"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            className="min-h-0 flex-1 resize-none bg-transparent px-10 py-8 text-body leading-relaxed text-foreground outline-none"
+            className="min-h-0 flex-1 resize-none rounded-none border-0 bg-transparent px-10 py-8 text-body leading-relaxed shadow-none focus-visible:ring-3"
             spellCheck
           />
         </div>
@@ -237,42 +257,81 @@ function LawOverlay({
   onClose,
   actions,
   children,
+  dirty = false,
 }: {
   title: string;
   subtitle: string;
   onClose: () => void;
   actions?: ReactNode;
   children: ReactNode;
+  dirty?: boolean;
 }) {
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const requestClose = () => {
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  };
+
   return (
-    <div
-      data-testid="law-file-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div className="flex h-[min(860px,92vh)] w-[min(880px,96vw)] flex-col overflow-hidden rounded-lg border border-border bg-background shadow-lg">
-        <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-body font-medium text-foreground">{title}</h2>
-            <p className="truncate text-label text-muted-foreground">{subtitle}</p>
-          </div>
-          {actions}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Close"
-            onClick={onClose}
-            data-testid="law-overlay-close"
-          >
-            <X size={16} strokeWidth={1.8} aria-hidden="true" />
-          </Button>
-        </header>
-        {children}
-      </div>
-    </div>
+    <>
+      <Dialog
+        open
+        onOpenChange={(next) => {
+          if (!next) requestClose();
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          data-testid="law-file-overlay"
+          aria-label={title}
+          className="flex h-[min(860px,92vh)] w-[min(880px,96vw)] max-w-[min(880px,96vw)] flex-col gap-0 overflow-hidden rounded-lg border border-border bg-background p-0 shadow-lg sm:max-w-[min(880px,96vw)]"
+        >
+          <DialogHeader className="flex flex-row items-center gap-3 space-y-0 border-b border-border px-4 py-3 text-start">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="truncate text-body font-medium text-foreground">
+                {title}
+              </DialogTitle>
+              <DialogDescription className="truncate text-label text-muted-foreground">
+                {subtitle}
+              </DialogDescription>
+            </div>
+            {actions}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t`Close`}
+              onClick={requestClose}
+              data-testid="law-overlay-close"
+            >
+              <X size={16} strokeWidth={1.8} aria-hidden="true" />
+            </Button>
+          </DialogHeader>
+          {children}
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t`Discard changes?`}</AlertDialogTitle>
+            <AlertDialogDescription>{t`Your edits will be lost.`}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t`Cancel`}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setConfirmDiscard(false);
+                onClose();
+              }}
+            >
+              {t`Discard`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

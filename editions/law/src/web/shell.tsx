@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
-import { SectionHeading } from "@rakazo/ui-web";
+import { t } from "@lingui/core/macro";
+import { Button, Input, SectionHeading, Tabs, TabsList, TabsTrigger } from "@rakazo/ui-web";
 import { useSidebar } from "@rakazo/ui-web/components/ui/sidebar";
 import { Briefcase, Plus, Scale } from "lucide-react";
 import type { ReactNode } from "react";
@@ -416,10 +417,10 @@ export function LawEnvironmentRail() {
       <button
         type="button"
         data-testid="law-env-general"
-        aria-label="General Stirrup"
+        aria-label={t`General Stirrup`}
         aria-pressed={environment === "general"}
         onClick={() => setEnvironment("general")}
-        className={`flex size-9 items-center justify-center rounded-md ${
+        className={`flex size-9 items-center justify-center rounded-md focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${
           environment === "general"
             ? "bg-sidebar-accent text-foreground"
             : "text-muted-foreground hover:bg-sidebar-accent"
@@ -430,10 +431,10 @@ export function LawEnvironmentRail() {
       <button
         type="button"
         data-testid="law-env-cases"
-        aria-label="Cases"
+        aria-label={t`Cases`}
         aria-pressed={environment === "cases"}
         onClick={() => setEnvironment("cases")}
-        className={`flex size-9 items-center justify-center rounded-md ${
+        className={`flex size-9 items-center justify-center rounded-md focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none ${
           environment === "cases"
             ? "bg-sidebar-accent text-foreground"
             : "text-muted-foreground hover:bg-sidebar-accent"
@@ -472,14 +473,14 @@ export function LawCaseTabs() {
   if (error && cases.length === 0) {
     return (
       <button type="button" className="mx-2.5 mt-3 text-body-sm underline" onClick={reload}>
-        Retry
+        {t`Retry`}
       </button>
     );
   }
   if (cases.length === 0) {
     return (
       <div data-testid="law-cases-empty" className="mx-2.5 mt-3 space-y-2">
-        <p className="text-body-sm text-muted-foreground">No cases in this organization</p>
+        <p className="text-body-sm text-muted-foreground">{t`No cases in this organization`}</p>
         {creating ? (
           <form
             className="flex items-center gap-1"
@@ -496,21 +497,22 @@ export function LawCaseTabs() {
                 .finally(() => setBusy(false));
             }}
           >
-            <input
+            <Input
               data-testid="law-case-name-input"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Case name"
-              aria-label="Case name"
-              className="w-28 rounded-full border border-border bg-card px-2 py-1 text-body-sm outline-none"
+              placeholder={t`Case name`}
+              aria-label={t`Case name`}
+              className="h-7 w-28 rounded-full bg-card px-2 py-1 text-body-sm"
             />
-            <button
+            <Button
               type="submit"
+              size="sm"
               disabled={busy || !draft.trim()}
-              className="rounded-full bg-sidebar-accent px-2 py-1 text-body-sm"
+              className="rounded-full"
             >
-              Add
-            </button>
+              {t`Add`}
+            </Button>
           </form>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -521,7 +523,7 @@ export function LawCaseTabs() {
                 onClick={openCasesSpace}
                 className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
               >
-                Open cases
+                {t`Open cases`}
               </button>
             ) : (
               <button
@@ -530,7 +532,7 @@ export function LawCaseTabs() {
                 onClick={() => setCreating(true)}
                 className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
               >
-                Create case
+                {t`Create case`}
               </button>
             )}
             <button
@@ -539,7 +541,7 @@ export function LawCaseTabs() {
               onClick={openOrganizationMenu}
               className="rounded-md px-2.5 py-1 text-body-sm text-muted-foreground underline-offset-2 hover:underline"
             >
-              Switch organization
+              {t`Switch organization`}
             </button>
           </div>
         )}
@@ -548,25 +550,28 @@ export function LawCaseTabs() {
   }
   return (
     <div data-testid="law-case-tabs" className="flex gap-1 overflow-x-auto px-2.5 pt-3 pb-1">
-      {cases.map((item) => {
-        const open = item.id === selected?.id;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            data-testid={`law-case-tab-${item.slug}`}
-            aria-pressed={open}
-            onClick={() => selectCase(item.id)}
-            className={`shrink-0 rounded-full px-3 py-1 text-body-sm ${
-              open
-                ? "bg-sidebar-accent text-foreground"
-                : "text-muted-foreground hover:bg-sidebar-accent"
-            }`}
-          >
-            {item.name.replace("Commonwealth v. ", "")}
-          </button>
-        );
-      })}
+      <Tabs
+        value={selected?.id ?? cases[0]?.id ?? ""}
+        onValueChange={selectCase}
+        className="min-w-0 gap-0"
+      >
+        <TabsList
+          variant="line"
+          aria-label={t`Cases`}
+          className="h-auto w-auto gap-1 rounded-none bg-transparent p-0"
+        >
+          {cases.map((item) => (
+            <TabsTrigger
+              key={item.id}
+              value={item.id}
+              data-testid={`law-case-tab-${item.slug}`}
+              className="h-auto shrink-0 rounded-full px-3 py-1 text-body-sm data-active:bg-sidebar-accent data-active:text-foreground data-active:shadow-none"
+            >
+              {item.name.replace("Commonwealth v. ", "")}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
       {creating ? (
         <form
           className="flex shrink-0 items-center gap-1"
@@ -583,29 +588,25 @@ export function LawCaseTabs() {
               .finally(() => setBusy(false));
           }}
         >
-          <input
+          <Input
             data-testid="law-case-name-input"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Case name"
-            aria-label="Case name"
-            className="w-28 rounded-full border border-border bg-card px-2 py-1 text-body-sm outline-none"
+            placeholder={t`Case name`}
+            aria-label={t`Case name`}
+            className="h-7 w-28 rounded-full bg-card px-2 py-1 text-body-sm"
           />
-          <button
-            type="submit"
-            disabled={busy || !draft.trim()}
-            className="rounded-full bg-sidebar-accent px-2 py-1 text-body-sm"
-          >
-            Add
-          </button>
+          <Button type="submit" size="sm" disabled={busy || !draft.trim()} className="rounded-full">
+            {t`Add`}
+          </Button>
         </form>
       ) : (
         <button
           type="button"
           data-testid="law-case-add"
-          aria-label="Add case"
+          aria-label={t`Add case`}
           onClick={() => setCreating(true)}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         >
           <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
         </button>
@@ -713,13 +714,13 @@ function LawCaseDocuments({
         className="hidden h-full w-[280px] shrink-0 flex-col border-s border-sidebar-border bg-background md:flex"
       >
         <LawPanel
-          title="Library"
+          title={t`Library`}
           testId="law-library"
           docs={library}
           onOpen={(doc) => setViewer(doc)}
         />
         <LawPanel
-          title="Documents for review"
+          title={t`Documents for review`}
           testId="law-review"
           docs={review}
           onOpen={(doc) => {
@@ -733,7 +734,7 @@ function LawCaseDocuments({
           className="flex min-h-0 flex-1 flex-col border-t border-border p-3"
         >
           <SectionHeading as="h2" variant="label">
-            Something else
+            {t`Something else`}
           </SectionHeading>
         </section>
         {shellError || docError ? (
@@ -742,7 +743,7 @@ function LawCaseDocuments({
             className="border-t border-border px-3 py-2 text-start text-body-sm underline"
             onClick={reload}
           >
-            Retry
+            {t`Retry`}
           </button>
         ) : null}
       </aside>
