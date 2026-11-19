@@ -55,4 +55,7 @@ it happens before the external service's sign-in flow starts.
 
 If you registered an OAuth client yourself, its allowed redirect URI must also match
 `<WEB_ORIGIN>/mcp/oauth/callback`. That is a separate check by the external service;
-see [MCP servers](./self-host-integrations.md#mcp-servers).
+see [MCP servers](./self-host-integrations.md#mcp-servers). For Google Workspace MCP
+(Gmail, Drive, Calendar), run
+`node scripts/google-oauth-preflight.mjs --web-origin <WEB_ORIGIN>` and follow
+[Google Workspace MCP](./self-host-google.md).

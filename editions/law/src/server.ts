@@ -1,5 +1,10 @@
 import { defineServerEdition } from "@rakazo/edition-sdk";
-import { lawTurnNote, limitLawTeammates, saveLawReviewDraftHook } from "./server/cases.js";
+import {
+  lawBotAccess,
+  lawTurnNote,
+  limitLawTeammates,
+  saveLawReviewDraftHook,
+} from "./server/cases.js";
 import { applyLawChatPin, assertLawDeploymentChatPin } from "./server/chat-pin.js";
 import { LawMockAgentRuntime, lawMockEnabled } from "./server/mock-runtime.js";
 import { mountLawRoutes } from "./server/routes.js";
@@ -11,6 +16,7 @@ export const lawEdition = defineServerEdition({
   mountRoutes: (app, deps) => mountLawRoutes(app, deps),
   agentRuntime: () => (lawMockEnabled() ? new LawMockAgentRuntime() : undefined),
   afterBootstrap: assertLawDeploymentChatPin,
+  botAccess: lawBotAccess,
   runHooks: {
     turnNote: lawTurnNote,
     limitTeammates: limitLawTeammates,
