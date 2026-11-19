@@ -3,7 +3,6 @@
 
 const SPACE_STORAGE_KEY = "rakazo:space-id";
 const SPACE_SELECTED_EVENT = "rakazo:space-selected";
-const CASES_LANDING_KEY = "law-cases-space-landed";
 
 export function selectedSpaceId(): string | null {
   if (typeof window === "undefined") return null;
@@ -30,17 +29,11 @@ export function selectSpace(id: string): boolean {
 }
 
 /**
- * Move into the Space that holds the user's cases once per tab session, so a
- * stale selection (for example a newly created empty organization) does not
- * leave Cases blank.
+ * Move into the Space that holds the user's cases. Used when Cases is chosen
+ * while the current organization has none — General stays on the current Space.
  */
 export function landInCasesSpace(spaceId: string): boolean {
-  try {
-    if (sessionStorage.getItem(CASES_LANDING_KEY) === spaceId) return false;
-    sessionStorage.setItem(CASES_LANDING_KEY, spaceId);
-  } catch {
-    /* still try to land */
-  }
+  if (selectedSpaceId() === spaceId) return false;
   if (!selectSpace(spaceId)) return false;
   window.location.assign("/app");
   return true;

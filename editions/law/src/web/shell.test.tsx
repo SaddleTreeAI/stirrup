@@ -361,7 +361,7 @@ describe("law shell chrome", () => {
     });
   });
 
-  it("places the rail beside a containing block with no left offset utility", async () => {
+  it("places the rail beside a containing block without a second sidebar offset", async () => {
     const { container, root } = await mountShell(
       createElement(LawChromeFrame, null, createElement("div")),
     );
@@ -373,7 +373,9 @@ describe("law shell chrome", () => {
     expect(container.querySelector(".law-chrome-spacer")).not.toBeNull();
     expect(container.querySelector(".law-chrome-rail")).not.toBeNull();
     const css = container.querySelector("style")?.textContent ?? "";
-    expect(css).toContain('[data-slot="sidebar-container"][data-side="left"]{left:3rem}');
+    expect(css).toContain(".law-chrome-frame{contain:paint}");
+    expect(css).not.toContain('[data-slot="sidebar-container"][data-side="left"]{left:3rem}');
+    expect(css).not.toContain('[data-slot="sidebar-container"][data-side="right"]{right:3rem}');
     await act(async () => {
       root.unmount();
     });
@@ -420,6 +422,76 @@ describe("law shell chrome", () => {
     expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
       "",
     );
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("opens the cases Space when Cases is chosen and the current organization has none", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    localStorage.setItem(SPACE_KEY, "space-empty");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ cases: [], casesSpaceId: "space-defense" })),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(RosterProbe),
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+      ),
+      "/app/general-bot",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-loading"),
+      ).toBe("false");
+    });
+    expect(assign).not.toHaveBeenCalled();
+    expect(
+      container.querySelector('[data-testid="law-env-general"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    // Empty case list: General keeps every non-case bot from the space (nothing to hide yet).
+    expect(
+      container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids"),
+    ).toContain("general-bot");
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-env-cases"]')?.click();
+      await flush();
+    });
+    expect(assign).toHaveBeenCalledWith("/app");
+    expect(localStorage.getItem(SPACE_KEY)).toBe("space-defense");
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("keeps general bots visible while cases stay hidden in General", async () => {
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(RosterProbe),
+        createElement(LawEnvironmentRail),
+      ),
+      "/app/general-bot",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-loading"),
+      ).toBe("false");
+    });
+    expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
+      "general-bot",
+    );
+    expect(
+      container.querySelector('[data-testid="law-env-general"]')?.getAttribute("aria-pressed"),
+    ).toBe("true");
     await act(async () => {
       root.unmount();
     });
