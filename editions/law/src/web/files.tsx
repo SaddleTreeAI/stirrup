@@ -31,6 +31,15 @@ export interface LawFileDoc {
   body: string;
   version: number;
   rootId: string;
+  createdAt?: string;
+  source?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  status?: string;
+  statusDetail?: string;
+  pageCount?: number | null;
+  durationMs?: number | null;
+  hasOriginal?: boolean;
 }
 
 export function fileExtension(filename: string): string {
@@ -41,6 +50,32 @@ export function fileExtension(filename: string): string {
 export function isEditableLawFile(filename: string): boolean {
   const ext = fileExtension(filename);
   return ext === "md" || ext === "markdown" || ext === "docx";
+}
+
+/** Text notes and drafts the editor can open; binary originals stay download-only. */
+export function isEditableLawDocument(doc: LawFileDoc): boolean {
+  const source = doc.source ?? "";
+  if (source === "note" || source === "edit" || source === "bot") return true;
+  if (doc.kind === "note" || doc.kind === "review") return true;
+  return isEditableLawFile(doc.filename);
+}
+
+/** Prefer the text body viewer for notes and extracted text; otherwise the original card. */
+export function isTextLawDocument(doc: LawFileDoc): boolean {
+  if (isEditableLawDocument(doc)) return true;
+  const mime = (doc.mimeType ?? "").toLowerCase();
+  if (mime.startsWith("text/") || mime === "application/json") return true;
+  return Boolean(doc.body) && !doc.hasOriginal;
+}
+
+export function formatLawFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "";
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 function FileTypeIcon({ filename }: { filename: string }) {
@@ -146,11 +181,30 @@ export function LawFileViewer({
   doc,
   onClose,
   onEdit,
+  originalHref,
 }: {
   doc: LawFileDoc;
   onClose: () => void;
   onEdit?: () => void;
+  /** When set, Download / Download original use the stored file bytes. */
+  originalHref?: string;
 }) {
+  const textView = isTextLawDocument(doc);
+  const sizeLabel = doc.sizeBytes ? formatLawFileSize(doc.sizeBytes) : "";
+  const typeLabel = doc.mimeType || fileExtension(doc.filename).toUpperCase();
+
+  function download() {
+    if (originalHref) {
+      const anchor = document.createElement("a");
+      anchor.href = originalHref;
+      anchor.download = doc.filename || doc.title;
+      anchor.rel = "noopener";
+      anchor.click();
+      return;
+    }
+    downloadLawFile(doc);
+  }
+
   return (
     <LawOverlay
       title={doc.title}
@@ -162,12 +216,12 @@ export function LawFileViewer({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => downloadLawFile(doc)}
+            onClick={download}
             data-testid="law-viewer-download"
           >
             {t`Download`}
           </Button>
-          {onEdit ? (
+          {onEdit && textView ? (
             <Button type="button" size="sm" onClick={onEdit} data-testid="law-viewer-edit">
               {t`Edit`}
             </Button>
@@ -175,9 +229,29 @@ export function LawFileViewer({
         </>
       }
     >
-      <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-6 py-4 text-body text-foreground">
-        {doc.body}
-      </pre>
+      {textView ? (
+        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-6 py-4 text-body text-foreground">
+          {doc.body}
+        </pre>
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10">
+          <div
+            data-testid="law-viewer-original-card"
+            className="flex w-full max-w-sm flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-8 text-center"
+          >
+            <p className="text-body text-foreground">{typeLabel}</p>
+            {sizeLabel ? <p className="text-body-sm text-muted-foreground">{sizeLabel}</p> : null}
+            <Button
+              type="button"
+              size="sm"
+              onClick={download}
+              data-testid="law-viewer-download-original"
+            >
+              {t`Download original`}
+            </Button>
+          </div>
+        </div>
+      )}
     </LawOverlay>
   );
 }
