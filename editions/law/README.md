@@ -54,8 +54,11 @@ Mounted at `/api/law/*` by `mountRoutes`:
 
 | Method | Path                                           | Behavior                                                          |
 | ------ | ---------------------------------------------- | ----------------------------------------------------------------- |
-| GET    | `/api/law/cases`                               | List the caller's cases and role bots                             |
-| POST   | `/api/law/cases`                               | Create a case and the four role bots                              |
+| GET    | `/api/law/cases`                               | List open cases, `canDelete`, `deletedBotIds`, `retentionDays`    |
+| GET    | `/api/law/cases?deleted=1`                     | List soft-deleted cases (space owner / org admin only)            |
+| POST   | `/api/law/cases`                               | Create a case and the four role bots (`createdBy` = actor)        |
+| DELETE | `/api/law/cases/:id`                           | Soft-delete a case; cancel queued/running jobs; audit             |
+| POST   | `/api/law/cases/:id/restore`                   | Clear soft-delete fields (same permission as delete)              |
 | POST   | `/api/law/cases/:id/bots`                      | Attach an existing Space bot to the case                          |
 | GET    | `/api/law/cases/:id/documents`                 | List library / review documents (excludes soft-deleted)           |
 | POST   | `/api/law/cases/:id/documents/upload`          | Multipart upload (`file`, optional `title`) into the case library |
@@ -65,7 +68,9 @@ Mounted at `/api/law/*` by `mountRoutes`:
 | GET    | `/api/law/cases/:id/documents/:docId/file`     | Download original bytes (`?inline=1` for pdf/audio/video only)    |
 | POST   | `/api/law/cases/:id/documents/:docId/versions` | Save a new review draft version (`{ body }`)                      |
 
-Unauthenticated calls return 401. Non-members get 404 on every case-scoped route (same as the list).
+Unauthenticated calls return 401. Non-members get 404 on every case-scoped route (same as the list). Soft-deleted cases return 404 on library and document routes; their bots stay in `deletedBotIds` so General never shows them.
+
+**Case delete permissions (CASE1):** the case `createdBy`, or a space owner, or an organization owner/admin. When `createdBy` is null (older multi-member cases), only a space owner or org admin may delete or restore. Other members get 403; non-members get 404. A case with `legalHold` cannot be deleted (409). Retention defaults to 30 days (`LAW_CASE_RETENTION_DAYS`; `0` means never auto-purge). Hard purge of bots, threads, documents, and artifacts is CASE2.
 
 **Library permissions (L0):** any case member may upload, create notes, rename, and soft-delete. Tighten later (for example creator-only delete) without changing the route shapes.
 

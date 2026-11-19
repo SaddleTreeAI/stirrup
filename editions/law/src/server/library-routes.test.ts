@@ -80,7 +80,7 @@ function memberPrisma(extra: Partial<FakePrisma> = {}): FakePrisma {
       findUnique: vi.fn(async () => ({ userId: actor.userId })),
     },
     lawCase: {
-      findUnique: vi.fn(async () => ({ spaceId: actor.spaceId })),
+      findUnique: vi.fn(async () => ({ spaceId: actor.spaceId, deletedAt: null })),
     },
     ...extra,
   };
@@ -312,6 +312,33 @@ describe("library routes", () => {
       { id: "doc-v1", title: "New title", filename: "new-title.md" },
       { id: "doc-v2", title: "New title", filename: "new-title.md" },
     ]);
+  });
+
+  it("returns 404 for library routes on a soft-deleted case", async () => {
+    const prisma = memberPrisma({
+      lawCase: {
+        findUnique: vi.fn(async () => ({ spaceId: actor.spaceId, deletedAt: new Date() })),
+      },
+      lawDocument: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+      },
+    });
+    const app = mount(prisma);
+    const note = await app.request("/api/law/cases/case-1/documents", {
+      method: "POST",
+      headers: { authorization: "Bearer test", "content-type": "application/json" },
+      body: JSON.stringify({ title: "Note", body: "text" }),
+    });
+    expect(note.status).toBe(404);
+    expect(prisma.lawDocument?.create).not.toHaveBeenCalled();
+
+    const del = await app.request("/api/law/cases/case-1/documents/doc-1", {
+      method: "DELETE",
+      headers: { authorization: "Bearer test" },
+    });
+    expect(del.status).toBe(404);
+    expect(prisma.lawDocument?.findFirst).not.toHaveBeenCalled();
   });
 
   it("soft deletes a family, hides it from list, and cancels queued jobs", async () => {

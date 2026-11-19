@@ -47,7 +47,7 @@ describe("mountLawRoutes auth and shapes", () => {
   it("returns the cases list shape the web UI expects", async () => {
     const prisma = {
       lawCaseMember: {
-        findMany: vi.fn(async () => [{ caseId: "case-1" }]),
+        findMany: vi.fn(async () => [{ caseId: "case-1" }, { caseId: "case-deleted" }]),
       },
       lawCase: {
         findMany: vi.fn(async () => [
@@ -56,6 +56,18 @@ describe("mountLawRoutes auth and shapes", () => {
             slug: "ward",
             name: "Commonwealth v. Ward",
             position: 0,
+            createdBy: actor.userId,
+            deletedAt: null,
+            spaceId: actor.spaceId,
+          },
+          {
+            id: "case-deleted",
+            slug: "gone",
+            name: "Commonwealth v. Gone",
+            position: 1,
+            createdBy: actor.userId,
+            deletedAt: new Date("2026-01-01T00:00:00.000Z"),
+            spaceId: actor.spaceId,
           },
         ]),
       },
@@ -65,6 +77,7 @@ describe("mountLawRoutes auth and shapes", () => {
           { caseId: "case-1", role: "documents", botId: "bot-d" },
           { caseId: "case-1", role: "transcripts", botId: "bot-t" },
           { caseId: "case-1", role: "generator", botId: "bot-g" },
+          { caseId: "case-deleted", role: "manager", botId: "bot-deleted" },
         ]),
       },
       bot: {
@@ -74,6 +87,15 @@ describe("mountLawRoutes auth and shapes", () => {
           { id: "bot-t", name: "Transcripts Expert" },
           { id: "bot-g", name: "Legal Doc Generator" },
         ]),
+      },
+      spaceMember: {
+        findUnique: vi.fn(async () => ({ role: "member" })),
+      },
+      space: {
+        findUnique: vi.fn(async () => ({ organizationId: "org-1" })),
+      },
+      member: {
+        findFirst: vi.fn(async () => null),
       },
     };
     const app = mount(prisma);
@@ -87,6 +109,7 @@ describe("mountLawRoutes auth and shapes", () => {
           id: "case-1",
           slug: "ward",
           name: "Commonwealth v. Ward",
+          canDelete: true,
           bots: [
             { role: "manager", name: "Case Manager", botId: "bot-m" },
             { role: "documents", name: "Documents Expert", botId: "bot-d" },
@@ -95,6 +118,9 @@ describe("mountLawRoutes auth and shapes", () => {
           ],
         },
       ],
+      deletedBotIds: ["bot-deleted"],
+      retentionDays: 30,
+      canViewDeleted: false,
     });
   });
 
@@ -111,6 +137,13 @@ describe("mountLawRoutes auth and shapes", () => {
       },
       spaceMember: {
         findFirst: vi.fn(async () => ({ spaceId: "space-defense" })),
+        findUnique: vi.fn(async () => ({ role: "member" })),
+      },
+      space: {
+        findUnique: vi.fn(async () => ({ organizationId: "org-1" })),
+      },
+      member: {
+        findFirst: vi.fn(async () => null),
       },
     };
     const app = mount(prisma);
@@ -120,6 +153,9 @@ describe("mountLawRoutes auth and shapes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       cases: [],
+      deletedBotIds: [],
+      retentionDays: 30,
+      canViewDeleted: false,
       casesSpaceId: "space-defense",
     });
   });
@@ -138,6 +174,26 @@ describe("mountLawRoutes auth and shapes", () => {
     await expect(response.json()).resolves.toEqual({ error: "Not found" });
   });
 
+  it("returns 404 for documents of a soft-deleted case", async () => {
+    const prisma = {
+      lawCaseMember: {
+        findUnique: vi.fn(async () => ({ userId: actor.userId })),
+      },
+      lawCase: {
+        findUnique: vi.fn(async () => ({ spaceId: actor.spaceId, deletedAt: new Date() })),
+      },
+      lawDocument: {
+        findMany: vi.fn(),
+      },
+    };
+    const app = mount(prisma);
+    const response = await app.request("/api/law/cases/case-1/documents", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(response.status).toBe(404);
+    expect(prisma.lawDocument.findMany).not.toHaveBeenCalled();
+  });
+
   it("returns the documents list shape the web UI expects", async () => {
     const createdAt = new Date("2026-01-02T03:04:05.000Z");
     const prisma = {
@@ -145,7 +201,7 @@ describe("mountLawRoutes auth and shapes", () => {
         findUnique: vi.fn(async () => ({ userId: actor.userId })),
       },
       lawCase: {
-        findUnique: vi.fn(async () => ({ spaceId: actor.spaceId })),
+        findUnique: vi.fn(async () => ({ spaceId: actor.spaceId, deletedAt: null })),
       },
       lawDocument: {
         findMany: vi.fn(async () => [
@@ -272,6 +328,13 @@ describe("mountLawRoutes auth and shapes", () => {
       body: JSON.stringify({ name: "Commonwealth v. Demo", brief: "Synthetic brief." }),
     });
     expect(response.status).toBe(201);
+    expect(prisma.lawCase.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ createdBy: actor.userId }),
+      }),
+    );
+    const body = (await response.json()) as { case: { canDelete: boolean } };
+    expect(body.case.canDelete).toBe(true);
     expect(createBot).toHaveBeenCalledTimes(LAW_CASE_ROLES.length);
     for (const role of LAW_CASE_ROLES) {
       expect(createBot).toHaveBeenCalledWith(

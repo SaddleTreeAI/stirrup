@@ -176,7 +176,12 @@ async function requireMember(
     where: { caseId_userId: { caseId, userId } },
     select: { userId: true },
   });
-  return Boolean(member);
+  if (!member) return false;
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: caseId },
+    select: { deletedAt: true },
+  });
+  return Boolean(lawCase && !lawCase.deletedAt);
 }
 
 async function uploadDocument(
