@@ -18,6 +18,24 @@ const EDITION_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const MONOREPO_ROOT = path.resolve(EDITION_ROOT, "../..");
 const ROOT = path.join(EDITION_ROOT, "seed/cases");
 
+/** Firm-wide bots for General Stirrup — not attached to any case. */
+const GENERAL_BOTS = [
+  {
+    spawnKey: "law:general:chief",
+    name: "Chief",
+    description: "Firm-wide questions outside a single case.",
+    instructions:
+      "You are Chief for Demonstration Defense. Help with firm-wide questions that are not tied to one open case. Do not give legal advice. When a question belongs to a specific matter, say which case bot should take it.",
+  },
+  {
+    spawnKey: "law:general:something",
+    name: "Something",
+    description: "Catch-all helper for the firm workspace.",
+    instructions:
+      "You are Something for Demonstration Defense. Handle small firm workspace tasks that are not tied to one open case. Do not give legal advice. When a question belongs to a specific matter, say which case bot should take it.",
+  },
+] as const;
+
 const ROLES = [
   {
     role: "manager",
@@ -75,6 +93,20 @@ export async function seedLawPlatform(input: {
     });
     const repos = createRepos(db);
     const actor = { userId, spaceId, email: LAW_SEED_EMAIL, isDeploymentOwner: false };
+    for (const general of GENERAL_BOTS) {
+      await repos.createBot(actor, {
+        name: general.name,
+        description: general.description,
+        instructions: general.instructions,
+        notifyOnFinish: false,
+        dailyCheckIns: false,
+        fleetManagement: false,
+        spawnKey: general.spawnKey,
+        modelProvider: LAW_CHAT_PROVIDER,
+        modelId: LAW_CHAT_MODEL_ID,
+        thinkingLevel: "medium",
+      });
+    }
     const present = new Set(
       readdirSync(ROOT, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())

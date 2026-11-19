@@ -21,7 +21,7 @@ describe("law space selection", () => {
     expect(selectedSpaceId()).toBe("space-defense");
   });
 
-  it("lands in the cases Space once per tab session", () => {
+  it("lands in the cases Space when a different Space is selected", () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { ...window.location, assign });
     expect(landInCasesSpace("space-defense")).toBe(true);

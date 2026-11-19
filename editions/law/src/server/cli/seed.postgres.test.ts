@@ -73,6 +73,18 @@ describePostgres("law platform seed", () => {
       where: { caseId: { in: cases.map((row) => row.id) } },
     });
     expect(bots).toBe(12);
+    const general = await system.bot.findMany({
+      where: {
+        spaceId,
+        spawnKey: { in: ["law:general:chief", "law:general:something"] },
+      },
+      select: { name: true, spawnKey: true },
+      orderBy: { name: "asc" },
+    });
+    expect(general).toEqual([
+      { name: "Chief", spawnKey: "law:general:chief" },
+      { name: "Something", spawnKey: "law:general:something" },
+    ]);
     const sessions = await system.session.findMany({
       where: { userId: first.userId },
       select: { activeOrganizationId: true },

@@ -45,11 +45,14 @@ interface LawShellValue {
   environment: LawEnvironment;
   roster: LawRosterFilter | null;
   error: string | null;
+  /** Another Space that holds cases when the current organization has none. */
+  casesSpaceId: string | null;
   reload: () => void;
   selectCase: (caseId: string) => void;
   setEnvironment: (environment: LawEnvironment) => void;
   createCase: (name: string) => Promise<LawCase>;
   attachBot: (botId: string) => Promise<void>;
+  openCasesSpace: () => void;
   /** Space captured when this shell mounted. Later storage changes do not retarget fetches. */
   spaceId: string | null;
   /** Remembers a non-case bot seen in the sidebar, so General can open it later. */
@@ -104,6 +107,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [spaceId] = useState(selectedSpaceId);
   const [cases, setCases] = useState<LawCase[]>([]);
+  const [casesSpaceId, setCasesSpaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(0);
@@ -132,15 +136,12 @@ export function LawProvider({ children }: { children: ReactNode }) {
       })
       .then((body) => {
         if (cancelled) return;
-        if (
-          body.cases.length === 0 &&
-          body.casesSpaceId &&
-          body.casesSpaceId !== spaceId &&
-          landInCasesSpace(body.casesSpaceId)
-        ) {
-          return;
-        }
         setCases(body.cases);
+        setCasesSpaceId(
+          body.cases.length === 0 && body.casesSpaceId && body.casesSpaceId !== spaceId
+            ? body.casesSpaceId
+            : null,
+        );
         setError(null);
         setLoaded(true);
       })
@@ -220,6 +221,10 @@ export function LawProvider({ children }: { children: ReactNode }) {
 
   const selected = environment === "cases" ? (caseForBot ?? cases[0] ?? null) : null;
 
+  const openCasesSpace = useCallback(() => {
+    if (casesSpaceId) landInCasesSpace(casesSpaceId);
+  }, [casesSpaceId]);
+
   const setEnvironment = useCallback(
     (next: LawEnvironment) => {
       setEnvironmentChoice(next);
@@ -232,6 +237,10 @@ export function LawProvider({ children }: { children: ReactNode }) {
         navigate(target && !caseBotIds.has(target) ? `/app/${target}` : "/app");
         return;
       }
+      if (cases.length === 0 && casesSpaceId) {
+        landInCasesSpace(casesSpaceId);
+        return;
+      }
       pendingGeneral.current = false;
       pendingCases.current = true;
       caseNavAttempts.current = 0;
@@ -242,7 +251,7 @@ export function LawProvider({ children }: { children: ReactNode }) {
         navigate(`/app/${bot.botId}`);
       }
     },
-    [botId, caseBotIds, caseForBot, cases, navigate, spaceId],
+    [botId, caseBotIds, caseForBot, cases, casesSpaceId, navigate, spaceId],
   );
 
   const selectCase = useCallback(
@@ -329,21 +338,25 @@ export function LawProvider({ children }: { children: ReactNode }) {
       environment,
       roster,
       error,
+      casesSpaceId,
       reload,
       selectCase,
       setEnvironment,
       createCase,
       attachBot,
+      openCasesSpace,
       spaceId,
       noteSidebarBotIds,
     }),
     [
       attachBot,
       cases,
+      casesSpaceId,
       createCase,
       environment,
       error,
       noteSidebarBotIds,
+      openCasesSpace,
       reload,
       roster,
       selectCase,
@@ -366,15 +379,16 @@ export function useLawShell(): LawShellValue {
  * Tailwind scan does not include this package, so a utility written only here
  * is never generated.
  */
+/**
+ * Spacer reserves the rail's width in flow. `contain:paint` makes the fixed
+ * sidebar position relative to this frame (already beside the rail), so the
+ * container stays at left:0 — do not add another 3rem offset here.
+ */
 const LAW_CHROME_STYLE = `
 .law-chrome-spacer,.law-chrome-rail{width:3rem}
 .law-chrome-frame{contain:paint}
-.law-chrome-frame [data-slot="sidebar-container"][data-side="left"]{left:3rem}
-.law-chrome-frame [data-slot="sidebar-container"][data-side="right"]{right:3rem}
 @media (max-width:767px){
   .law-chrome-spacer,.law-chrome-rail{display:none}
-  .law-chrome-frame [data-slot="sidebar-container"][data-side="left"]{left:0}
-  .law-chrome-frame [data-slot="sidebar-container"][data-side="right"]{right:0}
 }
 `;
 
@@ -437,7 +451,17 @@ function openOrganizationMenu() {
 }
 
 export function LawCaseTabs() {
-  const { cases, selected, error, reload, selectCase, createCase, environment } = useLawShell();
+  const {
+    cases,
+    selected,
+    error,
+    reload,
+    selectCase,
+    createCase,
+    environment,
+    casesSpaceId,
+    openCasesSpace,
+  } = useLawShell();
   const sidebar = useSidebar();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
@@ -490,14 +514,25 @@ export function LawCaseTabs() {
           </form>
         ) : (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              data-testid="law-cases-empty-create"
-              onClick={() => setCreating(true)}
-              className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
-            >
-              Create case
-            </button>
+            {casesSpaceId ? (
+              <button
+                type="button"
+                data-testid="law-cases-empty-open"
+                onClick={openCasesSpace}
+                className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
+              >
+                Open cases
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-testid="law-cases-empty-create"
+                onClick={() => setCreating(true)}
+                className="rounded-md bg-sidebar-accent px-2.5 py-1 text-body-sm text-foreground"
+              >
+                Create case
+              </button>
+            )}
             <button
               type="button"
               data-testid="law-cases-empty-switch-org"
