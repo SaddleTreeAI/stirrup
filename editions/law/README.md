@@ -9,7 +9,7 @@ Optional product skin selected with `STIRRUP_EDITION=law` (or `pnpm dev:law` / `
 - **Case column** — library / review document column and overlays (`MainAside`).
 - **Roster filtering** — sidebar and create-menu show only the selected case's bots (`useShellExtension`).
 - **Chat pin** — always pins chat to the OpenRouter model in `constants.ts`.
-- **Mock** — when chat is pinned and `LAW_OPENROUTER_API_KEY` is blank, replies stream from `law-mock` (~30–60 s).
+- **Mock** — when the chat pin is enforced and `LAW_OPENROUTER_API_KEY` is blank, replies stream from `law-mock` (~30–60 s).
 - **Seed** — synthetic attorney, three cases, four bots each, library + review docs; login written only to `LAW_LOGIN_FILE`.
 
 ## Web
@@ -71,16 +71,6 @@ Unauthenticated calls return 401.
 | `onReplyFinalized` | `saveLawReviewDraftHook` | R3   | Persist generator replies as review drafts         |
 | `streamsProgress`  | `lawStreamsProgress`     | R4   | Flush scripted progress for the `law-mock` runtime |
 
-Other edition members and their seams:
-
-| Member           | Seam              | Role                                                                |
-| ---------------- | ----------------- | ------------------------------------------------------------------- |
-| `onProcessStart` | S1                | Apply the chat pin at process start                                 |
-| `mountRoutes`    | S2                | Mount `/api/law/*`                                                  |
-| `runHooks`       | S3                | Wire the hooks table into `createRunRuntime`                        |
-| `agentRuntime`   | S4 (plus S6 gate) | Slow mock when pinned with no OpenRouter key; S6 skips `needsModel` |
-| `afterBootstrap` | S5                | Refuse a deployment default model other than the pin                |
-
 `lawCaseAccess` is wired through `botAccess` (S7).
 
 Other server edition members:
@@ -95,7 +85,7 @@ Other server edition members:
 
 ### Pin and mock
 
-`onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`) and sets `LAW_ENFORCE_CHAT_PIN=1`. `agentRuntime` returns the slow mock only when `LAW_ENFORCE_CHAT_PIN` is `1` and `LAW_OPENROUTER_API_KEY` is blank; otherwise it returns undefined. Seam S6 treats that scripted runtime as not needing a model credential, so chat works without one. Optional `LAW_MOCK_LATENCY_MS` overrides the mock delay: values from 30000 to 60000 (inclusive) are used as-is; anything else falls back to 40000. `afterBootstrap` refuses a deployment default model other than the pin.
+`onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`) and sets `LAW_ENFORCE_CHAT_PIN=1`. The slow mock is used only when that pin flag is `1` and `LAW_OPENROUTER_API_KEY` is blank; S6 is why the scripted mock can chat without a model credential. Optional `LAW_MOCK_LATENCY_MS` must be between 30000 and 60000 inclusive, otherwise the default is 40000. `afterBootstrap` refuses a deployment default model other than the pin.
 
 ## Run
 
