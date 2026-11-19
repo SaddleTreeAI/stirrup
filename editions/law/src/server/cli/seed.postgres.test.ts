@@ -32,6 +32,22 @@ describePostgres("law platform seed", () => {
       quiet: true,
     });
     spaceId = first.spaceId;
+    const db = createDb(runtimeUrl!);
+    prisma = db.prisma;
+    system = asSystem(prisma);
+    close = async () => {
+      await db.prisma.$disconnect();
+      await db.pool.end();
+    };
+    await system.session.create({
+      data: {
+        id: `law-seed-session-${process.pid}`,
+        token: `law-seed-token-${process.pid}`,
+        userId: first.userId,
+        expiresAt: new Date(Date.now() + 86_400_000),
+        activeOrganizationId: "org-elsewhere",
+      },
+    });
     const second = await seedLawPlatform({
       loginFile,
       databaseUrl: migrationUrl!,
@@ -40,14 +56,6 @@ describePostgres("law platform seed", () => {
     expect(second.spaceId).toBe(first.spaceId);
     expect(second.userId).toBe(first.userId);
     expect(second.cases).toEqual(first.cases);
-
-    const db = createDb(runtimeUrl!);
-    prisma = db.prisma;
-    system = asSystem(prisma);
-    close = async () => {
-      await db.prisma.$disconnect();
-      await db.pool.end();
-    };
 
     const cases = await system.lawCase.findMany({
       where: { spaceId },
@@ -65,6 +73,14 @@ describePostgres("law platform seed", () => {
       where: { caseId: { in: cases.map((row) => row.id) } },
     });
     expect(bots).toBe(12);
+    const sessions = await system.session.findMany({
+      where: { userId: first.userId },
+      select: { activeOrganizationId: true },
+    });
+    expect(sessions.length).toBeGreaterThan(0);
+    for (const session of sessions) {
+      expect(session.activeOrganizationId).toBe(spaceId);
+    }
     const login = readFileSync(loginFile, "utf8");
     expect(login).toContain(`email=${LAW_SEED_EMAIL}`);
     expect(login).toMatch(/^password=.+/m);

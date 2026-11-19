@@ -19,26 +19,36 @@ import {
   useLawShell,
 } from "./shell.js";
 
+const CASE_ROLES = ["manager", "documents", "transcripts", "generator"] as const;
+
+function caseWithRoles(
+  id: string,
+  slug: string,
+  name: string,
+  botPrefix: string,
+): {
+  id: string;
+  slug: string;
+  name: string;
+  bots: Array<{ role: string; name: string; botId: string }>;
+} {
+  return {
+    id,
+    slug,
+    name,
+    bots: CASE_ROLES.map((role) => ({
+      role,
+      name: `${slug} ${role}`,
+      botId: `${botPrefix}-${role}`,
+    })),
+  };
+}
+
 const SYNTHETIC_CASES = {
   cases: [
-    {
-      id: "case-ruiz",
-      slug: "ruiz",
-      name: "Fake Case Ruiz",
-      bots: [{ role: "paralegal", name: "Fake Ruiz bot", botId: "bot-ruiz" }],
-    },
-    {
-      id: "case-ward",
-      slug: "ward",
-      name: "Fake Case Ward",
-      bots: [{ role: "paralegal", name: "Fake Ward bot", botId: "bot-ward" }],
-    },
-    {
-      id: "case-nunez",
-      slug: "nunez",
-      name: "Fake Case Nunez",
-      bots: [{ role: "paralegal", name: "Fake Nunez bot", botId: "bot-nunez" }],
-    },
+    caseWithRoles("case-ruiz", "ruiz", "Fake Case Ruiz", "bot-ruiz"),
+    caseWithRoles("case-ward", "ward", "Fake Case Ward", "bot-ward"),
+    caseWithRoles("case-nunez", "nunez", "Fake Case Nunez", "bot-nunez"),
   ],
 };
 
@@ -49,7 +59,14 @@ const SAMPLE_GROUPS = [
     key: "space",
     title: "Space",
     bots: [
-      { chat: { id: "bot-ruiz" }, label: "Case" },
+      ...CASE_ROLES.map((role) => ({
+        chat: { id: `bot-ruiz-${role}` },
+        label: `Ruiz ${role}`,
+      })),
+      ...CASE_ROLES.map((role) => ({
+        chat: { id: `bot-ward-${role}` },
+        label: `Ward ${role}`,
+      })),
       { chat: { id: "general-bot" }, label: "General" },
     ],
   },
@@ -133,7 +150,7 @@ function StealCaseOnce() {
   const navigate = useNavigate();
   const stole = useRef(false);
   useEffect(() => {
-    if (stole.current || location.pathname !== "/app/bot-ruiz") return;
+    if (stole.current || location.pathname !== "/app/bot-ruiz-manager") return;
     stole.current = true;
     navigate("/app/general-bot", { replace: true });
   }, [location.pathname, navigate]);
@@ -148,7 +165,7 @@ function StealBareApp() {
   useEffect(() => {
     if (location.pathname !== "/app" || stole.current) return;
     stole.current = true;
-    navigate("/app/bot-ruiz", { replace: true });
+    navigate("/app/bot-ruiz-manager", { replace: true });
   }, [location.pathname, navigate]);
   return createElement("div", {
     "data-testid": "route",
@@ -362,6 +379,84 @@ describe("law shell chrome", () => {
     });
   });
 
+  it("shows an empty state when Cases is open and the organization has no cases", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          cases: [],
+        }),
+      ),
+    );
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(RosterProbe),
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+      ),
+      "/app/general-bot",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-loading"),
+      ).toBe("false");
+    });
+    expect(container.querySelector('[data-testid="law-cases-empty"]')).toBeNull();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-env-cases"]')?.click();
+      await flush();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-cases-empty"]')).not.toBeNull();
+    });
+    expect(container.querySelector('[data-testid="law-cases-empty"]')?.textContent).toContain(
+      "No cases in this organization",
+    );
+    expect(container.querySelector('[data-testid="law-cases-empty-create"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="law-cases-empty-switch-org"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
+      "",
+    );
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("lists each of the selected case's four role bots in the Cases sidebar", async () => {
+    const { container, root } = await mountShell(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(RosterProbe),
+        createElement(LawEnvironmentRail),
+        createElement(LawCaseTabs),
+      ),
+      "/app/bot-ruiz-manager",
+    );
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-case-tab-ruiz"]')).not.toBeNull();
+    });
+    expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
+      CASE_ROLES.map((role) => `bot-ruiz-${role}`).join(" "),
+    );
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="law-case-tab-ward"]')?.click();
+      await flush();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
+        CASE_ROLES.map((role) => `bot-ward-${role}`).join(" "),
+      );
+    });
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("opens the case workers when Cases is clicked, even if the route bounces once", async () => {
     const { container, root } = await mountShell(
       createElement(
@@ -389,11 +484,11 @@ describe("law shell chrome", () => {
     });
     await vi.waitFor(() => {
       expect(container.querySelector('[data-testid="roster-ids"]')?.getAttribute("data-ids")).toBe(
-        "bot-ruiz",
+        CASE_ROLES.map((role) => `bot-ruiz-${role}`).join(" "),
       );
     });
     expect(container.querySelector('[data-testid="route"]')?.getAttribute("data-path")).toBe(
-      "/app/bot-ruiz",
+      "/app/bot-ruiz-manager",
     );
     expect(
       container.querySelector('[data-testid="law-case-tab-ruiz"]')?.getAttribute("aria-pressed"),
@@ -424,7 +519,7 @@ describe("law shell chrome", () => {
         createElement(LawCaseTabs),
         createElement(LawCaseColumn),
       ),
-      "/app/bot-ruiz",
+      "/app/bot-ruiz-manager",
     );
     await act(async () => {});
     await vi.waitFor(() => {
@@ -476,7 +571,7 @@ describe("law shell chrome", () => {
         createElement(LawCaseTabs),
         createElement(LawCaseColumn),
       ),
-      "/app/bot-ruiz",
+      "/app/bot-ruiz-manager",
     );
     await act(async () => {});
     await vi.waitFor(() => {
@@ -507,7 +602,7 @@ describe("law shell chrome", () => {
         createElement(LawCaseTabs),
         createElement(LawCaseColumn),
       ),
-      "/app/bot-ruiz",
+      "/app/bot-ruiz-manager",
     );
     await act(async () => {});
     await vi.waitFor(() => {
@@ -568,7 +663,7 @@ describe("law shell chrome", () => {
       container.querySelector<HTMLButtonElement>('[data-testid="law-env-cases"]')?.click();
     });
     expect(container.querySelector('[data-testid="route"]')?.getAttribute("data-path")).toBe(
-      "/app/bot-ruiz",
+      "/app/bot-ruiz-manager",
     );
     await act(async () => {
       root.unmount();
@@ -586,7 +681,7 @@ describe("law shell chrome", () => {
         createElement(LawCaseTabs),
         createElement(LawCaseColumn),
       ),
-      "/app/bot-ward",
+      "/app/bot-ward-manager",
     );
     await act(async () => {});
     await vi.waitFor(() => {
@@ -598,7 +693,7 @@ describe("law shell chrome", () => {
       container.querySelector('[data-testid="law-env-general"]')?.getAttribute("aria-pressed"),
     ).toBe("false");
     expect(container.querySelector('[data-testid="route"]')?.getAttribute("data-path")).toBe(
-      "/app/bot-ward",
+      "/app/bot-ward-manager",
     );
     expect(container.querySelector('[data-testid="law-column"]')).not.toBeNull();
     await act(async () => {
@@ -632,7 +727,7 @@ describe("law shell chrome", () => {
         createElement(LawCaseTabs),
         createElement(LawCaseColumn),
       ),
-      "/app/bot-ruiz",
+      "/app/bot-ruiz-manager",
     );
     await act(async () => {});
     await vi.waitFor(() => {
@@ -695,7 +790,7 @@ describe("law shell chrome", () => {
         createElement(LawCaseTabs),
         createElement(LawCaseColumn),
       ),
-      "/app/bot-ruiz",
+      "/app/bot-ruiz-manager",
     );
     await act(async () => {});
     await vi.waitFor(() => {
