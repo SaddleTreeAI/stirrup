@@ -236,7 +236,11 @@ async function uploadDocument(
       updatedAt: new Date(),
     },
   });
-  await enqueueExtraction(prisma, { id: created.id, caseId: created.caseId });
+  await enqueueExtraction(prisma, {
+    id: created.id,
+    caseId: created.caseId,
+    kind: classification.kind,
+  });
   return created;
 }
 
