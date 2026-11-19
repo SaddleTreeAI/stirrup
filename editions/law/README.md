@@ -14,16 +14,16 @@ Optional product skin selected with `STIRRUP_EDITION=law` (or `pnpm dev:law` / `
 
 ## Web
 
-`editions/law/src/web.ts` exports a `WebEdition` wired into the core shell through seams W2–W7 (`docs/editions/README.md`).
+`editions/law/src/web.ts` exports a `WebEdition` wired into the core shell through seams W2–W8 (`docs/editions/README.md`).
 
-| Export                           | Role                                                                                                           | Core seam |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------- |
-| `ShellProvider` (`LawProvider`)  | Owns case list, selected case, environment (`cases` / `general`), and roster filter; fetches `/api/law/cases`. | W2        |
-| `ChromeFrame` (`LawChromeFrame`) | Far-left `w-12` spacer, `LawEnvironmentRail`, and the `left-12` offset wrapper around the core shell.          | W3        |
-| `SidebarLeading` (`LawCaseTabs`) | Case tab strip above the bots list (cases environment only).                                                   | W4        |
-| `MainAside` (`LawCaseColumn`)    | Case file library / review column and document overlays.                                                       | W5        |
-| `useShellExtension`              | Memoized `transformSidebarGroups` / `filterCreateMenuBots` / `onBotCreated` over the current roster.           | W6        |
-| `hideStarPrompt: true`           | Hides the Star on GitHub prompt when the law edition is active.                                                | W7        |
+| Export                           | Role                                                                                                                        | Core seam |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `ShellProvider` (`LawProvider`)  | Owns case list, selected case, environment (`cases` / `general`), and roster filter; fetches `/api/law/cases`.              | W2        |
+| `ChromeFrame` (`LawChromeFrame`) | Far-left `w-12` spacer, `LawEnvironmentRail`, and the `left-12` offset wrapper around the core shell.                       | W3        |
+| `SidebarLeading` (`LawCaseTabs`) | Case tab strip above the bots list (cases environment only).                                                                | W4        |
+| `MainAside` (`LawCaseColumn`)    | Case file library / review column and document overlays.                                                                    | W5        |
+| `useShellExtension`              | Memoized `transformSidebarGroups` / `filterCreateMenuBots` / `onBotCreated` / `chooseDefaultRoute` over the current roster. | W6 / W8   |
+| `hideStarPrompt: true`           | Hides the Star on GitHub prompt when the law edition is active.                                                             | W7        |
 
 Supporting modules under `src/web/`: `shell.tsx`, `roster.ts`, `files.tsx`, `lib.ts` (local `withSpaceHeaders` using `rakazo:space-id` localStorage).
 
