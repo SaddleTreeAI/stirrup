@@ -9,7 +9,7 @@ Optional product skin selected with `STIRRUP_EDITION=law` (or `pnpm dev:law` / `
 - **Case column** — library / review document column and overlays (`MainAside`).
 - **Roster filtering** — sidebar and create-menu show only the selected case's bots (`useShellExtension`).
 - **Chat pin** — always pins chat to the OpenRouter model in `constants.ts`.
-- **Mock** — when `LAW_OPENROUTER_API_KEY` is unset, replies stream from `law-mock` (~30–60 s).
+- **Mock** — when the chat pin is enforced and `LAW_OPENROUTER_API_KEY` is blank, replies stream from `law-mock` (~30–60 s).
 - **Seed** — synthetic attorney, three cases, four bots each, library + review docs; login written only to `LAW_LOGIN_FILE`.
 
 ## Web
@@ -29,7 +29,7 @@ Supporting modules under `src/web/`: `shell.tsx`, `roster.ts`, `files.tsx`, `lib
 
 ## Server
 
-`editions/law/src/server.ts` exports a `ServerEdition` mounted through seams S1–S5 and run hooks R1–R4.
+`editions/law/src/server.ts` exports a `ServerEdition` mounted through seams S1 to S6, run hooks R0 to R4, and database and dev seams C1 to C3.
 
 ### Tables
 
@@ -60,18 +60,28 @@ Unauthenticated calls return 401.
 
 ### Hooks
 
-| Hook               | Function                 | Role                                               |
-| ------------------ | ------------------------ | -------------------------------------------------- |
-| `turnNote`         | `lawTurnNote`            | Case brief + keyword snippets into the turn prompt |
-| `limitTeammates`   | `limitLawTeammates`      | Hide other cases' bots from the teammate list      |
-| `onReplyFinalized` | `saveLawReviewDraftHook` | Persist generator replies as review drafts         |
-| `streamsProgress`  | `lawStreamsProgress`     | Flush scripted progress for the `law-mock` runtime |
+| Hook               | Function                 | Seam | Role                                               |
+| ------------------ | ------------------------ | ---- | -------------------------------------------------- |
+| `turnNote`         | `lawTurnNote`            | R1   | Case brief + keyword snippets into the turn prompt |
+| `limitTeammates`   | `limitLawTeammates`      | R2   | Hide other cases' bots from the teammate list      |
+| `onReplyFinalized` | `saveLawReviewDraftHook` | R3   | Persist generator replies as review drafts         |
+| `streamsProgress`  | `lawStreamsProgress`     | R4   | Flush scripted progress for the `law-mock` runtime |
 
 `lawCaseAccess` is ported in `cases.ts` but has **no core caller yet** (needs a future seam).
 
+Other server edition members:
+
+| Member           | Seam                          | Role                                                             |
+| ---------------- | ----------------------------- | ---------------------------------------------------------------- |
+| `onProcessStart` | S1                            | Apply the chat pin at process start                              |
+| `mountRoutes`    | S2                            | Mount `/api/law/*`                                               |
+| `runHooks`       | S3                            | Wire the hooks above into `createRunRuntime`                     |
+| `agentRuntime`   | S4 (S6 for the scripted gate) | Return the slow mock when enabled; S6 skips the model credential |
+| `afterBootstrap` | S5                            | Refuse a deployment default model other than the pin             |
+
 ### Pin and mock
 
-`onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`). `agentRuntime` returns the slow mock when `LAW_OPENROUTER_API_KEY` is unset. `afterBootstrap` refuses a deployment default model other than the pin.
+`onProcessStart` always applies the chat pin (`LAW_CHAT_PROVIDER` / `LAW_CHAT_MODEL_ID` in `constants.ts`) and sets `LAW_ENFORCE_CHAT_PIN=1`. The slow mock is used only when that pin flag is `1` and `LAW_OPENROUTER_API_KEY` is blank; S6 is why the scripted mock can chat without a model credential. Optional `LAW_MOCK_LATENCY_MS` must be between 30000 and 60000 inclusive, otherwise the default is 40000. `afterBootstrap` refuses a deployment default model other than the pin.
 
 ## Run
 
