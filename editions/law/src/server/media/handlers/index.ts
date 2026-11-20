@@ -3,6 +3,7 @@
 
 import type { Handler } from "../types.js";
 import { importDocxHandler } from "./import-docx.js";
+import { PURGE_CASE_KIND, purgeCaseHandler } from "./purge-case.js";
 import { selftestHandler } from "./selftest.js";
 import { transcribeHandler } from "./transcribe.js";
 
@@ -14,4 +15,5 @@ export const handlers: Record<string, Handler> = {
   selftest: selftestHandler,
   import_docx: importDocxHandler,
   transcribe: transcribeHandler,
+  [PURGE_CASE_KIND]: purgeCaseHandler,
 };
