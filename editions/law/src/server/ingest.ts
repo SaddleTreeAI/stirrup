@@ -26,7 +26,7 @@ export function jobKindForIngest(kind: IngestKind | undefined): string | null {
     case "pdf":
       return "extract_pdf";
     case "docx":
-      return "extract_docx";
+      return "import_docx";
     case "audio":
     case "video":
       return "transcribe";
@@ -42,7 +42,13 @@ export function classify(mediaType: string, filename: string): Classification {
   const mime = mediaType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
   const ext = extensionOf(filename);
 
-  if (ext === "rtf" || mime === "application/rtf" || mime === "text/rtf") {
+  if (
+    ext === "rtf" ||
+    ext === "doc" ||
+    mime === "application/rtf" ||
+    mime === "text/rtf" ||
+    mime === "application/msword"
+  ) {
     return { kind: "other", textual: false };
   }
   if (TEXTUAL_EXTENSIONS.has(ext) || TEXTUAL_MIME.has(mime) || mime.startsWith("text/")) {
@@ -77,7 +83,7 @@ export function classify(mediaType: string, filename: string): Classification {
 
 export type TextIngestResult = {
   body: string;
-  status: "ready" | "queued";
+  status: "ready" | "processing" | "failed" | "queued";
   statusDetail: string;
 };
 
@@ -103,6 +109,28 @@ export function prepareIngestBody(
     };
   }
   if (!classification.textual) {
+    const ext = extensionOf(filename);
+    const mime = mediaType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+    if (
+      ext === "doc" ||
+      ext === "rtf" ||
+      mime === "application/msword" ||
+      mime === "application/rtf" ||
+      mime === "text/rtf"
+    ) {
+      return {
+        body: "",
+        status: "ready",
+        statusDetail: "Legacy format: convert to .docx or PDF",
+      };
+    }
+    if (jobKindForIngest(classification.kind)) {
+      return {
+        body: "",
+        status: "processing",
+        statusDetail: "Extracting text",
+      };
+    }
     return {
       body: "",
       status: "ready",

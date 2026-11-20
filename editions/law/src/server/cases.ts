@@ -452,7 +452,8 @@ export async function saveLawDocumentVersion(
 
 function editableFilename(existing: string, title: string): string {
   const lower = existing.toLowerCase();
-  if (lower.endsWith(".docx") || lower.endsWith(".md") || lower.endsWith(".markdown")) {
+  // Keep markdown names; .docx cannot be edited in place, so a new version is .md.
+  if (lower.endsWith(".md") || lower.endsWith(".markdown")) {
     return existing;
   }
   return lawDocumentFilename(title, "review");
