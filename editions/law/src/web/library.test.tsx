@@ -651,4 +651,424 @@ describe("law library", () => {
       root.unmount();
     });
   });
+
+  async function typeLibrarySearch(container: HTMLElement, value: string) {
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Search library"]');
+    expect(input).not.toBeNull();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        input!,
+        value,
+      );
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  async function waitForSearchDebounce() {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 280));
+      await flush();
+    });
+  }
+
+  it("debounces search, replaces the file list, and clears", async () => {
+    const doc = lawDoc({
+      id: "doc-search",
+      title: "Memo",
+      body: "Body with UniqueSearchHitWord for the viewer.",
+    });
+    const { container, root, fetchMock } = await mountLibrary([doc]);
+    let searchCalls = 0;
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [doc] });
+      }
+      if (url.includes("/search?")) {
+        searchCalls += 1;
+        return jsonResponse({
+          hits: [
+            {
+              kind: "text",
+              documentId: "doc-search",
+              title: "Memo",
+              snippet: "… UniqueSearchHitWord …",
+              matches: [{ start: 2, end: 20 }],
+              score: 10,
+            },
+          ],
+          truncated: true,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    expect(container.querySelector('[data-testid="law-file-card-doc-search"]')).not.toBeNull();
+    await typeLibrarySearch(container, "UniqueSearchHitWord");
+    expect(searchCalls).toBe(0);
+    await waitForSearchDebounce();
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-library-search-results"]')).not.toBeNull();
+    });
+    expect(searchCalls).toBe(1);
+    expect(container.querySelector('[data-testid="law-file-card-doc-search"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="law-library-search-truncated"]')?.textContent,
+    ).toBe("Results may be incomplete");
+    expect(container.querySelector('[data-testid="law-search-mark"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="law-search-mark"]')?.innerHTML).not.toContain(
+      "<script",
+    );
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="law-library-search-clear"]')?.click();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-library-search-results"]')).toBeNull();
+      expect(container.querySelector('[data-testid="law-file-card-doc-search"]')).not.toBeNull();
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("keyboard up/down/enter opens a text hit at the match", async () => {
+    const doc = lawDoc({
+      id: "doc-kb-search",
+      title: "Keyboard Memo",
+      body: "Prefix UniqueEnterWord suffix for scroll.",
+    });
+    const { container, root, fetchMock } = await mountLibrary([doc]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [doc] });
+      }
+      if (url.includes("/search?")) {
+        return jsonResponse({
+          hits: [
+            {
+              kind: "text",
+              documentId: "doc-kb-search",
+              title: "Keyboard Memo",
+              snippet: "Prefix UniqueEnterWord suffix for scroll.",
+              matches: [{ start: 7, end: 22 }],
+              score: 9,
+            },
+            {
+              kind: "page",
+              documentId: "doc-kb-search",
+              title: "Keyboard Memo",
+              page: 2,
+              snippet: "page",
+              matches: [],
+              score: 1,
+            },
+          ],
+          truncated: false,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await typeLibrarySearch(container, "UniqueEnterWord");
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-search-hit-0"]')).not.toBeNull();
+    });
+
+    const searchInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Search library"]',
+    )!;
+    async function keyFromSearch(key: string) {
+      await act(async () => {
+        searchInput.focus();
+        searchInput.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        );
+      });
+    }
+
+    await keyFromSearch("ArrowDown");
+    expect(
+      container.querySelector('[data-testid="law-search-hit-1"]')?.getAttribute("data-active"),
+    ).toBe("true");
+
+    await keyFromSearch("ArrowUp");
+    expect(
+      container.querySelector('[data-testid="law-search-hit-0"]')?.getAttribute("data-active"),
+    ).toBe("true");
+
+    await keyFromSearch("Enter");
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-testid="law-search-text-viewer"]')).not.toBeNull();
+      expect(document.querySelector('[data-testid="law-search-body-mark"]')?.textContent).toBe(
+        "UniqueEnterWord",
+      );
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("opens a page hit in the PDF viewer at that page", async () => {
+    const pdf = lawDoc({
+      id: "pdf-search",
+      title: "Exhibit",
+      filename: "exhibit.pdf",
+      kind: "upload",
+      source: "upload",
+      mimeType: "application/pdf",
+      hasOriginal: true,
+      pageCount: 3,
+      body: "",
+    });
+    const { container, root, fetchMock } = await mountLibrary([pdf]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [pdf] });
+      }
+      if (url.includes("/search?")) {
+        return jsonResponse({
+          hits: [
+            {
+              kind: "page",
+              documentId: "pdf-search",
+              title: "Exhibit",
+              page: 2,
+              snippet: "page two",
+              matches: [{ start: 0, end: 4 }],
+              score: 5,
+            },
+          ],
+          truncated: false,
+        });
+      }
+      if (url.includes("/file?inline=1")) {
+        return new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "application/pdf" },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+    vi.stubGlobal("URL", {
+      createObjectURL: () => "blob:search",
+      revokeObjectURL: () => {},
+    });
+
+    await typeLibrarySearch(container, "page");
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-search-hit-0"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="law-search-hit-0"]')?.click();
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-testid="law-pdf-viewer"]')).not.toBeNull();
+      expect(
+        document.querySelector('[data-testid="law-pdf-iframe"]')?.getAttribute("src"),
+      ).toContain("#page=2");
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("opens a segment hit in the media viewer at startMs", async () => {
+    const media = lawDoc({
+      id: "media-search",
+      title: "Hearing",
+      filename: "hearing.mp4",
+      mimeType: "video/mp4",
+      kind: "upload",
+      source: "upload",
+      hasOriginal: true,
+      durationMs: 20_000,
+      body: "",
+      statusDetail: "Machine transcript. Not a certified transcript; check against the recording.",
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(async () => undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    let currentTime = 0;
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      configurable: true,
+      get: () => currentTime,
+      set: (value: number) => {
+        currentTime = value;
+      },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "readyState", {
+      configurable: true,
+      get: () => 4,
+    });
+    class FakeResizeObserver {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+    const { container, root, fetchMock } = await mountLibrary([media]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [media] });
+      }
+      if (url.includes("/search?")) {
+        return jsonResponse({
+          hits: [
+            {
+              kind: "segment",
+              documentId: "media-search",
+              title: "Hearing",
+              startMs: 751_000,
+              snippet: "said UniqueSegWord once",
+              matches: [{ start: 5, end: 18 }],
+              score: 8,
+            },
+          ],
+          truncated: false,
+        });
+      }
+      if (url.includes("/segments?")) {
+        return jsonResponse({
+          segments: [
+            {
+              idx: 0,
+              startMs: 751_000,
+              endMs: 752_000,
+              speaker: null,
+              text: "said UniqueSegWord once",
+            },
+          ],
+          limit: 500,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await typeLibrarySearch(container, "UniqueSegWord");
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-search-hit-0"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="law-search-hit-0"]')?.click();
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-testid="law-media-viewer"]')).not.toBeNull();
+      expect(
+        document.querySelector<HTMLMediaElement>('[data-testid="law-media-element"]')?.currentTime,
+      ).toBe(751);
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not open a hit when Enter is pressed in a textarea outside the library", async () => {
+    const doc = lawDoc({
+      id: "doc-outside",
+      title: "Outside Memo",
+      body: "Prefix OutsideEnterWord suffix.",
+    });
+    const { container, root, fetchMock } = await mountLibrary([doc]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [doc] });
+      }
+      if (url.includes("/search?")) {
+        return jsonResponse({
+          hits: [
+            {
+              kind: "text",
+              documentId: "doc-outside",
+              title: "Outside Memo",
+              snippet: "Prefix OutsideEnterWord suffix.",
+              matches: [{ start: 7, end: 23 }],
+              score: 9,
+            },
+          ],
+          truncated: false,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await typeLibrarySearch(container, "OutsideEnterWord");
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-search-hit-0"]')).not.toBeNull();
+    });
+
+    const composer = document.createElement("textarea");
+    composer.setAttribute("data-testid", "outside-composer");
+    document.body.appendChild(composer);
+    composer.focus();
+
+    const bubbled = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      composer.dispatchEvent(bubbled);
+    });
+    expect(bubbled.defaultPrevented).toBe(false);
+    expect(document.querySelector('[data-testid="law-search-text-viewer"]')).toBeNull();
+
+    composer.remove();
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("shows Searching… then Couldn't search on a failed request", async () => {
+    const doc = lawDoc({ id: "doc-err", title: "Err", body: "alpha" });
+    const { container, root, fetchMock } = await mountLibrary([doc]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [doc] });
+      }
+      if (url.includes("/search?")) {
+        return new Response("nope", { status: 500 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await typeLibrarySearch(container, "alpha");
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-library-search-pending"]')).not.toBeNull();
+    });
+    expect(container.querySelector('[data-testid="law-library-search-pending"]')?.textContent).toBe(
+      "Searching…",
+    );
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-library-search-error"]')?.textContent).toBe(
+        "Couldn't search",
+      );
+    });
+    expect(container.textContent).not.toContain("No results");
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
 });
