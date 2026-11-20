@@ -71,6 +71,10 @@ type FakePrisma = {
     update?: ReturnType<typeof vi.fn>;
     updateMany?: ReturnType<typeof vi.fn>;
   };
+  lawDocumentPage?: {
+    findMany?: ReturnType<typeof vi.fn>;
+    deleteMany?: ReturnType<typeof vi.fn>;
+  };
   lawJob?: { updateMany?: ReturnType<typeof vi.fn> };
   lawTranscriptSegment?: {
     findMany?: ReturnType<typeof vi.fn>;
@@ -182,6 +186,11 @@ describe("library routes", () => {
       headers: { authorization: "Bearer test" },
     });
     expect(download.status).toBe(404);
+
+    const pages = await app.request("/api/law/cases/case-1/documents/doc-1/pages?from=1&to=1", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(pages.status).toBe(404);
   });
 
   it("rejects oversized uploads with 413", async () => {
@@ -347,6 +356,7 @@ describe("library routes", () => {
   it("soft deletes a family, hides it from list, and cancels queued jobs", async () => {
     const { tryRecordAuditEvent } = await import("@rakazo/db");
     const updateMany = vi.fn(async () => ({ count: 2 }));
+    const deletePages = vi.fn(async () => ({ count: 3 }));
     const findMany = vi
       .fn()
       .mockResolvedValueOnce([{ id: "doc-1" }, { id: "doc-2" }])
@@ -358,6 +368,7 @@ describe("library routes", () => {
         findMany,
         updateMany,
       },
+      lawDocumentPage: { deleteMany: deletePages },
       lawJob: { updateMany: cancelJobs },
     });
     const app = mount(prisma);
@@ -373,6 +384,9 @@ describe("library routes", () => {
         data: expect.objectContaining({ deletedAt: expect.any(Date) }),
       }),
     );
+    expect(deletePages).toHaveBeenCalledWith({
+      where: { documentId: { in: ["doc-1", "doc-2"] } },
+    });
     expect(cancelJobs).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ status: "queued" }),
@@ -459,6 +473,41 @@ describe("library routes", () => {
       { headers: { authorization: "Bearer test" } },
     );
     expect(inlineAudio.headers.get("content-disposition")).toMatch(/^inline;/);
+  });
+
+  it("returns opened page text for members and rejects oversized ranges", async () => {
+    const prisma = memberPrisma({
+      lawDocument: {
+        findFirst: vi.fn(async () => ({ id: "doc-1" })),
+      },
+      lawDocumentPage: {
+        findMany: vi.fn(async () => [
+          { id: "p1", page: 1, text: "page one" },
+          { id: "p2", page: 2, text: "page two" },
+        ]),
+      },
+    });
+    const app = mount(prisma);
+    const ok = await app.request("/api/law/cases/case-1/documents/doc-1/pages?from=1&to=2", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(ok.status).toBe(200);
+    await expect(ok.json()).resolves.toEqual({
+      pages: [
+        { page: 1, text: "page one" },
+        { page: 2, text: "page two" },
+      ],
+    });
+
+    const tooWide = await app.request("/api/law/cases/case-1/documents/doc-1/pages?from=1&to=25", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(tooWide.status).toBe(400);
+
+    const backwards = await app.request("/api/law/cases/case-1/documents/doc-1/pages?from=5&to=2", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(backwards.status).toBe(400);
   });
 
   it("rejects empty or overlong rename titles with 400", async () => {

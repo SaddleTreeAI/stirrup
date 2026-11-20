@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
+export interface LawSnippetPage {
+  page: number;
+  text: string;
+}
+
 export interface LawSnippetSource {
   title: string;
   body: string;
+  /** Physical page rows for PDFs; labels cite these, not printed page numbers. */
+  pages?: readonly LawSnippetPage[];
 }
 
 export interface LawSnippet {
@@ -39,6 +46,7 @@ export function lawKeywords(text: string): string[] {
 /**
  * Rank this case's documents by shared keywords and return a short excerpt from each hit.
  * Documents that share no keyword are left out, so another case's file cannot appear.
+ * PDF hits label the source with a physical page number from page rows when present.
  */
 export function retrieveCaseSnippets(
   query: string,
@@ -57,7 +65,12 @@ export function retrieveCaseSnippets(
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score || a.doc.title.localeCompare(b.doc.title))
     .slice(0, limit)
-    .map(({ doc }) => ({ title: doc.title, excerpt: excerptAround(doc.body, terms) }));
+    .map(({ doc }) => {
+      const excerpt = excerptAround(doc.body, terms);
+      const page = pageForHit(doc.pages, excerpt, terms);
+      const title = page !== undefined ? `${doc.title} (p. ${page})` : doc.title;
+      return { title, excerpt };
+    });
 }
 
 export function formatLawContext(input: {
@@ -86,4 +99,25 @@ function excerptAround(body: string, terms: readonly string[]): string {
   }
   const start = at < 0 ? 0 : Math.max(0, at - 80);
   return body.slice(start, start + 420).trim();
+}
+
+/** Prefer the page row that holds the excerpt; fall back to the first keyword hit. */
+function pageForHit(
+  pages: readonly LawSnippetPage[] | undefined,
+  excerpt: string,
+  terms: readonly string[],
+): number | undefined {
+  if (!pages || pages.length === 0) return undefined;
+  const needle = excerpt.slice(0, 80).toLowerCase().trim();
+  if (needle) {
+    for (const row of pages) {
+      if (row.text.toLowerCase().includes(needle)) return row.page;
+    }
+  }
+  for (const term of terms) {
+    for (const row of pages) {
+      if (row.text.toLowerCase().includes(term)) return row.page;
+    }
+  }
+  return undefined;
 }

@@ -166,6 +166,28 @@ export function mountLibraryRoutes(app: Hono, deps: LibraryDeps) {
     }
   });
 
+  app.get("/api/law/cases/:id/documents/:docId/pages", async (c) => {
+    try {
+      const actor = await deps.sessionActor(c.req.raw);
+      if (!actor) return c.json({ error: "Sign in required" }, 401);
+      const caseId = c.req.param("id");
+      const docId = c.req.param("docId");
+      const from = parsePageBound(c.req.query("from"), 1);
+      const to = parsePageBound(c.req.query("to"), from);
+      if (to < from || to - from + 1 > 20) {
+        return c.json({ error: "Invalid page range" }, 400);
+      }
+      const pages = await runAsTenant(actor, () =>
+        listDocumentPages(deps.prisma, actor, { caseId, docId, from, to }),
+      );
+      if (!pages) return c.json({ error: "Not found" }, 404);
+      return c.json({ pages });
+    } catch (error) {
+      getLogger().error("library pages", error);
+      return c.json({ error: "Couldn't load pages" }, 500);
+    }
+  });
+
   app.get("/api/law/cases/:id/documents/:docId/transcript", async (c) => {
     try {
       const actor = await deps.sessionActor(c.req.raw);
@@ -450,6 +472,7 @@ async function softDeleteDocumentFamily(
     where: { id: { in: ids } },
     data: { deletedAt: now, updatedAt: now },
   });
+  await prisma.lawDocumentPage.deleteMany({ where: { documentId: { in: ids } } });
   await prisma.lawJob.updateMany({
     where: { caseId: input.caseId, documentId: { in: ids }, status: "queued" },
     data: { status: "cancelled", updatedAt: now },
@@ -489,6 +512,55 @@ async function openDocumentFile(
     mimeType: doc.mimeType || opened.mediaType,
     filename: doc.filename || "download",
   };
+}
+
+async function listDocumentPages(
+  prisma: PrismaClient,
+  actor: Actor,
+  input: { caseId: string; docId: string; from: number; to: number },
+) {
+  if (!(await requireMember(prisma, actor.userId, input.caseId))) return null;
+  const doc = await prisma.lawDocument.findFirst({
+    where: { id: input.docId, caseId: input.caseId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!doc) return null;
+  const lawCase = await prisma.lawCase.findUnique({
+    where: { id: input.caseId },
+    select: { spaceId: true },
+  });
+  if (!lawCase) return null;
+  const rows = await prisma.lawDocumentPage.findMany({
+    where: {
+      documentId: input.docId,
+      page: { gte: input.from, lte: input.to },
+    },
+    select: { id: true, page: true, text: true },
+    orderBy: { page: "asc" },
+  });
+  return Promise.all(
+    rows.map(async (row) => ({
+      page: row.page,
+      text: await openLawText(
+        prisma,
+        {
+          table: "law_document_pages",
+          column: "text",
+          rowId: row.id,
+          spaceId: lawCase.spaceId,
+          owner: input.docId,
+        },
+        row.text,
+      ),
+    })),
+  );
+}
+
+function parsePageBound(raw: string | undefined, fallback: number): number {
+  if (raw === undefined || raw === "") return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 1) return fallback;
+  return Math.floor(value);
 }
 
 type OpenedSegment = TranscriptSegment & { idx: number };

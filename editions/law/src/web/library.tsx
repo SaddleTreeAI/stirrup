@@ -89,8 +89,9 @@ export function LawCaseDocuments({
   const [documents, setDocuments] = useState<LawFileDoc[]>([]);
   const [docCaseId, setDocCaseId] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
-  const [viewer, setViewer] = useState<LawFileDoc | null>(null);
+  const [viewer, setViewer] = useState<{ doc: LawFileDoc; page?: number } | null>(null);
   const [editor, setEditor] = useState<{ doc: LawFileDoc; caseId: string } | null>(null);
+  const deepLinkHandled = useRef(false);
   const [pending, setPending] = useState<PendingUpload[]>([]);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
@@ -129,6 +130,7 @@ export function LawCaseDocuments({
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
+    deepLinkHandled.current = false;
     void loadDocuments
       .current(controller.signal)
       .then((body) => {
@@ -137,6 +139,23 @@ export function LawCaseDocuments({
         setDocCaseId(caseId);
         setDocError(null);
         pollDelay.current = POLL_START_MS;
+        if (!deepLinkHandled.current && typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const docId = params.get("doc");
+          const pageRaw = params.get("page");
+          if (docId) {
+            const match = body.documents.find((doc) => doc.id === docId);
+            if (match) {
+              const page = pageRaw ? Number(pageRaw) : undefined;
+              setViewer({
+                doc: match,
+                page:
+                  Number.isFinite(page) && (page as number) >= 1 ? Math.floor(page as number) : 1,
+              });
+              deepLinkHandled.current = true;
+            }
+          }
+        }
       })
       .catch((caught: unknown) => {
         if (cancelled || controller.signal.aborted) return;
@@ -398,7 +417,7 @@ export function LawCaseDocuments({
     setDocuments((current) =>
       current.filter((item) => item.rootId !== doc.rootId && item.id !== doc.id),
     );
-    if (viewer?.id === doc.id || viewer?.rootId === doc.rootId) setViewer(null);
+    if (viewer?.doc.id === doc.id || viewer?.doc.rootId === doc.rootId) setViewer(null);
     if (editor?.doc.id === doc.id) setEditor(null);
     toast(t`Deleted`);
   }
@@ -419,17 +438,17 @@ export function LawCaseDocuments({
     setDocuments((current) => [...current, payload.document]);
     setDocCaseId(editor.caseId);
     setEditor(null);
-    setViewer(payload.document);
+    setViewer({ doc: payload.document });
   }
 
   function openExisting(existingId: string) {
     const found = documents.find((doc) => doc.id === existingId);
-    if (found) setViewer(found);
+    if (found) setViewer({ doc: found });
     else {
       void loadDocuments.current().then((body) => {
         setDocuments(body.documents);
         const match = body.documents.find((doc) => doc.id === existingId);
-        if (match) setViewer(match);
+        if (match) setViewer({ doc: match });
       });
     }
   }
@@ -592,7 +611,7 @@ export function LawCaseDocuments({
                     spaceId={spaceId}
                     doc={doc}
                     renaming={renamingId === doc.id}
-                    onOpen={() => setViewer(doc)}
+                    onOpen={() => setViewer({ doc })}
                     onStartRename={() => setRenamingId(doc.id)}
                     onCancelRename={() => setRenamingId(null)}
                     onRename={async (title) => {
@@ -611,7 +630,7 @@ export function LawCaseDocuments({
           docs={review}
           onOpen={(doc) => {
             if (isEditableLawDocument(doc)) setEditor({ doc, caseId });
-            else setViewer(doc);
+            else setViewer({ doc });
           }}
         />
 
@@ -713,13 +732,18 @@ export function LawCaseDocuments({
 
       {viewer ? (
         <LawFileViewer
-          doc={viewer}
+          doc={viewer.doc}
+          caseId={caseId}
+          spaceId={spaceId}
+          page={viewer.page}
           onClose={() => setViewer(null)}
-          originalHref={viewer.hasOriginal ? originalFileHref(caseId, viewer.id) : undefined}
+          originalHref={
+            viewer.doc.hasOriginal ? originalFileHref(caseId, viewer.doc.id) : undefined
+          }
           onEdit={
-            isEditableLawDocument(viewer)
+            isEditableLawDocument(viewer.doc)
               ? () => {
-                  setEditor({ doc: viewer, caseId });
+                  setEditor({ doc: viewer.doc, caseId });
                   setViewer(null);
                 }
               : undefined

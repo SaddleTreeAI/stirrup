@@ -94,6 +94,13 @@ export function prepareIngestBody(
   mediaType: string,
   filename: string,
 ): TextIngestResult {
+  if (classification.kind === "pdf") {
+    return {
+      body: "",
+      status: "queued",
+      statusDetail: "Reading PDF",
+    };
+  }
   if (classification.kind === "audio" || classification.kind === "video") {
     return {
       body: "",

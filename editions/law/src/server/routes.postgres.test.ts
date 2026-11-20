@@ -348,6 +348,94 @@ describePostgres("law cases under row-level security", () => {
     expect(againBody.cases.map((item) => item.id)).toContain(caseId);
   });
 
+  it("lists pageCount and pages for an uploaded PDF after extraction", async () => {
+    const caseId = caseIds[0]!;
+    // Minimal synthetic PDF header bytes — extraction is faked below (no media worker).
+    const pdfBytes = new TextEncoder().encode("%PDF-1.4 synthetic three-page fixture");
+    const files = {
+      maxBytes: 1024 * 1024,
+      store: async () => ({
+        artifactId: `artifact-pdf-${suffix}`,
+        sizeBytes: pdfBytes.byteLength,
+        mediaType: "application/pdf",
+      }),
+      open: async () => ({
+        stream: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(pdfBytes);
+            controller.close();
+          },
+        }),
+        size: pdfBytes.byteLength,
+        mediaType: "application/pdf",
+      }),
+    };
+    const uploadApp = new Hono();
+    mountLawRoutes(uploadApp, {
+      prisma,
+      sessionActor: async (request) => (request.headers.get("authorization") ? actor : null),
+      files,
+    });
+
+    const form = new FormData();
+    form.set("file", new File([pdfBytes], "synthetic.pdf", { type: "application/pdf" }));
+    const uploaded = await uploadApp.request(`/api/law/cases/${caseId}/documents/upload`, {
+      method: "POST",
+      headers: { authorization: "Bearer test" },
+      body: form,
+    });
+    expect(uploaded.status).toBe(201);
+    const uploadedBody = (await uploaded.json()) as {
+      document: { id: string; status: string; pageCount: number | null };
+    };
+    expect(uploadedBody.document.status).toBe("queued");
+    const docId = uploadedBody.document.id;
+
+    // Fake extractor: write three sealed-or-plain pages and mark ready.
+    await system.lawDocumentPage.createMany({
+      data: [
+        { documentId: docId, page: 1, text: "SYNTHETIC page one", ocr: false },
+        { documentId: docId, page: 2, text: "SYNTHETIC page two caffeine", ocr: false },
+        { documentId: docId, page: 3, text: "SYNTHETIC page three", ocr: false },
+      ],
+    });
+    await system.lawDocument.update({
+      where: { id: docId },
+      data: {
+        pageCount: 3,
+        status: "ready",
+        statusDetail: "",
+        body: "\n\n[page 1]\n\nSYNTHETIC page one\n\n[page 2]\n\nSYNTHETIC page two caffeine\n\n[page 3]\n\nSYNTHETIC page three",
+      },
+    });
+
+    const listed = await uploadApp.request(`/api/law/cases/${caseId}/documents`, {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(listed.status).toBe(200);
+    const listBody = (await listed.json()) as {
+      documents: Array<{ id: string; pageCount: number | null }>;
+    };
+    expect(listBody.documents.find((doc) => doc.id === docId)?.pageCount).toBe(3);
+
+    const pages = await uploadApp.request(
+      `/api/law/cases/${caseId}/documents/${docId}/pages?from=1&to=3`,
+      { headers: { authorization: "Bearer test" } },
+    );
+    expect(pages.status).toBe(200);
+    const pagesBody = (await pages.json()) as { pages: Array<{ page: number; text: string }> };
+    expect(pagesBody.pages).toHaveLength(3);
+    expect(pagesBody.pages[1]?.text).toContain("page two");
+
+    const deleted = await uploadApp.request(`/api/law/cases/${caseId}/documents/${docId}`, {
+      method: "DELETE",
+      headers: { authorization: "Bearer test" },
+    });
+    expect(deleted.status).toBe(204);
+    const remaining = await system.lawDocumentPage.count({ where: { documentId: docId } });
+    expect(remaining).toBe(0);
+  });
+
   it("renames every version in a document family", async () => {
     const caseId = caseIds[0]!;
     const root = await system.lawDocument.create({

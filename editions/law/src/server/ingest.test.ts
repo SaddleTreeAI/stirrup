@@ -61,12 +61,26 @@ describe("prepareIngestBody", () => {
     expect(result.body).toBe("Hello world");
   });
 
-  it("marks extractable binaries as processing", () => {
+  it("queues PDF uploads for extraction", () => {
     const result = prepareIngestBody(
       classify("application/pdf", "a.pdf"),
       new Uint8Array([1, 2, 3]),
       "application/pdf",
       "a.pdf",
+    );
+    expect(result).toEqual({
+      body: "",
+      status: "queued",
+      statusDetail: "Reading PDF",
+    });
+  });
+
+  it("marks extractable binaries as processing", () => {
+    const result = prepareIngestBody(
+      classify("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "a.docx"),
+      new Uint8Array([1, 2, 3]),
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "a.docx",
     );
     expect(result).toEqual({
       body: "",

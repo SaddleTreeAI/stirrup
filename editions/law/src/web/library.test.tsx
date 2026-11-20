@@ -391,6 +391,68 @@ describe("law library", () => {
     });
   });
 
+  it("opens a document at a page from ?doc=&page= deep link", async () => {
+    const pdf = lawDoc({
+      id: "pdf-deep",
+      title: "Deep PDF",
+      filename: "deep.pdf",
+      mimeType: "application/pdf",
+      kind: "upload",
+      source: "upload",
+      hasOriginal: true,
+      pageCount: 3,
+    });
+    const previous = window.location.search;
+    window.history.replaceState({}, "", "/app?doc=pdf-deep&page=2");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [pdf] });
+      }
+      if (url.includes("/file?inline=1")) {
+        return new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "application/pdf" },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("URL", {
+      createObjectURL: () => "blob:deep",
+      revokeObjectURL: () => {},
+    });
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(
+          TooltipProvider,
+          null,
+          createElement(LawCaseDocuments, {
+            caseId: "case-1",
+            spaceId: "space-1",
+            shellError: null,
+            reload: () => {},
+          }),
+        ),
+      );
+    });
+    await vi.waitFor(() => {
+      // Dialog content portals to document.body.
+      expect(document.querySelector('[data-testid="law-pdf-viewer"]')).not.toBeNull();
+      expect(
+        document.querySelector('[data-testid="law-pdf-iframe"]')?.getAttribute("src"),
+      ).toContain("#page=2");
+    });
+    await act(async () => {
+      root.unmount();
+    });
+    window.history.replaceState({}, "", `/app${previous}`);
+  });
+
   it("shows the empty state with an Add files control", async () => {
     const { container, root } = await mountLibrary([]);
     expect(container.querySelector('[data-testid="law-library-empty"]')).not.toBeNull();

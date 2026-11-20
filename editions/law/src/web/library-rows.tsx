@@ -263,7 +263,12 @@ export function LibraryFileRow({
                 ? doc.statusDetail
                 : doc.status === "failed" && doc.statusDetail
                   ? doc.statusDetail
-                  : [`.${ext}`, sizeLabel, doc.version > 1 ? `v${doc.version}` : ""]
+                  : [
+                      `.${ext}`,
+                      doc.pageCount && doc.pageCount > 0 ? `${doc.pageCount} pages` : "",
+                      sizeLabel,
+                      doc.version > 1 ? `v${doc.version}` : "",
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
             </span>
