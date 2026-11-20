@@ -10,7 +10,11 @@ import { getLogger } from "@rakazo/logging";
 import type { Hono } from "hono";
 import { lawDocumentFilename } from "./cases.js";
 import { classify, enqueueExtraction, prepareIngestBody } from "./ingest.js";
+import type { TranscriptSegment } from "./media/segments.js";
+import { formatSrt, formatTranscriptBody, formatVtt } from "./media/segments.js";
 import { openLawText, sealLawText } from "./seal.js";
+
+const SEGMENTS_PAGE_MAX = 500;
 
 const TITLE_MAX = 200;
 const FILENAME_MAX = 200;
@@ -159,6 +163,67 @@ export function mountLibraryRoutes(app: Hono, deps: LibraryDeps) {
     } catch (error) {
       getLogger().error("library download", error);
       return c.json({ error: "Couldn't download" }, 500);
+    }
+  });
+
+  app.get("/api/law/cases/:id/documents/:docId/transcript", async (c) => {
+    try {
+      const actor = await deps.sessionActor(c.req.raw);
+      if (!actor) return c.json({ error: "Sign in required" }, 401);
+      const caseId = c.req.param("id");
+      const docId = c.req.param("docId");
+      const format = (c.req.query("format") || "txt").toLowerCase();
+      if (format !== "txt" && format !== "srt" && format !== "vtt") {
+        return c.json({ error: "Invalid format" }, 400);
+      }
+
+      const result = await runAsTenant(actor, () =>
+        exportTranscript(deps.prisma, actor, { caseId, docId, format }),
+      );
+      if (!result) return c.json({ error: "Not found" }, 404);
+
+      return new Response(result.body, {
+        headers: {
+          "cache-control": "no-store",
+          "content-disposition": contentDisposition(result.filename, result.mimeType, false),
+          "content-type": `${result.mimeType}; charset=utf-8`,
+          "x-content-type-options": "nosniff",
+        },
+      });
+    } catch (error) {
+      getLogger().error("library transcript export", error);
+      return c.json({ error: "Couldn't export" }, 500);
+    }
+  });
+
+  app.get("/api/law/cases/:id/documents/:docId/segments", async (c) => {
+    try {
+      const actor = await deps.sessionActor(c.req.raw);
+      if (!actor) return c.json({ error: "Sign in required" }, 401);
+      const caseId = c.req.param("id");
+      const docId = c.req.param("docId");
+      const fromRaw = c.req.query("from");
+      const toRaw = c.req.query("to");
+      const fromMs = fromRaw !== undefined && fromRaw !== "" ? Number(fromRaw) : 0;
+      const toMs = toRaw !== undefined && toRaw !== "" ? Number(toRaw) : Number.MAX_SAFE_INTEGER;
+      if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || fromMs < 0 || toMs < fromMs) {
+        return c.json({ error: "Invalid range" }, 400);
+      }
+
+      const result = await runAsTenant(actor, () =>
+        listTranscriptSegments(deps.prisma, actor, {
+          caseId,
+          docId,
+          fromMs,
+          toMs,
+          limit: SEGMENTS_PAGE_MAX,
+        }),
+      );
+      if (!result) return c.json({ error: "Not found" }, 404);
+      return c.json(result);
+    } catch (error) {
+      getLogger().error("library segments", error);
+      return c.json({ error: "Couldn't list segments" }, 500);
     }
   });
 }
@@ -423,6 +488,117 @@ async function openDocumentFile(
     size: opened.size,
     mimeType: doc.mimeType || opened.mediaType,
     filename: doc.filename || "download",
+  };
+}
+
+type OpenedSegment = TranscriptSegment & { idx: number };
+
+async function loadOpenedSegments(
+  prisma: PrismaClient,
+  actor: Actor,
+  input: {
+    caseId: string;
+    docId: string;
+    fromMs?: number;
+    toMs?: number;
+    /** When set, caps the page (segments API). Omit for full transcript export. */
+    limit?: number;
+  },
+): Promise<{ docFilename: string; segments: OpenedSegment[] } | null> {
+  if (!(await requireMember(prisma, actor.userId, input.caseId))) return null;
+  const doc = await prisma.lawDocument.findFirst({
+    where: { id: input.docId, caseId: input.caseId, deletedAt: null },
+    select: { id: true, filename: true },
+  });
+  if (!doc) return null;
+
+  const fromMs = input.fromMs ?? 0;
+  const toMs = input.toMs ?? Number.MAX_SAFE_INTEGER;
+  const take = input.limit !== undefined ? Math.min(input.limit, SEGMENTS_PAGE_MAX) : undefined;
+
+  const rows = await prisma.lawTranscriptSegment.findMany({
+    where: {
+      documentId: input.docId,
+      startMs: { lte: toMs },
+      endMs: { gte: fromMs },
+    },
+    orderBy: { idx: "asc" },
+    ...(take !== undefined ? { take } : {}),
+  });
+
+  const segments: OpenedSegment[] = [];
+  for (const row of rows) {
+    const text = await openLawText(
+      prisma,
+      {
+        table: "law_transcript_segments",
+        column: "text",
+        rowId: row.id,
+        spaceId: actor.spaceId,
+        owner: input.docId,
+      },
+      row.text,
+    );
+    segments.push({
+      idx: row.idx,
+      startMs: row.startMs,
+      endMs: row.endMs,
+      text,
+      speaker: row.speaker,
+    });
+  }
+  return { docFilename: doc.filename || "transcript", segments };
+}
+
+async function exportTranscript(
+  prisma: PrismaClient,
+  actor: Actor,
+  input: { caseId: string; docId: string; format: "txt" | "srt" | "vtt" },
+) {
+  const loaded = await loadOpenedSegments(prisma, actor, {
+    caseId: input.caseId,
+    docId: input.docId,
+  });
+  if (!loaded) return null;
+
+  const stem = loaded.docFilename.replace(/\.[^.]+$/, "") || "transcript";
+  if (input.format === "srt") {
+    return {
+      body: formatSrt(loaded.segments),
+      filename: `${stem}.srt`,
+      mimeType: "application/x-subrip",
+    };
+  }
+  if (input.format === "vtt") {
+    return {
+      body: formatVtt(loaded.segments),
+      filename: `${stem}.vtt`,
+      mimeType: "text/vtt",
+    };
+  }
+  return {
+    body: formatTranscriptBody(loaded.segments),
+    filename: `${stem}.txt`,
+    mimeType: "text/plain",
+  };
+}
+
+async function listTranscriptSegments(
+  prisma: PrismaClient,
+  actor: Actor,
+  input: { caseId: string; docId: string; fromMs: number; toMs: number; limit: number },
+) {
+  const loaded = await loadOpenedSegments(prisma, actor, input);
+  if (!loaded) return null;
+  return {
+    segments: loaded.segments.map((s) => ({
+      idx: s.idx,
+      startMs: s.startMs,
+      endMs: s.endMs,
+      speaker: s.speaker ?? null,
+      text: s.text,
+    })),
+    limit: input.limit,
   };
 }
 

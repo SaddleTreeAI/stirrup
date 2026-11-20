@@ -36,6 +36,8 @@ export type Runner = {
       cwd?: string;
       timeoutMs?: number;
       env?: NodeJS.ProcessEnv;
+      /** Streaming stdout chunks (for ASR progress lines). */
+      onStdout?: (chunk: string) => void | Promise<void>;
     },
   ): Promise<RunResult>;
 };

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
+import { readdir } from "node:fs/promises";
 import { createProcessRunner } from "./runner.js";
 import type { Runner } from "./types.js";
 
@@ -124,6 +125,35 @@ export async function checkGpu(runner: Runner): Promise<DoctorLine> {
   return { id: "gpu", status: "ok", detail: name, required: false };
 }
 
+/** List model directories under LAW_MODELS_DIR (names only; never file contents). */
+export async function checkModels(env: NodeJS.ProcessEnv = process.env): Promise<DoctorLine> {
+  const root = env.LAW_MODELS_DIR?.trim() || "/models";
+  try {
+    const entries = await readdir(root, { withFileTypes: true });
+    const dirs = entries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort();
+    if (dirs.length === 0) {
+      return { id: "models", status: "MISSING", detail: `empty ${root}`, required: false };
+    }
+    return { id: "models", status: "ok", detail: dirs.join(","), required: false };
+  } catch {
+    return { id: "models", status: "MISSING", detail: `MISSING ${root}`, required: false };
+  }
+}
+
+/** CUDA availability via nvidia-smi (same signal as checkGpu; labelled for ASR). */
+export async function checkCuda(runner: Runner): Promise<DoctorLine> {
+  const gpu = await checkGpu(runner);
+  return {
+    id: "cuda",
+    status: gpu.status,
+    detail: gpu.status === "ok" ? gpu.detail : "MISSING",
+    required: false,
+  };
+}
+
 export type DoctorReport = {
   lines: DoctorLine[];
   ok: boolean;
@@ -144,6 +174,8 @@ export async function runDoctor(options?: {
     lines.push(await checkTool(tool, runner, isRequired));
   }
   lines.push(await checkGpu(runner));
+  lines.push(await checkCuda(runner));
+  lines.push(await checkModels(env));
   const ok = lines.every((line) => line.status === "ok" || !line.required);
   return { lines, ok };
 }
