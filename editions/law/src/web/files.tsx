@@ -177,6 +177,15 @@ export function LawFileCard({
   );
 }
 
+function isDocxLawFile(doc: LawFileDoc): boolean {
+  const ext = fileExtension(doc.filename);
+  const mime = (doc.mimeType ?? "").toLowerCase();
+  return (
+    ext === "docx" ||
+    mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+}
+
 export function LawFileViewer({
   doc,
   onClose,
@@ -190,6 +199,7 @@ export function LawFileViewer({
   originalHref?: string;
 }) {
   const textView = isTextLawDocument(doc);
+  const fromDocx = isDocxLawFile(doc) && Boolean(doc.body);
   const sizeLabel = doc.sizeBytes ? formatLawFileSize(doc.sizeBytes) : "";
   const typeLabel = doc.mimeType || fileExtension(doc.filename).toUpperCase();
 
@@ -219,7 +229,7 @@ export function LawFileViewer({
             onClick={download}
             data-testid="law-viewer-download"
           >
-            {t`Download`}
+            {originalHref ? t`Download original` : t`Download`}
           </Button>
           {onEdit && textView ? (
             <Button type="button" size="sm" onClick={onEdit} data-testid="law-viewer-edit">
@@ -230,9 +240,19 @@ export function LawFileViewer({
       }
     >
       {textView ? (
-        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-6 py-4 text-body text-foreground">
-          {doc.body}
-        </pre>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {fromDocx ? (
+            <p
+              data-testid="law-viewer-docx-chip"
+              className="shrink-0 border-b border-border px-6 py-2 text-label text-muted-foreground"
+            >
+              {t`Extracted from .docx`}
+            </p>
+          ) : null}
+          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-6 py-4 text-body text-foreground">
+            {doc.body}
+          </pre>
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10">
           <div
@@ -276,10 +296,14 @@ export function LawDocumentEditor({
     setError(null);
   }, [doc.body, doc.id]);
 
+  const docxSubtitle = isDocxLawFile(doc)
+    ? t`Editing the extracted text; the original .docx is kept`
+    : t`Editing ${doc.filename} · saves as v${doc.version + 1}`;
+
   return (
     <LawOverlay
       title={doc.title}
-      subtitle={t`Editing ${doc.filename} · saves as v${doc.version + 1}`}
+      subtitle={docxSubtitle}
       onClose={onClose}
       dirty={dirty}
       actions={
