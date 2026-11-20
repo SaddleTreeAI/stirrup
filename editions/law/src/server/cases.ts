@@ -10,10 +10,21 @@ import { isLawCaseRole, lawRoleAvatar } from "../shared/avatars.js";
 import { formatLawContext, retrieveCaseSnippets } from "./retrieval.js";
 import { openLawText, sealLawText } from "./seal.js";
 
+/** Library shelf kinds the UI lists (uploads, notes, and legacy library rows). */
+export const LAW_LIBRARY_KINDS = ["library", "upload", "note"] as const;
+
 type LawDb = Pick<
   PrismaClient,
   "lawCaseBot" | "lawCaseMember" | "lawDocument" | "lawDocumentPage" | "lawCase"
 >;
+
+function libraryDocType(doc: { mimeType?: string | null; filename: string; kind: string }): string {
+  const mime = doc.mimeType?.trim();
+  if (mime) return mime;
+  const ext = /\.([a-z0-9]+)$/i.exec(doc.filename.trim())?.[1];
+  if (ext) return ext.toLowerCase();
+  return doc.kind;
+}
 
 /** True when the case exists and has not been soft-deleted. */
 export async function lawCaseIsOpen(
@@ -106,7 +117,7 @@ export async function lawBotAccess(
   return (await lawCaseAccess(prisma, actor.userId, botId)) === "denied" ? "deny" : "allow";
 }
 
-/** Case brief plus keyword hits from that case's library. Undefined for ordinary bots. */
+/** Case brief, library manifest, and keyword hits. Undefined for ordinary bots. */
 export async function lawTurnNote(
   prisma: LawDb,
   botId: string,
@@ -123,9 +134,24 @@ export async function lawTurnNote(
   });
   if (!lawCase || lawCase.deletedAt) return undefined;
   const documents = await prisma.lawDocument.findMany({
-    where: { caseId: link.caseId, kind: "library", deletedAt: null },
-    select: { id: true, title: true, body: true },
+    where: {
+      caseId: link.caseId,
+      kind: { in: [...LAW_LIBRARY_KINDS] },
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      title: true,
+      body: true,
+      filename: true,
+      mimeType: true,
+      kind: true,
+      status: true,
+      pageCount: true,
+    },
   });
+  const processingCount = documents.filter((doc) => doc.status !== "ready").length;
+  const ready = documents.filter((doc) => doc.status === "ready");
   const brief = await openLawText(
     prisma,
     {
@@ -138,7 +164,7 @@ export async function lawTurnNote(
     lawCase.brief,
   );
   const opened = await Promise.all(
-    documents.map(async (doc) => {
+    ready.map(async (doc) => {
       const body = await openLawText(
         prisma,
         {
@@ -182,6 +208,13 @@ export async function lawTurnNote(
     name: lawCase.name,
     brief,
     snippets: retrieveCaseSnippets(prompt, opened),
+    manifest: ready.map((doc) => ({
+      id: doc.id,
+      filename: doc.filename.trim() || doc.title,
+      type: libraryDocType(doc),
+      pageCount: doc.pageCount ?? null,
+    })),
+    processingCount,
   });
 }
 

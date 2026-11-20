@@ -280,6 +280,8 @@ export interface RunTools {
   offered: ConnectorTool[];
   builtins: ConnectorTool[];
   connector: Map<string, ConnectorTool>;
+  /** Edition-provided executors (R5); keyed by tool name. */
+  edition?: Map<string, (args: Record<string, unknown>) => Promise<unknown>>;
   disabled: Set<string>;
   connectedPlugins: ReturnType<typeof selectRunConnections>;
   approvedReplays: ApprovedEffectReplayQueue;

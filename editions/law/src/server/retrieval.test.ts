@@ -37,6 +37,32 @@ describe("keyword retrieval", () => {
     expect(text).not.toContain("CW-0847");
   });
 
+  it("always lists the library manifest and processing count", () => {
+    const text = formatLawContext({
+      name: "Commonwealth v. Ward",
+      brief: "Ward brief.",
+      snippets: [],
+      manifest: [
+        {
+          id: "pdf-1",
+          filename: "report.pdf",
+          type: "application/pdf",
+          pageCount: 15,
+        },
+        {
+          id: "note-1",
+          filename: "notes.txt",
+          type: "text/plain",
+          pageCount: null,
+        },
+      ],
+      processingCount: 2,
+    });
+    expect(text).toContain("report.pdf (application/pdf, 15 pages) id=pdf-1");
+    expect(text).toContain("notes.txt (text/plain) id=note-1");
+    expect(text).toContain("2 files still processing");
+  });
+
   it("labels PDF snippets with a physical page from page rows", () => {
     const pdf = {
       title: "Lab report",

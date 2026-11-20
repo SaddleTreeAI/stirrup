@@ -137,8 +137,26 @@ describe("lawTurnNote", () => {
       },
       lawDocument: {
         findMany: vi.fn(async () => [
-          { id: "doc-1", title: "Lab report", body: "Item was caffeine." },
-          { id: "doc-2", title: "Other", body: "No match here." },
+          {
+            id: "doc-1",
+            title: "Lab report",
+            body: "Item was caffeine.",
+            filename: "lab.txt",
+            mimeType: "text/plain",
+            kind: "library",
+            status: "ready",
+            pageCount: null,
+          },
+          {
+            id: "doc-2",
+            title: "Other",
+            body: "No match here.",
+            filename: "other.txt",
+            mimeType: "text/plain",
+            kind: "library",
+            status: "ready",
+            pageCount: null,
+          },
         ]),
       },
     };
@@ -146,9 +164,77 @@ describe("lawTurnNote", () => {
     expect(note).toContain("Commonwealth v. Ward");
     expect(note).toContain("caffeine");
     expect(note).not.toContain("No match here");
+    expect(note).toContain("Case library:");
+    expect(note).toContain("lab.txt");
     expect(prisma.lawDocument.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { caseId: "case-1", kind: "library", deletedAt: null } }),
+      expect.objectContaining({
+        where: {
+          caseId: "case-1",
+          kind: { in: ["library", "upload", "note"] },
+          deletedAt: null,
+        },
+      }),
     );
+  });
+
+  it("lists ready uploads and notes in the manifest and skips processing files", async () => {
+    const prisma = {
+      lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCase: {
+        findUnique: vi.fn(async () => ({
+          id: "case-1",
+          name: "Commonwealth v. Ward",
+          brief: "Ward brief.",
+          spaceId: "space-1",
+          deletedAt: null,
+        })),
+      },
+      lawDocument: {
+        findMany: vi.fn(async () => [
+          {
+            id: "pdf-1",
+            title: "Police report",
+            body: "Page text about the arrest.",
+            filename: "report.pdf",
+            mimeType: "application/pdf",
+            kind: "upload",
+            status: "ready",
+            pageCount: 15,
+          },
+          {
+            id: "note-1",
+            title: "Witness notes",
+            body: "Saw the car leave.",
+            filename: "witness-notes.md",
+            mimeType: "text/markdown",
+            kind: "note",
+            status: "ready",
+            pageCount: null,
+          },
+          {
+            id: "pending-1",
+            title: "Hearing video",
+            body: "",
+            filename: "hearing.mp4",
+            mimeType: "video/mp4",
+            kind: "upload",
+            status: "processing",
+            pageCount: null,
+          },
+        ]),
+      },
+      lawDocumentPage: {
+        findMany: vi.fn(async () => [
+          { id: "p1", page: 1, text: "Cover", ocr: false },
+          { id: "p2", page: 2, text: "Page text about the arrest.", ocr: false },
+        ]),
+      },
+    };
+    const note = await lawTurnNote(prisma as never, "bot-1", "what's in the library?");
+    expect(note).toContain("report.pdf (application/pdf, 15 pages) id=pdf-1");
+    expect(note).toContain("witness-notes.md (text/markdown) id=note-1");
+    expect(note).toContain("1 file still processing");
+    expect(note).not.toContain("hearing.mp4");
   });
 
   it("returns undefined when the case is soft-deleted", async () => {

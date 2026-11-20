@@ -52,6 +52,7 @@ Regenerate this table with `git grep -n "edition-seam:"` (excluding `docs/` and 
 | R2        | `packages/adapters/src/run-assembly-context.ts`                                         | `limitTeammates` before the bot directory                                                      |
 | R3        | `packages/adapters/src/run-turn.ts`                                                     | `onReplyFinalized` after a successful reply                                                    |
 | R4        | `packages/adapters/src/run-turn.ts`, `packages/adapters/src/run-progress.ts`            | `streamsProgress` may flush progress while scripted                                            |
+| R5        | `packages/adapters/src/run-assembly-capabilities.ts`, `packages/adapters/src/run-tools.ts`, `packages/adapters/src/run-tool-gate.ts` | `tools` may offer edition-specific tools for a bot                            |
 | S1        | `apps/api/src/index.ts`, `apps/worker/src/index.ts`                                     | `onProcessStart` after env load                                                                |
 | S2        | `apps/api/src/app.ts`                                                                   | `mountRoutes` beside other HTTP mounts; optional `files` store/open for edition libraries      |
 | S3        | `apps/api/src/app.ts`, `apps/worker/src/index.ts`                                       | Pass `runHooks` into `createRunRuntime`                                                        |

@@ -189,6 +189,9 @@ async function dispatchTool(
   // was denied, never did. A call that failed partway still counts.
   const runHandler = async () => {
     try {
+      // edition-seam:R5
+      const editionExec = ctx.tools.edition?.get(gate.call.name);
+      if (editionExec) return await gate.call.finish(await editionExec(gate.call.args));
       return await toolHandler(gate.call.name)(ctx, gate.call);
     } finally {
       // Editing its own profile returns only what this run wrote; a child's profile is another
