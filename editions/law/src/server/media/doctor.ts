@@ -2,6 +2,7 @@
 // Copyright 2026 SaddleTree AI
 
 import { readdir } from "node:fs/promises";
+import { parseInstalledLangs } from "./handlers/ocr-pdf.js";
 import { createProcessRunner } from "./runner.js";
 import type { Runner } from "./types.js";
 
@@ -161,21 +162,14 @@ export type DoctorReport = {
 
 export async function checkTesseractLangs(runner: Runner): Promise<DoctorLine> {
   const result = await runner.run("tesseract", ["--list-langs"], { timeoutMs: 15_000 });
-  if (result.code !== 0 && result.code !== null) {
-    return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
-  }
   if (result.code === null) {
     return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
   }
-  const langs = `${result.stdout}\n${result.stderr}`
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.toLowerCase().startsWith("list of"))
-    .sort();
+  const langs = [...parseInstalledLangs(`${result.stdout}\n${result.stderr}`)].sort();
   if (langs.length === 0) {
     return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
   }
-  return { id: "tesseract-langs", status: "ok", detail: langs.join("+"), required: false };
+  return { id: "tesseract-langs", status: "ok", detail: langs.join(","), required: false };
 }
 
 export async function runDoctor(options?: {

@@ -286,6 +286,9 @@ export function mergeOcrPages(
       return { ...row, dirty: false };
     }
     const ocrText = aligned[i] ?? "";
+    if (!ocrText) {
+      return { ...row, dirty: false };
+    }
     return { id: row.id, page: row.page, text: ocrText, ocr: true, dirty: true };
   });
 }

@@ -68,12 +68,17 @@ describe("doctor version parsing", () => {
       runner: fakeRunner({
         "python3 --version": { code: 0, stdout: "Python 3.11.2" },
         "nvidia-smi --query-gpu=name --format=csv,noheader": { code: 127 },
+        "tesseract --list-langs": {
+          code: 0,
+          stdout: "List of available languages (2):\neng\nspa\n",
+        },
       }),
       env: { LAW_MEDIA_REQUIRED_TOOLS: "python3" },
       tools: MEDIA_TOOLS.filter((tool) => tool.id === "python3" || tool.id === "ffmpeg"),
     });
     expect(report.ok).toBe(true);
     expect(formatDoctorLines(report).some((line) => line.startsWith("python3 "))).toBe(true);
+    expect(formatDoctorLines(report)).toContain("tesseract-langs eng,spa");
 
     const bad = await runDoctor({
       runner: fakeRunner({}),
