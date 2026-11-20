@@ -26,6 +26,7 @@
     "encrypt:reencrypt": "tsx src/server/cli/encrypt.ts reencrypt",
     "media:doctor": "tsx src/server/media/main.ts media:doctor",
     "media:dev": "tsx src/server/media/main.ts",
+    "media:models": "node scripts/download-models.mjs",
     "case:purge": "tsx src/server/cli/case-purge.ts",
     "case:hold": "tsx src/server/cli/case-hold.ts"
   },

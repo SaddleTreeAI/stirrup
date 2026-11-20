@@ -52,21 +52,23 @@ Row-level security is enabled and forced on every law table; tenant policies key
 
 Mounted at `/api/law/*` by `mountRoutes`:
 
-| Method | Path                                           | Behavior                                                          |
-| ------ | ---------------------------------------------- | ----------------------------------------------------------------- |
-| GET    | `/api/law/cases`                               | List open cases, `canDelete`, `deletedBotIds`, `retentionDays`    |
-| GET    | `/api/law/cases?deleted=1`                     | List soft-deleted cases (space owner / org admin only)            |
-| POST   | `/api/law/cases`                               | Create a case and the four role bots (`createdBy` = actor)        |
-| DELETE | `/api/law/cases/:id`                           | Soft-delete a case; cancel queued/running jobs; audit             |
-| POST   | `/api/law/cases/:id/restore`                   | Clear soft-delete fields (same permission as delete)              |
-| POST   | `/api/law/cases/:id/bots`                      | Attach an existing Space bot to the case                          |
-| GET    | `/api/law/cases/:id/documents`                 | List library / review documents (excludes soft-deleted)           |
-| POST   | `/api/law/cases/:id/documents/upload`          | Multipart upload (`file`, optional `title`) into the case library |
-| POST   | `/api/law/cases/:id/documents`                 | Create a blank or pasted text note (`{ title, body? }`)           |
-| PATCH  | `/api/law/cases/:id/documents/:docId`          | Rename a document version family (`{ title }`)                    |
-| DELETE | `/api/law/cases/:id/documents/:docId`          | Soft-delete the version family; cancel queued jobs; audit         |
-| GET    | `/api/law/cases/:id/documents/:docId/file`     | Download original bytes (`?inline=1` for pdf/audio/video only)    |
-| POST   | `/api/law/cases/:id/documents/:docId/versions` | Save a new review draft version (`{ body }`)                      |
+| Method | Path                                             | Behavior                                                            |
+| ------ | ------------------------------------------------ | ------------------------------------------------------------------- |
+| GET    | `/api/law/cases`                                 | List open cases, `canDelete`, `deletedBotIds`, `retentionDays`      |
+| GET    | `/api/law/cases?deleted=1`                       | List soft-deleted cases (space owner / org admin only)              |
+| POST   | `/api/law/cases`                                 | Create a case and the four role bots (`createdBy` = actor)          |
+| DELETE | `/api/law/cases/:id`                             | Soft-delete a case; cancel queued/running jobs; audit               |
+| POST   | `/api/law/cases/:id/restore`                     | Clear soft-delete fields (same permission as delete)                |
+| POST   | `/api/law/cases/:id/bots`                        | Attach an existing Space bot to the case                            |
+| GET    | `/api/law/cases/:id/documents`                   | List library / review documents (excludes soft-deleted)             |
+| POST   | `/api/law/cases/:id/documents/upload`            | Multipart upload (`file`, optional `title`) into the case library   |
+| POST   | `/api/law/cases/:id/documents`                   | Create a blank or pasted text note (`{ title, body? }`)             |
+| PATCH  | `/api/law/cases/:id/documents/:docId`            | Rename a document version family (`{ title }`)                      |
+| DELETE | `/api/law/cases/:id/documents/:docId`            | Soft-delete the version family; cancel queued jobs; audit           |
+| GET    | `/api/law/cases/:id/documents/:docId/file`       | Download original bytes (`?inline=1` for pdf/audio/video only)      |
+| GET    | `/api/law/cases/:id/documents/:docId/transcript` | Export transcript (`?format=txt\|srt\|vtt`; member-only attachment) |
+| GET    | `/api/law/cases/:id/documents/:docId/segments`   | Timed segments window (`?from=ms&to=ms`; at most 500)               |
+| POST   | `/api/law/cases/:id/documents/:docId/versions`   | Save a new review draft version (`{ body }`)                        |
 
 Unauthenticated calls return 401. Non-members get 404 on every case-scoped route (same as the list). Soft-deleted cases return 404 on library and document routes; their bots stay in `deletedBotIds` so General never shows them.
 
@@ -145,9 +147,18 @@ A separate process claims `law_jobs` from Postgres, shells out to local tools, a
 ```bash
 pnpm --filter @rakazo/edition-law media:doctor
 pnpm --filter @rakazo/edition-law media:dev
+pnpm --filter @rakazo/edition-law media:models -- --yes
 ```
 
-`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `gpu …`, and exits 1 when a required tool is missing. Override the required set with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
+`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `gpu …`, `cuda …`, `models …`, and the optional `faster-whisper` version when installed. Exits 1 when a required tool is missing. Override the required set with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
+
+`media:models` downloads the CTranslate2 Whisper weights once (operator step; never CI or runtime). Requires `--yes`. Repositories match faster-whisper 1.2.1 `_MODELS`: `small` → `Systran/faster-whisper-small`, `large-v3-turbo` → `mobiuslabsgmbh/faster-whisper-large-v3-turbo`.
+
+### Transcription (V1)
+
+Audio (`mp3`, `m4a`, `wav`, `aac`, `ogg`, `flac`, `opus`, `wma`) and video (`mp4`, `mov`, `mkv`, `webm`, `avi`, `m4v`) uploads enqueue a `transcribe` job. The sidecar probes with ffprobe, extracts mono 16 kHz PCM with ffmpeg, runs `media-tools/asr.py` (faster-whisper by default; whisper-cpp optional), merges short segments, seals `law_transcript_segments`, and writes a readable `[hh:mm:ss] text` body. Status detail after success:
+
+> Machine transcript. Not a certified transcript; check against the recording.
 
 ### Env (sidecar only)
 
@@ -162,6 +173,15 @@ pnpm --filter @rakazo/edition-law media:dev
 | `LAW_MEDIA_TMP`                             | Per-job temp root (default `os.tmpdir()/law-media`)                                     |
 | `LAW_MEDIA_WORKER_ID`                       | Claim owner id (default `media-<hostname>`)                                             |
 | `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default ffmpeg,ffprobe,pdftotext,tesseract,ocrmypdf,python3)      |
+| `LAW_MEDIA_MAX_MINUTES`                     | Reject media longer than this (default `360`)                                           |
+| `LAW_MODELS_DIR`                            | Whisper model root (default `/models`)                                                  |
+| `LAW_ASR_ENGINE`                            | `faster-whisper` (default) or `whisper-cpp`                                             |
+| `LAW_ASR_MODEL`                             | Model name or `auto` (large-v3-turbo on CUDA / ≥8 cores, else small)                    |
+| `LAW_ASR_DEVICE`                            | `auto` / `cpu` / `cuda`                                                                 |
+| `LAW_ASR_COMPUTE`                           | `auto` (float16 on CUDA, int8 on CPU) or a CTranslate2 compute type                     |
+| `LAW_ASR_LANGUAGE`                          | `auto` (default) or an ISO language code                                                |
+| `LAW_ASR_SCRIPT`                            | Path to `asr.py` (image default `/opt/law-media-tools/asr.py`)                          |
+| `HF_HUB_OFFLINE`                            | Set to `1` by the image / runner (no model download at runtime)                         |
 | `LAW_PURGE_SWEEP_MINUTES`                   | How often to enqueue due `purge_case` jobs (default `60`; disabled when retention is 0) |
 | `LAW_CASE_RETENTION_DAYS`                   | Soft-delete retention before purge (default `30`; `0` disables the sweeper)             |
 
@@ -174,7 +194,9 @@ docker compose -f infra/compose/docker-compose.yml \
 
 Builds `editions/law/docker/media.Dockerfile` with `SERVER_IMAGE` / `LAW_SERVER_IMAGE`, mounts the app data volume and a `law-models` volume (for later transcription models), and documents a commented NVIDIA device block for GPU hosts. A CI job that publishes the media image is a follow-up.
 
-Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest` only in M0).
+Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `transcribe`, `purge_case`).
+
+GPU image (documented, not built by default): base `nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04` (CUDA 12 + cuDNN 9, matching faster-whisper 1.2.1 / current ctranslate2), then uncomment the NVIDIA device block in `compose.media.yml`.
 
 Demo smoke: `docs/editions/00-README.md`. Parity map: `docs/editions/law-parity.md`.
 
