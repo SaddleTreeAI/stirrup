@@ -98,12 +98,12 @@ Dry-run prints counts only and changes nothing. `--force-before-retention` still
 
 ### Hooks
 
-| Hook               | Function                 | Seam | Role                                                                  |
-| ------------------ | ------------------------ | ---- | --------------------------------------------------------------------- |
-| `turnNote`         | `lawTurnNote`            | R1   | Case brief, library manifest, and keyword snippets into the turn note |
-| `limitTeammates`   | `limitLawTeammates`      | R2   | Hide other cases' bots from the teammate list                         |
-| `onReplyFinalized` | `saveLawReviewDraftHook` | R3   | Persist generator replies as review drafts                            |
-| `streamsProgress`  | `lawStreamsProgress`     | R4   | Flush scripted progress for the `law-mock` runtime                    |
+| Hook               | Function                 | Seam | Role                                                                                  |
+| ------------------ | ------------------------ | ---- | ------------------------------------------------------------------------------------- |
+| `turnNote`         | `lawTurnNote`            | R1   | Case brief, library manifest, and keyword snippets into the turn note                 |
+| `limitTeammates`   | `limitLawTeammates`      | R2   | Hide other cases' bots from the teammate list                                         |
+| `onReplyFinalized` | `saveLawReviewDraftHook` | R3   | Persist generator replies as review drafts                                            |
+| `streamsProgress`  | `lawStreamsProgress`     | R4   | Flush scripted progress for the `law-mock` runtime                                    |
 | `tools`            | `lawCaseTools`           | R5   | `search_case_library`, `read_case_document`, and `save_to_case_library` for case bots |
 
 `lawCaseAccess` is wired through `botAccess` (S7).

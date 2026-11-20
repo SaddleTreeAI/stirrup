@@ -820,7 +820,18 @@ describe("graphical computer spec", () => {
     expect(dockerfile).toMatch(/\bpoppler-utils\b/);
     expect(dockerfile).toMatch(/\bpandoc\b/);
     expect(dockerfile).toMatch(/\bpython3-openpyxl\b/);
-    expect(dockerfile).not.toMatch(/libreoffice/i);
+    // LibreOffice stays opt-in (OFFICE_TOOLS=1); the default package list must not pull it in.
+    expect(dockerfile).toMatch(/ARG OFFICE_TOOLS=0/);
+    expect(dockerfile).toMatch(
+      /\[ "\$OFFICE_TOOLS" = 1 \] \|\| \[ "\$OFFICE_TOOLS" = true \] \|\| exit 0/,
+    );
+    expect(dockerfile).toMatch(/libreoffice-writer/);
+    expect(dockerfile).toMatch(/python3-docx/);
+    const defaultApt = dockerfile.match(
+      /apt-get install -y --no-install-recommends \\\n([\s\S]*?)\n {2}&& rm -rf \/var\/lib\/apt\/lists/,
+    )?.[1];
+    expect(defaultApt).toBeDefined();
+    expect(defaultApt).not.toMatch(/libreoffice/i);
     expect(dockerfile).toMatch(/pdftotext -v/);
     expect(dockerfile).toMatch(/pdfinfo -v/);
     expect(dockerfile).toMatch(/pandoc --version/);
