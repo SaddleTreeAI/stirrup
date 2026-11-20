@@ -549,7 +549,10 @@ describe("law library", () => {
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Search library"]');
     expect(input).not.toBeNull();
     await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input!, value);
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        input!,
+        value,
+      );
       input!.dispatchEvent(new Event("input", { bubbles: true }));
     });
   }
