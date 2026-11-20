@@ -325,6 +325,11 @@ function createFakePrisma(seed: {
       findUnique: async () => ({ organizationId: "org-1" }),
       findMany: async () => [{ id: "space-1", organizationId: "org-1" }],
     },
+    // Tests seed FKs as opaque ids; treat row id as storageKey unless overridden.
+    artifact: {
+      findFirst: async ({ where }: { where: { id: string; spaceId: string } }) =>
+        where.spaceId ? { id: where.id, storageKey: where.id } : null,
+    },
     user: { findUnique: async () => null },
     member: { findMany: async () => [], findFirst: async () => null },
     $transaction: async <T>(fn: (tx: unknown) => Promise<T>) => fn(prisma),

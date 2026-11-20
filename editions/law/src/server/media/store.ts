@@ -4,6 +4,7 @@
 // Env names mirror apps/api/src/env.ts (dataDir) and apps/api/src/app.ts
 // (createArtifactStore). Do not import apps/*.
 
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -12,7 +13,9 @@ import { pipeline } from "node:stream/promises";
 import type { ArtifactStore } from "@rakazo/adapter-kit";
 import { createAdapterContext } from "@rakazo/adapter-kit";
 import { createArtifactStore } from "@rakazo/adapters";
+import { ARTIFACT_NAME_MAX_LENGTH } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
+import { bestEffort } from "@rakazo/logging";
 import type { LawJobRow } from "./types.js";
 
 export type MediaStoreEnv = {
@@ -45,6 +48,10 @@ export type HandlerIoDeps = {
  * Build readOriginal / saveArtifact for one job. Originals are decrypted into
  * the job temp directory; plaintext bytes never leave that path except via
  * saveArtifact into the shared store.
+ *
+ * Disk keys are `artifacts.storageKey`; `law_documents.artifactId` (and
+ * derived/frame FKs) hold the artifact row id. Resolve the row before get/put
+ * callers see an id — same shape as apps/api edition-files and artifacts.ts.
  */
 export function createHandlerIo(
   deps: HandlerIoDeps,
@@ -77,12 +84,17 @@ export function createHandlerIo(
       });
       if (!doc?.artifactId) throw new Error("original missing");
       const spaceId = await resolveSpaceId(doc.caseId);
+      const artifact = await deps.prisma.artifact.findFirst({
+        where: { id: doc.artifactId, spaceId },
+        select: { id: true, storageKey: true, userId: true },
+      });
+      if (!artifact) throw new Error("original missing");
       const context = createAdapterContext(
-        { spaceId, userId: "media-sidecar" },
+        { spaceId, userId: artifact.userId || "media-sidecar" },
         "media",
         `read-${documentId}`,
       );
-      const bytes = await deps.artifacts.get(doc.artifactId, context);
+      const bytes = await deps.artifacts.get(artifact.storageKey, context);
       const dir = await mkdtemp(path.join(input.tmpDir, "orig-"));
       const safeName = (doc.filename || "original").replace(/[/\\]/g, "_").slice(0, 120);
       const target = path.join(dir, safeName || "original");
@@ -91,16 +103,43 @@ export function createHandlerIo(
     },
 
     async saveArtifact(args) {
+      const userId = args.userId ?? "media-sidecar";
+      const name = args.name.slice(0, ARTIFACT_NAME_MAX_LENGTH) || "artifact";
       const context = createAdapterContext(
-        { spaceId: args.spaceId, userId: args.userId ?? "media-sidecar" },
+        { spaceId: args.spaceId, userId },
         "media",
         `save-${randomSuffix()}`,
       );
       const put = await deps.artifacts.put(
-        { name: args.name, mimeType: args.mimeType, bytes: args.bytes },
+        { name, mimeType: args.mimeType, bytes: args.bytes },
         context,
       );
-      return { id: put.id };
+      const hash = createHash("sha256").update(args.bytes).digest("hex");
+      try {
+        const row = await deps.prisma.artifact.create({
+          data: {
+            spaceId: args.spaceId,
+            userId,
+            botId: null,
+            name,
+            mimeType: args.mimeType,
+            size: args.bytes.byteLength,
+            hash,
+            storageKey: put.id,
+            rootArtifactId: null,
+            version: 1,
+            standalone: true,
+          },
+          select: { id: true },
+        });
+        return { id: row.id };
+      } catch (error) {
+        await bestEffort(
+          "remove orphaned media artifact bytes",
+          deps.artifacts.remove(put.id, context),
+        );
+        throw error;
+      }
     },
   };
 }

@@ -344,6 +344,28 @@ describe("law library", () => {
     });
   });
 
+  it("shows extraction worker isn't running when queued over a minute", async () => {
+    const stuck = lawDoc({
+      id: "stuck-1",
+      title: "Stuck PDF",
+      filename: "stuck.pdf",
+      mimeType: "application/pdf",
+      status: "queued",
+      statusDetail: "Reading PDF",
+      kind: "upload",
+      source: "upload",
+      createdAt: new Date(Date.now() - 61_000).toISOString(),
+    });
+    const { container, root } = await mountLibrary([stuck]);
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("extraction worker isn't running");
+      expect(container.textContent).not.toContain("Reading PDF");
+    });
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("shows processing detail and polls only while visible", async () => {
     const processing = lawDoc({
       id: "proc-1",

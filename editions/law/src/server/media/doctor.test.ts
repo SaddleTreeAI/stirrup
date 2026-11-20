@@ -3,7 +3,14 @@
 
 import { describe, expect, it } from "vitest";
 import type { DoctorTool } from "./doctor.js";
-import { checkTool, formatDoctorLines, MEDIA_TOOLS, requiredToolIds, runDoctor } from "./doctor.js";
+import {
+  checkTool,
+  formatDoctorLines,
+  MEDIA_TOOLS,
+  requiredToolIds,
+  runDoctor,
+  toolsForJobKind,
+} from "./doctor.js";
 import type { Runner } from "./types.js";
 
 function fakeRunner(
@@ -23,6 +30,7 @@ describe("doctor version parsing", () => {
     const samples: Record<string, string> = {
       ffmpeg: "ffmpeg version 6.1.1-0 Copyright",
       ffprobe: "ffprobe version 6.1.1-0 Copyright",
+      pdfinfo: "pdfinfo version 24.02.0",
       pdftotext: "pdftotext version 24.02.0",
       tesseract: "tesseract 5.3.4",
       ocrmypdf: "16.1.0",
@@ -33,7 +41,7 @@ describe("doctor version parsing", () => {
         tool,
         fakeRunner({
           [tool.command]: {
-            code: tool.id === "pdftotext" ? 99 : 0,
+            code: tool.id === "pdftotext" || tool.id === "pdfinfo" ? 99 : 0,
             stderr: samples[tool.id],
             stdout: samples[tool.id],
           },
@@ -71,6 +79,7 @@ describe("doctor version parsing", () => {
       }),
       env: { LAW_MEDIA_REQUIRED_TOOLS: "python3" },
       tools: MEDIA_TOOLS.filter((tool) => tool.id === "python3" || tool.id === "ffmpeg"),
+      jobKinds: [],
     });
     expect(report.ok).toBe(true);
     expect(formatDoctorLines(report).some((line) => line.startsWith("python3 "))).toBe(true);
@@ -79,14 +88,34 @@ describe("doctor version parsing", () => {
       runner: fakeRunner({}),
       env: { LAW_MEDIA_REQUIRED_TOOLS: "ffmpeg" },
       tools: [MEDIA_TOOLS.find((tool) => tool.id === "ffmpeg")!],
+      jobKinds: [],
     });
     expect(bad.ok).toBe(false);
     expect(formatDoctorLines(bad)).toContain("ffmpeg MISSING");
   });
 
-  it("defaults the required set", () => {
+  it("defaults the required set to PDF poppler + transcription tools (not OCR)", () => {
     expect([...requiredToolIds({})].sort()).toEqual(
-      ["ffmpeg", "ffprobe", "ocrmypdf", "pdftotext", "python3", "tesseract"].sort(),
+      ["ffmpeg", "ffprobe", "pdfinfo", "pdftotext", "python3"].sort(),
     );
+  });
+
+  it("lists only poppler tools for extract_pdf", () => {
+    expect([...toolsForJobKind("extract_pdf")].sort()).toEqual(["pdfinfo", "pdftotext"].sort());
+  });
+
+  it("prints a per-kind summary after tool lines", async () => {
+    const report = await runDoctor({
+      runner: fakeRunner({
+        "pdfinfo -v": { code: 99, stderr: "pdfinfo version 24.02.0" },
+        "pdftotext -v": { code: 99, stderr: "pdftotext version 24.02.0" },
+        "nvidia-smi --query-gpu=name --format=csv,noheader": { code: 127 },
+      }),
+      env: { LAW_MEDIA_REQUIRED_TOOLS: "pdfinfo,pdftotext" },
+      tools: MEDIA_TOOLS.filter((tool) => tool.id === "pdfinfo" || tool.id === "pdftotext"),
+      jobKinds: ["extract_pdf"],
+    });
+    expect(report.ok).toBe(true);
+    expect(formatDoctorLines(report)).toContain("extract_pdf pdfinfo,pdftotext");
   });
 });

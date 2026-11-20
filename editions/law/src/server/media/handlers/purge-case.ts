@@ -245,7 +245,12 @@ async function deleteArtifactsBatch(
       "media",
       `purge-${target.artifactId}`,
     );
-    await artifacts.remove(target.artifactId, context);
+    // FKs store the artifact row id; disk/object keys are storageKey.
+    const row = await prisma.artifact.findFirst({
+      where: { id: target.artifactId, spaceId },
+      select: { storageKey: true },
+    });
+    if (row) await artifacts.remove(row.storageKey, context);
     counts.artifacts += 1;
     if (target.kind === "document") {
       await prisma.lawDocument.update({

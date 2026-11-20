@@ -106,6 +106,26 @@ describePostgres("purgeLawCase against Postgres", () => {
     });
     otherCaseId = other.id;
 
+    const makeArtifact = async (name: string, storageKey: string) =>
+      system.artifact.create({
+        data: {
+          spaceId,
+          userId,
+          name,
+          mimeType: "application/octet-stream",
+          size: 1,
+          hash: storageKey,
+          storageKey,
+          rootArtifactId: null,
+          version: 1,
+          standalone: true,
+        },
+      });
+    const otherArt = await makeArtifact("other.txt", "other-storage");
+    const targetArt = await makeArtifact("target.pdf", "target-storage");
+    const derivedArt = await makeArtifact("derived.bin", "derived-storage");
+    const frameArt = await makeArtifact("frame.png", "frame-storage");
+
     const otherDoc = await system.lawDocument.create({
       data: {
         caseId: otherCaseId,
@@ -113,7 +133,7 @@ describePostgres("purgeLawCase against Postgres", () => {
         body: "other",
         kind: "library",
         filename: "other.txt",
-        artifactId: "other-art",
+        artifactId: otherArt.id,
       },
     });
     await system.lawDocumentPage.create({
@@ -127,8 +147,8 @@ describePostgres("purgeLawCase against Postgres", () => {
         body: "target",
         kind: "library",
         filename: "target.pdf",
-        artifactId: "target-art",
-        derivedArtifactId: "target-derived",
+        artifactId: targetArt.id,
+        derivedArtifactId: derivedArt.id,
       },
     });
     await system.lawDocumentPage.create({
@@ -147,7 +167,7 @@ describePostgres("purgeLawCase against Postgres", () => {
       data: {
         documentId: doc.id,
         tMs: 0,
-        artifactId: "target-frame",
+        artifactId: frameArt.id,
         caption: "frame",
       },
     });
@@ -190,6 +210,7 @@ describePostgres("purgeLawCase against Postgres", () => {
     });
     await system.lawCase.deleteMany({ where: { id: { in: [targetCaseId, otherCaseId] } } });
     if (botId) await system.bot.deleteMany({ where: { id: botId } });
+    await system.artifact.deleteMany({ where: { spaceId } });
     await system.space.deleteMany({ where: { id: spaceId } });
     await system.organization.deleteMany({ where: { id: organizationId } });
     await system.user.deleteMany({ where: { id: userId } });
@@ -219,6 +240,8 @@ describePostgres("purgeLawCase against Postgres", () => {
     const bot = await system.bot.findUnique({ where: { id: botId } });
     expect(bot?.archivedAt).toBeInstanceOf(Date);
 
-    expect(artifacts.removed.sort()).toEqual(["target-art", "target-derived", "target-frame"]);
+    expect(artifacts.removed.sort()).toEqual(
+      ["derived-storage", "frame-storage", "target-storage"].sort(),
+    );
   });
 });

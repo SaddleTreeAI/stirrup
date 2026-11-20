@@ -139,7 +139,7 @@ A separate process claims `law_jobs` from Postgres, shells out to local tools, a
 ### Run mechanism
 
 - Entry: `editions/law/src/server/media/main.ts`.
-- Local: `pnpm --filter @rakazo/edition-law media:dev` (tsx), same as the seed CLI.
+- Local with the rest of the stack: `pnpm dev:law` also starts `media:dev` (PDF extraction and transcription). Standalone: `pnpm --filter @rakazo/edition-law media:dev` (tsx), same as the seed CLI.
 - Image: install tsx in the media image only; `ENTRYPOINT` runs that file. Api/worker still bundle edition code via `scripts/build-server.mjs`; the sidecar is a second container sharing the same workspace source already present in the law server image. No core change and no committed `dist-media`.
 
 ### Commands
@@ -150,7 +150,7 @@ pnpm --filter @rakazo/edition-law media:dev
 pnpm --filter @rakazo/edition-law media:models -- --yes
 ```
 
-`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `gpu …`, `cuda …`, `models …`, and the optional `faster-whisper` version when installed. Exits 1 when a required tool is missing. Override the required set with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
+`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `gpu …`, `cuda …`, `models …`, the optional `faster-whisper` version when installed, and a per-job-kind summary (`extract_pdf pdfinfo,pdftotext`). Exits 1 when a required tool is missing. Defaults require poppler (`pdfinfo`, `pdftotext`) for PDF extraction and ffmpeg/ffprobe/python3 for transcription — not OCR tools. Override with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
 
 `media:models` downloads the CTranslate2 Whisper weights once (operator step; never CI or runtime). Requires `--yes`. Repositories match faster-whisper 1.2.1 `_MODELS`: `small` → `Systran/faster-whisper-small`, `large-v3-turbo` → `mobiuslabsgmbh/faster-whisper-large-v3-turbo`.
 
@@ -172,7 +172,7 @@ Audio (`mp3`, `m4a`, `wav`, `aac`, `ogg`, `flac`, `opus`, `wma`) and video (`mp4
 | `LAW_MEDIA_STALE_MINUTES`                   | Requeue running jobs whose heartbeat is older than this (default `120`)                 |
 | `LAW_MEDIA_TMP`                             | Per-job temp root (default `os.tmpdir()/law-media`)                                     |
 | `LAW_MEDIA_WORKER_ID`                       | Claim owner id (default `media-<hostname>`)                                             |
-| `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default ffmpeg,ffprobe,pdftotext,tesseract,ocrmypdf,python3)      |
+| `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default pdfinfo,pdftotext,ffmpeg,ffprobe,python3)                 |
 | `LAW_MEDIA_MAX_MINUTES`                     | Reject media longer than this (default `360`)                                           |
 | `LAW_MODELS_DIR`                            | Whisper model root (default `/models`)                                                  |
 | `LAW_ASR_ENGINE`                            | `faster-whisper` (default) or `whisper-cpp`                                             |
@@ -194,7 +194,7 @@ docker compose -f infra/compose/docker-compose.yml \
 
 Builds `editions/law/docker/media.Dockerfile` with `SERVER_IMAGE` / `LAW_SERVER_IMAGE`, mounts the app data volume and a `law-models` volume (for later transcription models), and documents a commented NVIDIA device block for GPU hosts. A CI job that publishes the media image is a follow-up.
 
-Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `import_docx`, `transcribe`, `purge_case`).
+Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `extract_pdf`, `import_docx`, `transcribe`, `purge_case`).
 
 GPU image (documented, not built by default): base `nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04` (CUDA 12 + cuDNN 9, matching faster-whisper 1.2.1 / current ctranslate2), then uncomment the NVIDIA device block in `compose.media.yml`.
 

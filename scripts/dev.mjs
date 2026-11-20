@@ -487,8 +487,31 @@ const turbo = spawnPnpm(
   ],
   { cwd: root, env, stdio: "inherit" },
 );
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => turbo.kill(signal));
+// Law PDF/audio extraction runs in a separate sidecar; start it with the rest
+// of the stack so Library uploads do not sit on "Reading PDF" forever.
+const lawMedia =
+  (env.STIRRUP_EDITION ?? "").trim() === "law"
+    ? spawnPnpm(["--filter", "@rakazo/edition-law", "media:dev"], {
+        cwd: root,
+        env,
+        stdio: "inherit",
+      })
+    : null;
+if (lawMedia) log("Starting law media sidecar (PDF / transcription)");
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    turbo.kill(signal);
+    lawMedia?.kill(signal);
+  });
+}
 turbo.on("exit", (code, signal) => {
+  lawMedia?.kill("SIGTERM");
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
 });
+if (lawMedia) {
+  lawMedia.on("exit", (code, signal) => {
+    if (signal === "SIGTERM" || signal === "SIGINT") return;
+    log(`Law media sidecar exited (${signal ?? code ?? "?"}); Library extraction will stall`);
+  });
+}
