@@ -453,6 +453,91 @@ describe("law library", () => {
     window.history.replaceState({}, "", `/app${previous}`);
   });
 
+  it("opens media at a timestamp from ?doc=&t= deep link", async () => {
+    const media = lawDoc({
+      id: "media-deep",
+      title: "Deep Media",
+      filename: "clip.mp4",
+      mimeType: "video/mp4",
+      kind: "upload",
+      source: "upload",
+      hasOriginal: true,
+      durationMs: 10_000,
+      statusDetail: "Machine transcript. Not a certified transcript; check against the recording.",
+    });
+    const previous = window.location.search;
+    window.history.replaceState({}, "", "/app?doc=media-deep&t=4");
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(async () => undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    let currentTime = 0;
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      configurable: true,
+      get: () => currentTime,
+      set: (value: number) => {
+        currentTime = value;
+      },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "readyState", {
+      configurable: true,
+      get: () => 4,
+    });
+    class FakeResizeObserver {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [media] });
+      }
+      if (url.includes("/segments?")) {
+        return jsonResponse({
+          segments: [{ idx: 0, startMs: 0, endMs: 5000, speaker: null, text: "hello" }],
+          limit: 500,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(
+          TooltipProvider,
+          null,
+          createElement(LawCaseDocuments, {
+            caseId: "case-1",
+            spaceId: "space-1",
+            shellError: null,
+            reload: () => {},
+          }),
+        ),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-testid="law-media-viewer"]')).not.toBeNull();
+      expect(
+        document.querySelector<HTMLMediaElement>('[data-testid="law-media-element"]')?.currentTime,
+      ).toBe(4);
+    });
+    await act(async () => {
+      root.unmount();
+    });
+    window.history.replaceState({}, "", `/app${previous}`);
+  });
+
   it("shows the empty state with an Add files control", async () => {
     const { container, root } = await mountLibrary([]);
     expect(container.querySelector('[data-testid="law-library-empty"]')).not.toBeNull();
