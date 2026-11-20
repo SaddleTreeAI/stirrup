@@ -52,10 +52,18 @@ import {
   originalFileHref,
   PendingUploadRow,
 } from "./library-rows.js";
+import type { LibrarySearchHit } from "./search-results.js";
+import {
+  LibrarySearchBox,
+  LibrarySearchResults,
+  SearchHitTextViewer,
+  searchResultsKeyHandler,
+} from "./search-results.js";
 
 const POLL_START_MS = 3_000;
 const POLL_MAX_MS = 15_000;
 const UPLOAD_CONCURRENCY = 2;
+const SEARCH_DEBOUNCE_MS = 250;
 
 function isLibraryKind(kind: string): boolean {
   return kind !== "review";
@@ -90,6 +98,11 @@ export function LawCaseDocuments({
   const [docCaseId, setDocCaseId] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ doc: LawFileDoc; page?: number } | null>(null);
+  const [textHit, setTextHit] = useState<{
+    doc: LawFileDoc;
+    snippet: string;
+    matches: LibrarySearchHit["matches"];
+  } | null>(null);
   const [editor, setEditor] = useState<{ doc: LawFileDoc; caseId: string } | null>(null);
   const deepLinkHandled = useRef(false);
   const [pending, setPending] = useState<PendingUpload[]>([]);
@@ -100,13 +113,20 @@ export function LawCaseDocuments({
   const [dragging, setDragging] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LawFileDoc | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchHits, setSearchHits] = useState<LibrarySearchHit[]>([]);
+  const [searchTruncated, setSearchTruncated] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchIndex, setSearchIndex] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
   const uploadQueue = useRef<PendingUpload[]>([]);
   const activeUploads = useRef(0);
   const pollDelay = useRef(POLL_START_MS);
+  const searchAbort = useRef<AbortController | null>(null);
 
   const loadDocuments = useRef(async (signal?: AbortSignal) => {
     const response = await fetch(`/api/law/cases/${caseId}/documents`, {
@@ -244,6 +264,95 @@ export function LawCaseDocuments({
     };
     window.addEventListener("dragover", onDragOver);
     return () => window.removeEventListener("dragover", onDragOver);
+  }, []);
+
+  // Debounced library search: results replace the file list while a query is active.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      searchAbort.current?.abort();
+      searchAbort.current = null;
+      setSearchHits([]);
+      setSearchTruncated(false);
+      setSearchActive(false);
+      setSearchIndex(0);
+      return;
+    }
+    setSearchActive(true);
+    const abort = new AbortController();
+    searchAbort.current?.abort();
+    searchAbort.current = abort;
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/law/cases/${caseId}/search?q=${encodeURIComponent(q)}&limit=50`, {
+        credentials: "same-origin",
+        headers: withSpaceHeaders(undefined, spaceId),
+        signal: abort.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(String(response.status));
+          return (await response.json()) as {
+            hits: LibrarySearchHit[];
+            truncated?: boolean;
+          };
+        })
+        .then((body) => {
+          if (abort.signal.aborted) return;
+          setSearchHits(body.hits);
+          setSearchTruncated(Boolean(body.truncated));
+          setSearchIndex(0);
+        })
+        .catch(() => {
+          if (abort.signal.aborted) return;
+          setSearchHits([]);
+          setSearchTruncated(false);
+        });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      window.clearTimeout(timer);
+      abort.abort();
+    };
+  }, [searchQuery, caseId, spaceId]);
+
+  const openSearchHitRef = useRef<(hit: LibrarySearchHit) => void>(() => {});
+  const searchHitsRef = useRef(searchHits);
+  const searchIndexRef = useRef(searchIndex);
+  const searchActiveRef = useRef(searchActive);
+  searchHitsRef.current = searchHits;
+  searchIndexRef.current = searchIndex;
+  searchActiveRef.current = searchActive;
+
+  // "/" focuses search unless typing elsewhere; Escape clears an active query.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      const typing =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+      if (event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (!searchActiveRef.current) return;
+      searchResultsKeyHandler(event, {
+        hitCount: searchHitsRef.current.length,
+        activeIndex: searchIndexRef.current,
+        setActiveIndex: setSearchIndex,
+        onEnter: () => {
+          const hit = searchHitsRef.current[searchIndexRef.current];
+          if (hit) openSearchHitRef.current(hit);
+        },
+        onEscape: () => {
+          setSearchQuery("");
+          searchInputRef.current?.blur();
+        },
+      });
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   function pumpUploads() {
@@ -453,6 +562,49 @@ export function LawCaseDocuments({
     }
   }
 
+  function resolveDoc(documentId: string): LawFileDoc | undefined {
+    return documents.find((doc) => doc.id === documentId);
+  }
+
+  function openSearchHit(hit: LibrarySearchHit) {
+    const doc = resolveDoc(hit.documentId);
+    if (!doc) {
+      void loadDocuments.current().then((body) => {
+        setDocuments(body.documents);
+        const match = body.documents.find((item) => item.id === hit.documentId);
+        if (match) openSearchHitWithDoc(hit, match);
+      });
+      return;
+    }
+    openSearchHitWithDoc(hit, doc);
+  }
+  openSearchHitRef.current = openSearchHit;
+
+  function openSearchHitWithDoc(hit: LibrarySearchHit, doc: LawFileDoc) {
+    setTextHit(null);
+    setEditor(null);
+    if (hit.kind === "page" && hit.page !== undefined) {
+      setViewer({ doc, page: hit.page });
+      return;
+    }
+    if (hit.kind === "segment" || hit.kind === "frame") {
+      // V2 timestamp deep link (?doc=&t=) is not on main yet — open the document only.
+      setViewer({ doc });
+      return;
+    }
+    // Text body: mark and scroll to the first match in a dedicated viewer.
+    setViewer(null);
+    setTextHit({ doc, snippet: hit.snippet, matches: hit.matches });
+  }
+
+  function clearSearch() {
+    setSearchQuery("");
+    setSearchHits([]);
+    setSearchTruncated(false);
+    setSearchActive(false);
+    setSearchIndex(0);
+  }
+
   function onLibraryDragEnter(event: DragEvent<HTMLElement>) {
     if (!isFileDrag(event.dataTransfer)) return;
     event.preventDefault();
@@ -563,6 +715,13 @@ export function LawCaseDocuments({
               />
             </div>
 
+            <LibrarySearchBox
+              query={searchQuery}
+              setQuery={setSearchQuery}
+              inputRef={searchInputRef}
+              onClear={clearSearch}
+            />
+
             {dragging ? (
               <div
                 data-testid="law-library-drop-target"
@@ -572,7 +731,15 @@ export function LawCaseDocuments({
               </div>
             ) : null}
 
-            {showEmpty ? (
+            {searchActive ? (
+              <LibrarySearchResults
+                hits={searchHits}
+                activeIndex={searchIndex}
+                truncated={searchTruncated}
+                onActivate={openSearchHit}
+                onHover={setSearchIndex}
+              />
+            ) : showEmpty ? (
               <Empty data-testid="law-library-empty" className="mt-2 border-0 p-4">
                 <EmptyHeader>
                   <EmptyTitle className="text-body-sm font-normal text-muted-foreground">
@@ -748,6 +915,14 @@ export function LawCaseDocuments({
                 }
               : undefined
           }
+        />
+      ) : null}
+      {textHit ? (
+        <SearchHitTextViewer
+          doc={textHit.doc}
+          snippet={textHit.snippet}
+          matches={textHit.matches}
+          onClose={() => setTextHit(null)}
         />
       ) : null}
       {editor ? (
