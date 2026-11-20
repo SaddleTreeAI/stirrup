@@ -22,6 +22,7 @@ import {
 import { Download, File, FileCode2, FileImage, FileText, FileType2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { isMediaLawDocument, LawMediaViewer } from "./media-viewer.js";
 import { LawPdfViewer } from "./pdf-viewer.js";
 
 export interface LawFileDoc {
@@ -202,6 +203,7 @@ export function LawFileViewer({
   caseId,
   spaceId,
   page,
+  startMs,
 }: {
   doc: LawFileDoc;
   onClose: () => void;
@@ -212,9 +214,12 @@ export function LawFileViewer({
   spaceId?: string | null;
   /** Physical page for PDF deep links. */
   page?: number;
+  /** Media deep link: open paused at this time. */
+  startMs?: number;
 }) {
   const textView = isTextLawDocument(doc);
   const pdfView = isPdfLawDocument(doc) && Boolean(caseId) && Boolean(doc.hasOriginal);
+  const mediaView = isMediaLawDocument(doc) && Boolean(caseId) && Boolean(doc.hasOriginal);
   const fromDocx = isDocxLawFile(doc) && Boolean(doc.body);
   const sizeLabel = doc.sizeBytes ? formatLawFileSize(doc.sizeBytes) : "";
   const typeLabel = doc.mimeType || fileExtension(doc.filename).toUpperCase();
@@ -237,7 +242,7 @@ export function LawFileViewer({
       subtitle={`${doc.filename}${doc.version > 1 ? ` · v${doc.version}` : ""}`}
       onClose={onClose}
       actions={
-        pdfView ? null : (
+        pdfView || mediaView ? null : (
           <>
             <Button
               type="button"
@@ -257,7 +262,9 @@ export function LawFileViewer({
         )
       }
     >
-      {pdfView && caseId ? (
+      {mediaView && caseId ? (
+        <LawMediaViewer doc={doc} caseId={caseId} spaceId={spaceId ?? null} startMs={startMs} />
+      ) : pdfView && caseId ? (
         <LawPdfViewer doc={doc} caseId={caseId} spaceId={spaceId ?? null} page={page} />
       ) : textView ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
