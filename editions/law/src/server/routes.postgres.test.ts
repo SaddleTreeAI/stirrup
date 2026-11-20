@@ -475,4 +475,127 @@ describePostgres("law cases under row-level security", () => {
       { id: child.id, title: "Renamed family", filename: "renamed-family.md" },
     ]);
   });
+
+  it("inserts transcript segments through the transcribe handler and reads a window", async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { createTranscribeHandler } = await import("./media/handlers/transcribe.js");
+
+    const caseId = caseIds[0]!;
+    const doc = await system.lawDocument.create({
+      data: {
+        caseId,
+        title: "Hearing audio",
+        filename: "hearing.mp3",
+        body: "",
+        kind: "upload",
+        source: "upload",
+        mimeType: "audio/mpeg",
+        status: "queued",
+        statusDetail: "Waiting to transcribe",
+        version: 1,
+      },
+    });
+
+    const tmpDir = mkdtempSync(path.join(tmpdir(), "v1-pg-"));
+    const modelsDir = path.join(tmpDir, "models", "small");
+    mkdirSync(modelsDir, { recursive: true });
+    writeFileSync(path.join(modelsDir, "model.bin"), "x");
+    const original = path.join(tmpDir, "hearing.mp3");
+    writeFileSync(original, "fake-audio");
+
+    const jsonl = [
+      JSON.stringify({ start: 0.0, end: 1.0, text: "Alpha" }),
+      JSON.stringify({ start: 5.0, end: 6.5, text: "Bravo" }),
+      JSON.stringify({ start: 10.0, end: 11.0, text: "Charlie" }),
+      JSON.stringify({ done: true, language: "en", duration: 12 }),
+    ].join("\n");
+
+    const handler = createTranscribeHandler({
+      env: {
+        LAW_MODELS_DIR: path.join(tmpDir, "models"),
+        LAW_ASR_MODEL: "small",
+        LAW_ASR_DEVICE: "cpu",
+      },
+      resolveConfig: (env) => ({
+        engine: "faster-whisper",
+        model: "small",
+        modelDir: path.join(env.LAW_MODELS_DIR!, "small"),
+        device: "cpu",
+        computeType: "int8",
+        language: "auto",
+        modelsRoot: env.LAW_MODELS_DIR!,
+        scriptPath: "/tmp/asr.py",
+        maxMinutes: 360,
+      }),
+    });
+
+    await handler({
+      job: {
+        id: "job-pg-1",
+        caseId,
+        documentId: doc.id,
+        kind: "transcribe",
+        status: "running",
+        attempts: 1,
+        maxAttempts: 3,
+        error: "",
+        payload: {},
+        runAfter: new Date(),
+        lockedAt: new Date(),
+        lockedBy: "test",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        finishedAt: null,
+      },
+      prisma: system,
+      runner: {
+        async run(cmd, args) {
+          if (cmd === "ffprobe") {
+            return {
+              code: 0,
+              stdout: JSON.stringify({
+                format: { duration: "12" },
+                streams: [{ codec_type: "audio", duration: "12" }],
+              }),
+              stderr: "",
+            };
+          }
+          if (cmd === "nvidia-smi") return { code: 127, stdout: "", stderr: "" };
+          if (cmd === "ffmpeg") {
+            writeFileSync(path.join(tmpDir, "audio.wav"), "wav");
+            return { code: 0, stdout: "", stderr: "" };
+          }
+          if (cmd === "python3") {
+            const outIdx = args.indexOf("--out");
+            writeFileSync(args[outIdx + 1]!, jsonl);
+            return { code: 0, stdout: "progress 100\n", stderr: "" };
+          }
+          return { code: 127, stdout: "", stderr: "unknown" };
+        },
+      },
+      tmpDir,
+      readOriginal: async () => original,
+      saveArtifact: async () => ({ id: "art" }),
+      log: { info: () => undefined, warn: () => undefined, error: () => undefined },
+    });
+
+    const updated = await system.lawDocument.findUniqueOrThrow({ where: { id: doc.id } });
+    expect(updated.status).toBe("ready");
+    expect(updated.durationMs).toBe(12_000);
+    expect(updated.statusDetail).toContain("Machine transcript");
+
+    const windowed = await app.request(
+      `/api/law/cases/${caseId}/documents/${doc.id}/segments?from=4000&to=7000`,
+      { headers: { authorization: "Bearer test" } },
+    );
+    expect(windowed.status).toBe(200);
+    const body = (await windowed.json()) as {
+      segments: Array<{ text: string; startMs: number; endMs: number }>;
+    };
+    expect(body.segments).toEqual([
+      expect.objectContaining({ text: "Bravo", startMs: 5000, endMs: 6500 }),
+    ]);
+  });
 });

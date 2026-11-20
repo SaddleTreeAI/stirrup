@@ -217,6 +217,25 @@ function openOrganizationMenu() {
   trigger?.click();
 }
 
+/**
+ * Case bar layout. Local classes so the strip works even when an edition-only
+ * Tailwind utility is missing from the web CSS bundle (W9 scans editions, but
+ * keep critical sizing here like .law-chrome-*).
+ */
+const LAW_CASE_BAR_STYLE = `
+.law-case-bar{min-width:0;width:100%}
+.law-case-bar-row{display:flex;align-items:center;gap:0.25rem;min-width:0}
+.law-case-bar-scroll{flex:1 1 0%;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.law-case-bar-scroll::-webkit-scrollbar{height:4px}
+.law-case-bar-scroll .group\\/tabs-list{flex-wrap:nowrap}
+.law-case-tab{max-width:12rem}
+.law-case-tab-label{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+`;
+
+function caseTabLabel(name: string): string {
+  return name.replace("Commonwealth v. ", "");
+}
+
 /** Case tab strip with delete / restore actions (SidebarLeading). */
 export function LawCaseTabs() {
   const {
@@ -366,92 +385,100 @@ export function LawCaseTabs() {
     );
   }
   return (
-    <div data-testid="law-case-tabs" className="flex gap-1 overflow-x-auto px-2.5 pt-3 pb-2">
-      <Tabs
-        value={selected?.id ?? cases[0]?.id ?? ""}
-        onValueChange={selectCase}
-        className="min-w-0 gap-0"
-      >
-        <TabsList
-          variant="line"
-          aria-label={t`Cases`}
-          className="h-auto w-auto gap-1 rounded-none bg-transparent p-0"
-        >
-          {cases.map((item) => (
-            <CaseTabActions
-              key={item.id}
-              canDelete={Boolean(item.canDelete)}
-              onDelete={() => setDeleteTarget(item)}
-            >
-              <TabsTrigger
-                value={item.id}
-                data-testid={`law-case-tab-${item.slug}`}
-                className={`h-auto shrink-0 rounded-full px-3 py-1 pe-6 text-body-sm text-muted-foreground after:hidden ${LAW_FOCUS} data-active:bg-sidebar-accent data-active:font-medium data-active:text-foreground data-active:shadow-none data-active:ring-2 data-active:ring-inset data-active:ring-foreground/50`}
-              >
-                {item.name.replace("Commonwealth v. ", "")}
-              </TabsTrigger>
-            </CaseTabActions>
-          ))}
-        </TabsList>
-      </Tabs>
-      {creating ? (
-        <form
-          className="flex shrink-0 items-center gap-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const name = draft.trim();
-            if (!name || busy) return;
-            setBusy(true);
-            void createCase(name)
-              .then(() => {
-                setDraft("");
-                setCreating(false);
-              })
-              .finally(() => setBusy(false));
-          }}
-        >
-          <Input
-            data-testid="law-case-name-input"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={t`Case name`}
-            aria-label={t`Case name`}
-            className={`h-7 w-28 rounded-full border-foreground/50 bg-card px-2 py-1 text-body-sm placeholder:text-muted-foreground ${LAW_FOCUS}`}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={busy || !draft.trim()}
-            className={`rounded-full ${LAW_FOCUS}`}
+    <div data-testid="law-case-tabs" className="law-case-bar px-2.5 pt-3 pb-1">
+      <style>{LAW_CASE_BAR_STYLE}</style>
+      <div className="law-case-bar-row">
+        <div className="law-case-bar-scroll" data-testid="law-case-tabs-scroll">
+          <Tabs
+            value={selected?.id ?? cases[0]?.id ?? ""}
+            onValueChange={selectCase}
+            className="w-max gap-0"
           >
-            {t`Add`}
-          </Button>
-        </form>
-      ) : (
-        <>
+            <TabsList
+              variant="line"
+              aria-label={t`Cases`}
+              className="h-auto w-max gap-1 rounded-none bg-transparent p-0"
+            >
+              {cases.map((item) => {
+                const label = caseTabLabel(item.name);
+                return (
+                  <CaseTabActions
+                    key={item.id}
+                    canDelete={Boolean(item.canDelete)}
+                    onDelete={() => setDeleteTarget(item)}
+                  >
+                    <TabsTrigger
+                      value={item.id}
+                      title={item.name}
+                      data-testid={`law-case-tab-${item.slug}`}
+                      className={`law-case-tab h-auto flex-none rounded-full px-3 py-1 pe-6 text-body-sm text-muted-foreground after:hidden ${LAW_FOCUS} data-active:bg-sidebar-accent data-active:font-medium data-active:text-foreground data-active:shadow-none data-active:ring-2 data-active:ring-inset data-active:ring-foreground/50`}
+                    >
+                      <span className="law-case-tab-label">{label}</span>
+                    </TabsTrigger>
+                  </CaseTabActions>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+        </div>
+        {creating ? (
+          <form
+            className="flex shrink-0 items-center gap-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = draft.trim();
+              if (!name || busy) return;
+              setBusy(true);
+              void createCase(name)
+                .then(() => {
+                  setDraft("");
+                  setCreating(false);
+                })
+                .finally(() => setBusy(false));
+            }}
+          >
+            <Input
+              data-testid="law-case-name-input"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={t`Case name`}
+              aria-label={t`Case name`}
+              className={`h-7 w-28 rounded-full border-foreground/50 bg-card px-2 py-1 text-body-sm placeholder:text-muted-foreground ${LAW_FOCUS}`}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={busy || !draft.trim()}
+              className={`rounded-full ${LAW_FOCUS}`}
+            >
+              {t`Add`}
+            </Button>
+          </form>
+        ) : (
           <button
             type="button"
             data-testid="law-case-add"
             aria-label={t`Add case`}
             onClick={() => setCreating(true)}
-            className={`flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-foreground ${LAW_FOCUS}`}
+            className={`flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-card px-2.5 py-1 text-body-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground ${LAW_FOCUS}`}
           >
             <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
+            {t`Case`}
           </button>
-          {canViewDeleted ? (
-            <button
-              type="button"
-              data-testid="law-recently-deleted"
-              onClick={() => {
-                void openRecentlyDeleted();
-              }}
-              className={`shrink-0 rounded-full px-2 text-body-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground ${LAW_FOCUS}`}
-            >
-              {t`Recently deleted`}
-            </button>
-          ) : null}
-        </>
-      )}
+        )}
+      </div>
+      {canViewDeleted ? (
+        <button
+          type="button"
+          data-testid="law-recently-deleted"
+          onClick={() => {
+            void openRecentlyDeleted();
+          }}
+          className={`mt-1 rounded-full px-1 text-body-sm text-muted-foreground underline-offset-2 hover:underline ${LAW_FOCUS}`}
+        >
+          {t`Recently deleted`}
+        </button>
+      ) : null}
       <DeleteCaseDialog
         open={Boolean(deleteTarget)}
         name={deleteTarget?.name ?? ""}
