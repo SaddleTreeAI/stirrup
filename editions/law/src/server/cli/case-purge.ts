@@ -49,7 +49,7 @@ export function parseCasePurgeArgs(argv: string[]): CasePurgeCliArgs | { error: 
   const confirm = typeof parsed.values.confirm === "string" ? parsed.values.confirm : undefined;
   if (force && confirm !== caseId) {
     return {
-      error: "--force-before-retention requires --confirm <case-id> matching --case\n" + USAGE,
+      error: `--force-before-retention requires --confirm <case-id> matching --case\n${USAGE}`,
     };
   }
   return {

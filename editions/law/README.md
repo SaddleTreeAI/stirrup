@@ -194,7 +194,7 @@ docker compose -f infra/compose/docker-compose.yml \
 
 Builds `editions/law/docker/media.Dockerfile` with `SERVER_IMAGE` / `LAW_SERVER_IMAGE`, mounts the app data volume and a `law-models` volume (for later transcription models), and documents a commented NVIDIA device block for GPU hosts. A CI job that publishes the media image is a follow-up.
 
-Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `transcribe`, `purge_case`).
+Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `import_docx`, `transcribe`, `purge_case`).
 
 GPU image (documented, not built by default): base `nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04` (CUDA 12 + cuDNN 9, matching faster-whisper 1.2.1 / current ctranslate2), then uncomment the NVIDIA device block in `compose.media.yml`.
 
