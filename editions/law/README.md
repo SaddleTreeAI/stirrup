@@ -139,7 +139,7 @@ A separate process claims `law_jobs` from Postgres, shells out to local tools, a
 ### Run mechanism
 
 - Entry: `editions/law/src/server/media/main.ts`.
-- Local with the rest of the stack: `pnpm dev:law` also starts `media:dev` (PDF extraction and transcription). Standalone: `pnpm --filter @rakazo/edition-law media:dev` (tsx), same as the seed CLI.
+- Local: run `pnpm --filter @rakazo/edition-law media:dev` in a second terminal alongside `pnpm dev:law` (tsx), same as the seed CLI.
 - Image: install tsx in the media image only; `ENTRYPOINT` runs that file. Api/worker still bundle edition code via `scripts/build-server.mjs`; the sidecar is a second container sharing the same workspace source already present in the law server image. No core change and no committed `dist-media`.
 
 ### Commands
