@@ -72,6 +72,9 @@ type FakePrisma = {
     updateMany?: ReturnType<typeof vi.fn>;
   };
   lawJob?: { updateMany?: ReturnType<typeof vi.fn> };
+  lawTranscriptSegment?: {
+    findMany?: ReturnType<typeof vi.fn>;
+  };
 };
 
 function memberPrisma(extra: Partial<FakePrisma> = {}): FakePrisma {
@@ -472,5 +475,120 @@ describe("library routes", () => {
       body: JSON.stringify({ title: "x".repeat(201) }),
     });
     expect(long.status).toBe(400);
+  });
+
+  it("exports transcript as txt, srt, and vtt for members", async () => {
+    const prisma = memberPrisma({
+      lawDocument: {
+        findFirst: vi.fn(async () => ({ id: "doc-1", filename: "hearing.mp4" })),
+      },
+      lawTranscriptSegment: {
+        findMany: vi.fn(async () => [
+          {
+            id: "seg-1",
+            idx: 0,
+            startMs: 0,
+            endMs: 1500,
+            speaker: null,
+            text: "One",
+          },
+          {
+            id: "seg-2",
+            idx: 1,
+            startMs: 2000,
+            endMs: 3500,
+            speaker: null,
+            text: "Two",
+          },
+        ]),
+      },
+    });
+    const app = mount(prisma);
+
+    const txt = await app.request("/api/law/cases/case-1/documents/doc-1/transcript?format=txt", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(txt.status).toBe(200);
+    expect(txt.headers.get("content-disposition")).toMatch(/^attachment;/);
+    expect(txt.headers.get("content-disposition")).toMatch(/hearing\.txt/);
+    expect(await txt.text()).toBe("[00:00:00] One\n[00:00:02] Two");
+
+    const srt = await app.request("/api/law/cases/case-1/documents/doc-1/transcript?format=srt", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(srt.status).toBe(200);
+    expect(await srt.text()).toContain("00:00:00,000 --> 00:00:01,500");
+
+    const vtt = await app.request("/api/law/cases/case-1/documents/doc-1/transcript?format=vtt", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(vtt.status).toBe(200);
+    const vttBody = await vtt.text();
+    expect(vttBody).toMatch(/^WEBVTT\n/);
+    expect(vttBody).toContain("00:00:00.000 --> 00:00:01.500");
+  });
+
+  it("lists segments in a time window with a 500 cap", async () => {
+    const findMany = vi.fn(async (_args: { take?: number }) => [
+      {
+        id: "seg-1",
+        idx: 2,
+        startMs: 1000,
+        endMs: 2000,
+        speaker: null,
+        text: "mid",
+      },
+    ]);
+    const prisma = memberPrisma({
+      lawDocument: {
+        findFirst: vi.fn(async () => ({ id: "doc-1", filename: "hearing.mp4" })),
+      },
+      lawTranscriptSegment: { findMany },
+    });
+    const app = mount(prisma);
+    const response = await app.request(
+      "/api/law/cases/case-1/documents/doc-1/segments?from=500&to=3000",
+      { headers: { authorization: "Bearer test" } },
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      segments: [{ idx: 2, startMs: 1000, endMs: 2000, speaker: null, text: "mid" }],
+      limit: 500,
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 500,
+        where: expect.objectContaining({
+          documentId: "doc-1",
+          startMs: { lte: 3000 },
+          endMs: { gte: 500 },
+        }),
+      }),
+    );
+  });
+
+  it("returns 404 for transcript and segments when not a member", async () => {
+    const prisma = {
+      lawCaseMember: { findUnique: vi.fn(async () => null) },
+    };
+    const app = mount(prisma);
+    const transcript = await app.request(
+      "/api/law/cases/case-1/documents/doc-1/transcript?format=txt",
+      { headers: { authorization: "Bearer test" } },
+    );
+    expect(transcript.status).toBe(404);
+    const segments = await app.request("/api/law/cases/case-1/documents/doc-1/segments", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(segments.status).toBe(404);
+  });
+
+  it("rejects an unknown transcript format", async () => {
+    const app = mount(memberPrisma());
+    const response = await app.request(
+      "/api/law/cases/case-1/documents/doc-1/transcript?format=pdf",
+      { headers: { authorization: "Bearer test" } },
+    );
+    expect(response.status).toBe(400);
   });
 });

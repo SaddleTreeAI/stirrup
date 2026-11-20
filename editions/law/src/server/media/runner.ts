@@ -35,7 +35,9 @@ export function createProcessRunner(): Runner {
           });
         };
         child.stdout?.on("data", (chunk: Buffer) => {
-          if (stdout.length < RUNNER_OUTPUT_LIMIT * 2) stdout += chunk.toString("utf8");
+          const text = chunk.toString("utf8");
+          if (stdout.length < RUNNER_OUTPUT_LIMIT * 2) stdout += text;
+          if (options.onStdout) void Promise.resolve(options.onStdout(text));
         });
         child.stderr?.on("data", (chunk: Buffer) => {
           if (stderr.length < RUNNER_OUTPUT_LIMIT * 2) stderr += chunk.toString("utf8");

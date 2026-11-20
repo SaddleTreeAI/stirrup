@@ -35,6 +35,16 @@ services:
       LAW_MEDIA_STALE_MINUTES: ${LAW_MEDIA_STALE_MINUTES:-120}
       LAW_MEDIA_TMP: ${LAW_MEDIA_TMP:-/tmp/law-media}
       LAW_MEDIA_REQUIRED_TOOLS: ${LAW_MEDIA_REQUIRED_TOOLS:-}
+      LAW_MODELS_DIR: ${LAW_MODELS_DIR:-/models}
+      LAW_ASR_ENGINE: ${LAW_ASR_ENGINE:-faster-whisper}
+      LAW_ASR_MODEL: ${LAW_ASR_MODEL:-auto}
+      LAW_ASR_DEVICE: ${LAW_ASR_DEVICE:-auto}
+      LAW_ASR_COMPUTE: ${LAW_ASR_COMPUTE:-auto}
+      LAW_ASR_LANGUAGE: ${LAW_ASR_LANGUAGE:-auto}
+      LAW_MEDIA_MAX_MINUTES: ${LAW_MEDIA_MAX_MINUTES:-360}
+      LAW_ASR_SCRIPT: ${LAW_ASR_SCRIPT:-/opt/law-media-tools/asr.py}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
     volumes:
       # Same host data dir the api/worker mount (override with LAW_DATA_VOLUME).
       - ${LAW_DATA_VOLUME:-../../../data}:/data

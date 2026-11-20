@@ -4,13 +4,14 @@
 import type { Handler } from "../types.js";
 import { importDocxHandler } from "./import-docx.js";
 import { selftestHandler } from "./selftest.js";
+import { transcribeHandler } from "./transcribe.js";
 
 /**
  * Kind → handler registry. Later tasks add one file and one line here:
  *   P1:    import { extractPdfHandler } from "./extract-pdf.js"; handlers.extract_pdf = extractPdfHandler;
- *   V1:    import { transcribeHandler } from "./transcribe.js"; handlers.transcribe = transcribeHandler;
  */
 export const handlers: Record<string, Handler> = {
   selftest: selftestHandler,
   import_docx: importDocxHandler,
+  transcribe: transcribeHandler,
 };

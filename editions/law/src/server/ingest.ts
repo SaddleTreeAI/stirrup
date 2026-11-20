@@ -63,10 +63,13 @@ export function classify(mediaType: string, filename: string): Classification {
   ) {
     return { kind: "docx", textual: false };
   }
-  if (mime.startsWith("audio/") || ["mp3", "wav", "m4a", "ogg", "flac", "aac"].includes(ext)) {
+  if (
+    mime.startsWith("audio/") ||
+    ["mp3", "m4a", "wav", "aac", "ogg", "flac", "opus", "wma"].includes(ext)
+  ) {
     return { kind: "audio", textual: false };
   }
-  if (mime.startsWith("video/") || ["mp4", "webm", "mov", "mkv"].includes(ext)) {
+  if (mime.startsWith("video/") || ["mp4", "mov", "mkv", "webm", "avi", "m4v"].includes(ext)) {
     return { kind: "video", textual: false };
   }
   if (
@@ -80,7 +83,7 @@ export function classify(mediaType: string, filename: string): Classification {
 
 export type TextIngestResult = {
   body: string;
-  status: "ready" | "processing" | "failed";
+  status: "ready" | "processing" | "failed" | "queued";
   statusDetail: string;
 };
 
@@ -91,6 +94,13 @@ export function prepareIngestBody(
   mediaType: string,
   filename: string,
 ): TextIngestResult {
+  if (classification.kind === "audio" || classification.kind === "video") {
+    return {
+      body: "",
+      status: "queued",
+      statusDetail: "Waiting to transcribe",
+    };
+  }
   if (!classification.textual) {
     const ext = extensionOf(filename);
     const mime = mediaType.split(";", 1)[0]?.trim().toLowerCase() ?? "";

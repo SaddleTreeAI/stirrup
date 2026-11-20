@@ -25,7 +25,12 @@ describe("classify", () => {
     ],
     ["application/octet-stream", "brief.docx", "docx", false],
     ["audio/mpeg", "interview.mp3", "audio", false],
+    ["audio/ogg", "clip.opus", "audio", false],
+    ["application/octet-stream", "clip.wma", "audio", false],
+    ["audio/flac", "tape.flac", "audio", false],
     ["video/mp4", "hearing.mp4", "video", false],
+    ["video/x-msvideo", "old.avi", "video", false],
+    ["application/octet-stream", "clip.m4v", "video", false],
     ["image/png", "scan.png", "image", false],
     ["application/octet-stream", "unknown.bin", "other", false],
   ] as const)("%s / %s → %s textual=%s", (mime, filename, kind, textual) => {
@@ -106,6 +111,20 @@ describe("prepareIngestBody", () => {
       statusDetail: "Stored. Text extraction not available for this file type yet.",
     });
   });
+
+  it("queues audio and video for transcription", () => {
+    expect(
+      prepareIngestBody(
+        classify("audio/mpeg", "a.mp3"),
+        new Uint8Array([1]),
+        "audio/mpeg",
+        "a.mp3",
+      ),
+    ).toEqual({ body: "", status: "queued", statusDetail: "Waiting to transcribe" });
+    expect(
+      prepareIngestBody(classify("video/mp4", "a.mp4"), new Uint8Array([1]), "video/mp4", "a.mp4"),
+    ).toEqual({ body: "", status: "queued", statusDetail: "Waiting to transcribe" });
+  });
 });
 
 describe("enqueueExtraction", () => {
@@ -174,6 +193,32 @@ describe("enqueueExtraction", () => {
       expect.objectContaining({
         documentId: "doc-2",
         kind: "import_docx",
+        status: "queued",
+      }),
+    ]);
+  });
+
+  it("enqueues a transcribe job for audio", async () => {
+    const calls: unknown[] = [];
+    const prisma = {
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          lawJob: {
+            findFirst: async () => null,
+            create: async (args: { data: unknown }) => {
+              calls.push(args.data);
+              return { id: "job-3" };
+            },
+          },
+        }),
+    };
+    await expect(
+      enqueueExtraction(prisma as never, { id: "doc-3", caseId: "case-1", kind: "audio" }),
+    ).resolves.toEqual({ id: "job-3", created: true });
+    expect(calls).toEqual([
+      expect.objectContaining({
+        documentId: "doc-3",
+        kind: "transcribe",
         status: "queued",
       }),
     ]);
