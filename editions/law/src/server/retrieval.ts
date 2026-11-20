@@ -20,6 +20,14 @@ export interface LawSnippet {
   excerpt: string;
 }
 
+/** One ready library file listed in every turn note so bots can see the shelf. */
+export interface LawLibraryManifestEntry {
+  id: string;
+  filename: string;
+  type: string;
+  pageCount: number | null;
+}
+
 const STOP = new Set([
   "that",
   "this",
@@ -82,13 +90,31 @@ export function formatLawContext(input: {
   name: string;
   brief: string;
   snippets: readonly LawSnippet[];
+  manifest?: readonly LawLibraryManifestEntry[];
+  processingCount?: number;
 }): string {
   const retrieved = input.snippets
     .map((snippet) => `### ${snippet.title}\n${snippet.excerpt}`)
     .join("\n\n");
+  const manifest =
+    input.manifest && input.manifest.length > 0
+      ? `Case library:\n${input.manifest
+          .map((entry) => {
+            const pages =
+              entry.pageCount != null && entry.pageCount > 0 ? `, ${entry.pageCount} pages` : "";
+            return `- ${entry.filename} (${entry.type}${pages}) id=${entry.id}`;
+          })
+          .join("\n")}`
+      : "";
+  const processing =
+    input.processingCount && input.processingCount > 0
+      ? `${input.processingCount} file${input.processingCount === 1 ? "" : "s"} still processing`
+      : "";
   return [
     `Case: ${input.name}`,
     `Brief:\n${input.brief}`,
+    manifest,
+    processing,
     retrieved ? `Retrieved case documents:\n${retrieved}` : "",
   ]
     .filter(Boolean)

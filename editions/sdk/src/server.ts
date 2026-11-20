@@ -25,6 +25,15 @@ export type EditionRouteDeps = {
   files?: EditionFiles;
 };
 
+/** A tool an edition offers for one bot on one turn. execute closes over that bot's scope. */
+export type EditionTool = {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  readOnly?: boolean;
+  execute: (args: Record<string, unknown>) => Promise<unknown>;
+};
+
 export type EditionRunHooks = {
   turnNote?: (
     prisma: PrismaClient,
@@ -41,6 +50,12 @@ export type EditionRunHooks = {
     input: { botId: string; runId: string; text: string },
   ) => Promise<void>;
   streamsProgress?: (runtimeId: string | undefined) => boolean;
+  /** Extra tools for this bot. Undefined or empty means none. */
+  tools?: (
+    prisma: PrismaClient,
+    botId: string,
+    actor: Pick<Actor, "userId" | "spaceId">,
+  ) => Promise<EditionTool[] | undefined>;
 };
 
 /** Optional veto of access to a bot's thread. Undefined means every bot is allowed. */

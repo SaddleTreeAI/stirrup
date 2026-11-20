@@ -1,4 +1,5 @@
 import { defineServerEdition } from "@rakazo/edition-sdk";
+import { lawCaseTools } from "./server/case-library-tools.js";
 import {
   lawBotAccess,
   lawTurnNote,
@@ -22,5 +23,6 @@ export const lawEdition = defineServerEdition({
     limitTeammates: limitLawTeammates,
     onReplyFinalized: saveLawReviewDraftHook,
     streamsProgress: lawStreamsProgress,
+    tools: lawCaseTools,
   },
 });

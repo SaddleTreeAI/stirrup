@@ -160,7 +160,8 @@ export async function gateToolCall(
     request;
   const { replayEffectToolName } = request;
   let { args, effectRequest } = request;
-  const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name);
+  // edition-seam:R5 — edition tools are not connectors; do not apply connector read trust.
+  const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name) && !ctx.tools.edition?.has(name);
   // Declared effect of the operation this call dispatches (installed API method and
   // flag). Install config is immutable per route resource, so it cannot drift before
   // execute; a catalog call uses the tool it was just resolved to.

@@ -726,6 +726,23 @@ export async function selectRunTools(
     clientNonce: run.clientNonce,
   });
   const connectorTools = new Map(strategicConnectorTools.map((tool) => [tool.name, tool] as const));
+  // edition-seam:R5 — optional edition tools for this bot (schemas + execute closures).
+  const editionToolList =
+    run.trigger === "created"
+      ? []
+      : ((await deps.editionRunHooks?.tools?.(deps.prisma, bot.id, {
+          userId: run.userId,
+          spaceId: run.spaceId,
+        })) ?? []);
+  const editionOffered = editionToolList.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    readOnly: tool.readOnly,
+  }));
+  const editionExecutors = new Map(
+    editionToolList.map((tool) => [tool.name, tool.execute] as const),
+  );
   const trustLoaders = createRunTrustLoaders(deps, {
     run,
     runId,
@@ -752,7 +769,7 @@ export async function selectRunTools(
   const tools =
     run.trigger === "created"
       ? strategicBuiltins
-      : [...strategicBuiltins, ...strategicConnectorTools];
+      : [...strategicBuiltins, ...strategicConnectorTools, ...editionOffered];
   const taskCatalogInstruction = tools.some((tool) => tool.name === "task_catalog")
     ? TASK_CATALOG_GUIDANCE
     : undefined;
@@ -765,6 +782,7 @@ export async function selectRunTools(
   return {
     strategicBuiltins,
     connectorTools,
+    editionExecutors,
     trustLoaders,
     searchResultUrls,
     initiallyTainted,
