@@ -120,6 +120,13 @@ RAKAZO_COMPUTER_IMAGE=rakazo-computer-chrome
 RAKAZO_COMPUTER_IMAGE_TAG=latest
 ```
 
+For law or other workflows that need LibreOffice Writer and `python3-docx` on the computer (beyond
+pandoc, which is already in the default image), build with `OFFICE_TOOLS=1`:
+
+```bash
+docker build --build-arg OFFICE_TOOLS=1 -t rakazo-computer-office infra/sandboxes/computer
+```
+
 The image holds one browser, and `rakazo-browser` launches whichever is installed. A locally built
 image is not on a registry, so start the stack with `bash install-images.sh --pull-never` after
 pulling the other images once. Brave's Rewards, Wallet, Leo, VPN and News are disabled by managed

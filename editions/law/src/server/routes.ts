@@ -381,7 +381,7 @@ async function finishCreateCase(
       spawnKey: `law:${input.slug}:${role.role}`,
       modelProvider: LAW_CHAT_PROVIDER,
       modelId: LAW_CHAT_MODEL_ID,
-      thinkingLevel: "medium",
+      thinkingLevel: role.thinkingLevel,
     });
     await prisma.lawCaseBot.create({
       data: { caseId: lawCase.id, role: role.role, botId: bot.id },

@@ -40,6 +40,7 @@ import { partitionTools } from "./builtin-tool-bridge.js";
 import type { ComputerExecutionLease } from "./computer-lifecycle.js";
 import type { UnchangedVisualStreak } from "./computer-tools.js";
 import type { selectRunConnections } from "./connection-context.js";
+import type { EditionToolRun } from "./edition-run-hooks.js";
 import type { ExecutorDeps } from "./executor-deps.js";
 import type { FleetRun } from "./fleet-tools.js";
 import { namedAgentTools } from "./pi-runtime-tools.js";
@@ -276,12 +277,18 @@ export interface RunSource {
   userComputerOwner: string | undefined;
 }
 
+/** R5 edition tool execute closure. */
+export type EditionToolExecutor = (
+  args: Record<string, unknown>,
+  run: EditionToolRun,
+) => Promise<unknown>;
+
 export interface RunTools {
   offered: ConnectorTool[];
   builtins: ConnectorTool[];
   connector: Map<string, ConnectorTool>;
   /** Edition-provided executors (R5); keyed by tool name. */
-  edition?: Map<string, (args: Record<string, unknown>) => Promise<unknown>>;
+  edition?: Map<string, EditionToolExecutor>;
   disabled: Set<string>;
   connectedPlugins: ReturnType<typeof selectRunConnections>;
   approvedReplays: ApprovedEffectReplayQueue;

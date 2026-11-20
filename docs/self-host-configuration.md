@@ -84,7 +84,9 @@ silent stream sooner.
   Other APIs, such as Google, Vertex AI, Bedrock and some routed models, use their own client
   timeouts.
 - `MODEL_STREAM_IDLE_TIMEOUT_MS` (default `180000`, range `0`–`2147483647`) bounds how long
-  a started response may remain silent. Set it to `0` to disable Stirrup's inactivity watchdog.
+  a started response may remain silent. Only events with real progress (non-empty text or
+  thinking deltas, tool-call activity) re-arm the watchdog; keep-alive-only or empty-delta
+  streams still count as idle. Set it to `0` to disable Stirrup's inactivity watchdog.
   Explicit request cancellation remains available. Disabling this protection can leave stalled
   requests waiting indefinitely if neither the provider nor the caller terminates them.
 - `MODEL_CONNECT_TIMEOUT_MS` (default `30000`, range `1000`–`300000`) bounds connecting to an

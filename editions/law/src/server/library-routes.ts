@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 SaddleTree AI
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { runAsTenant, tryRecordAuditEvent } from "@rakazo/db";
@@ -9,7 +9,7 @@ import type { EditionFiles, EditionRouteDeps } from "@rakazo/edition-sdk";
 import { getLogger } from "@rakazo/logging";
 import type { Hono } from "hono";
 import { lawDocumentFilename } from "./cases.js";
-import { classify, enqueueExtraction, prepareIngestBody } from "./ingest.js";
+import { sanitizeFilename, uploadLibraryDocument } from "./library-upload.js";
 import type { TranscriptSegment } from "./media/segments.js";
 import { formatSrt, formatTranscriptBody, formatVtt } from "./media/segments.js";
 import { openLawText, sealLawText } from "./seal.js";
@@ -17,7 +17,6 @@ import { openLawText, sealLawText } from "./seal.js";
 const SEGMENTS_PAGE_MAX = 500;
 
 const TITLE_MAX = 200;
-const FILENAME_MAX = 200;
 
 type LibraryDeps = EditionRouteDeps;
 
@@ -51,15 +50,13 @@ export function mountLibraryRoutes(app: Hono, deps: LibraryDeps) {
 
       const bytes = new Uint8Array(await fileEntry.arrayBuffer());
       if (bytes.byteLength > files.maxBytes) return c.json({ error: "File too large" }, 413);
-      const sha256 = createHash("sha256").update(bytes).digest("hex");
 
       const result = await runAsTenant(actor, () =>
-        uploadDocument(deps.prisma, files, actor, {
+        uploadLibraryDocument(deps.prisma, files, actor, {
           caseId,
           filename,
           mediaType,
           bytes,
-          sha256,
           titleOverride,
         }),
       );
@@ -304,85 +301,6 @@ async function requireMember(
     select: { deletedAt: true },
   });
   return Boolean(lawCase && !lawCase.deletedAt);
-}
-
-async function uploadDocument(
-  prisma: PrismaClient,
-  files: EditionFiles,
-  actor: Actor,
-  input: {
-    caseId: string;
-    filename: string;
-    mediaType: string;
-    bytes: Uint8Array;
-    sha256: string;
-    titleOverride?: string;
-  },
-) {
-  if (!(await requireMember(prisma, actor.userId, input.caseId))) return "forbidden";
-
-  const duplicate = await prisma.lawDocument.findFirst({
-    where: {
-      caseId: input.caseId,
-      sha256: input.sha256,
-      deletedAt: null,
-    },
-    select: { id: true },
-  });
-  if (duplicate) return { conflict: true as const, existingId: duplicate.id };
-
-  const stored = await files.store({
-    spaceId: actor.spaceId,
-    userId: actor.userId,
-    filename: input.filename,
-    mediaType: input.mediaType,
-    bytes: input.bytes,
-  });
-
-  const classification = classify(stored.mediaType, input.filename);
-  const ingest = prepareIngestBody(classification, input.bytes, stored.mediaType, input.filename);
-  const title =
-    input.titleOverride?.slice(0, TITLE_MAX) ||
-    titleFromFilename(input.filename).slice(0, TITLE_MAX);
-
-  const id = randomUUID();
-  const body = await sealLawText(
-    prisma,
-    {
-      table: "law_documents",
-      column: "body",
-      rowId: id,
-      spaceId: actor.spaceId,
-      owner: input.caseId,
-    },
-    ingest.body,
-  );
-  const created = await prisma.lawDocument.create({
-    data: {
-      id,
-      caseId: input.caseId,
-      title,
-      filename: input.filename,
-      body,
-      kind: "upload",
-      version: 1,
-      source: "upload",
-      mimeType: stored.mediaType,
-      sizeBytes: stored.sizeBytes,
-      sha256: input.sha256,
-      artifactId: stored.artifactId,
-      status: ingest.status,
-      statusDetail: ingest.statusDetail,
-      uploadedBy: actor.userId,
-      updatedAt: new Date(),
-    },
-  });
-  await enqueueExtraction(prisma, {
-    id: created.id,
-    caseId: created.caseId,
-    kind: classification.kind,
-  });
-  return { ...created, body: ingest.body };
 }
 
 async function createNoteDocument(
@@ -787,22 +705,7 @@ export function serializeDocument(doc: {
   };
 }
 
-export function sanitizeFilename(raw: string): string {
-  const base = raw.replace(/\\/g, "/").split("/").pop() ?? "";
-  let cleaned = "";
-  for (const ch of base) {
-    const code = ch.charCodeAt(0);
-    if (code < 32 || code === 127) continue;
-    cleaned += ch;
-    if (cleaned.length >= FILENAME_MAX) break;
-  }
-  return cleaned || "upload";
-}
-
-function titleFromFilename(filename: string): string {
-  const base = filename.replace(/\.[^.]+$/, "") || filename;
-  return base || "Upload";
-}
+export { sanitizeFilename } from "./library-upload.js";
 
 function slugify(title: string): string {
   return title

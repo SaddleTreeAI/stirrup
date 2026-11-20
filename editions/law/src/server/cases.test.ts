@@ -75,6 +75,15 @@ describe("CASE_ROLES instructions", () => {
       );
     }
   });
+
+  it("defaults each role to low thinking and tells the generator when to use the computer", () => {
+    for (const role of CASE_ROLES) {
+      expect(role.thinkingLevel).toBe("low");
+    }
+    const generator = CASE_ROLES.find((role) => role.role === "generator");
+    expect(generator?.instructions("brief")).toContain("The draft is your reply in Markdown");
+    expect(generator?.instructions("brief")).toContain("save_to_case_library");
+  });
 });
 
 describe("lawDocumentFilename", () => {

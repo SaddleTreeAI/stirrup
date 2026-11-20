@@ -25,13 +25,26 @@ export type EditionRouteDeps = {
   files?: EditionFiles;
 };
 
+/** Per-call capabilities for an edition tool (R5): read the bot computer and store artifacts. */
+export type EditionToolRun = {
+  /** Read a path from this bot's computer workspace. */
+  readComputerFile(path: string): Promise<Uint8Array>;
+  /** Store bytes as a space-scoped artifact with no bot owner. */
+  storeFile(input: {
+    filename: string;
+    mediaType: string;
+    bytes: Uint8Array;
+  }): Promise<{ artifactId: string; sizeBytes: number; mediaType: string }>;
+  maxBytes: number;
+};
+
 /** A tool an edition offers for one bot on one turn. execute closes over that bot's scope. */
 export type EditionTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
   readOnly?: boolean;
-  execute: (args: Record<string, unknown>) => Promise<unknown>;
+  execute: (args: Record<string, unknown>, run: EditionToolRun) => Promise<unknown>;
 };
 
 export type EditionRunHooks = {

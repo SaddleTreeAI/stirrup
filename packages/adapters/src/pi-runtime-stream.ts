@@ -36,11 +36,35 @@ export function isCodexModel(model: Pick<Model<Api>, "api" | "provider">): boole
 /** Abort reason recorded when a model stream goes silent past the idle bound. */
 export const MODEL_STREAM_IDLE_TIMEOUT_MESSAGE = "Model stream idle timeout";
 
+/**
+ * Whether a stream event is real model progress. Empty deltas and bare `start`
+ * frames are treated as keep-alives so they do not reset the idle watchdog.
+ */
+export function modelStreamEventIsActivity(event: AssistantMessageEvent): boolean {
+  switch (event.type) {
+    case "text_delta":
+    case "thinking_delta":
+    case "toolcall_delta":
+      return typeof event.delta === "string" && event.delta.length > 0;
+    case "text_start":
+    case "text_end":
+    case "thinking_start":
+    case "thinking_end":
+    case "toolcall_start":
+    case "toolcall_end":
+    case "done":
+    case "error":
+      return true;
+    default:
+      return false;
+  }
+}
+
 export interface StreamIdleWatchdog {
   signal: AbortSignal;
-  /** Re-arms the idle bound; invoke on response headers and each delivered event. */
+  /** Re-arms the idle bound; invoke on response headers and each activity event. */
   ping(): void;
-  /** Wraps the provider stream so every delivered event re-arms the idle bound. */
+  /** Wraps the provider stream so activity events re-arm the idle bound. */
   wrap(stream: AssistantMessageEventStream): AssistantMessageEventStream;
   dispose(): void;
 }
@@ -49,8 +73,9 @@ export interface StreamIdleWatchdog {
  * `timeoutMs` bounds only time-to-headers; after that pi reads the body until it
  * ends or the signal aborts, so silence can stall a run. The watchdog arms only on
  * a 2xx response, keeping time-to-headers and retry backoff outside the idle bound.
- * pi reports any abort as "Request was aborted", so the wrapper relabels it as an
- * idle timeout when the watchdog fired.
+ * Keep-alive-only frames (empty deltas, bare start) do not re-arm it. pi reports
+ * any abort as "Request was aborted", so the wrapper relabels it as an idle
+ * timeout when the watchdog fired.
  */
 export function modelStreamIdleWatchdog(
   upstream: AbortSignal | undefined,
@@ -117,7 +142,7 @@ export function modelStreamIdleWatchdog(
         override async *[Symbol.asyncIterator](): AsyncGenerator<AssistantMessageEvent> {
           try {
             for await (const event of inner) {
-              ping();
+              if (modelStreamEventIsActivity(event)) ping();
               yield rewrite(event);
             }
           } finally {

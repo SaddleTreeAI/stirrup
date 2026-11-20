@@ -2,15 +2,37 @@
 // Copyright 2026 SaddleTree AI
 
 import type { Actor } from "@rakazo/contracts";
+import { inferAttachmentMimeType } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
-import type { EditionTool } from "@rakazo/edition-sdk";
+import type { EditionTool, EditionToolRun } from "@rakazo/edition-sdk";
 import { LAW_LIBRARY_KINDS } from "./cases.js";
+import { sanitizeFilename, uploadLibraryDocument } from "./library-upload.js";
 import { openLawText } from "./seal.js";
 import { searchCaseLibrary } from "./search.js";
 
 const SEARCH_LIMIT = 10;
 const BODY_PREVIEW = 4_000;
 const SEGMENT_LIMIT = 40;
+const TITLE_MAX = 200;
+
+const LIBRARY_MIME_BY_EXT: Record<string, string> = {
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  doc: "application/msword",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  html: "text/html",
+  htm: "text/html",
+  csv: "text/csv",
+  json: "application/json",
+  rtf: "application/rtf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+};
 
 /** Tools case bots use to search and open this case's library. */
 export async function lawCaseTools(
@@ -108,7 +130,99 @@ export async function lawCaseTools(
         });
       },
     },
+    {
+      name: "save_to_case_library",
+      description:
+        "Copy a file from this bot's computer into the case Library as an upload (e.g. a pandoc .docx). Optional title overrides the filename stem.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description: "Path on this bot's computer (workspace-relative).",
+          },
+          title: {
+            type: "string",
+            description: "Optional library title. Defaults to the filename without extension.",
+          },
+        },
+        required: ["path"],
+      },
+      execute: async (args, run) => saveToCaseLibrary(prisma, sessionActor, caseId, args, run),
+    },
   ];
+}
+
+async function saveToCaseLibrary(
+  prisma: PrismaClient,
+  actor: Actor,
+  caseId: string,
+  args: Record<string, unknown>,
+  run: EditionToolRun,
+): Promise<unknown> {
+  const rawPath = typeof args.path === "string" ? args.path.trim() : "";
+  if (!rawPath) return { error: "path is required" };
+  const titleOverride =
+    typeof args.title === "string" && args.title.trim()
+      ? args.title.trim().slice(0, TITLE_MAX)
+      : undefined;
+
+  const filename = sanitizeFilename(rawPath);
+  let bytes: Uint8Array;
+  try {
+    bytes = await run.readComputerFile(rawPath);
+  } catch {
+    return { error: "file not found or unreadable" };
+  }
+  if (bytes.byteLength === 0) return { error: "file is empty" };
+  if (bytes.byteLength > run.maxBytes) {
+    return { error: "file exceeds the upload size limit" };
+  }
+
+  const mediaType = mediaTypeForLibraryPath(filename);
+  const files = {
+    store: (input: {
+      spaceId: string;
+      userId: string;
+      filename: string;
+      mediaType: string;
+      bytes: Uint8Array;
+    }) =>
+      run.storeFile({
+        filename: input.filename,
+        mediaType: input.mediaType,
+        bytes: input.bytes,
+      }),
+  };
+  const result = await uploadLibraryDocument(prisma, files, actor, {
+    caseId,
+    filename,
+    mediaType,
+    bytes,
+    titleOverride,
+  });
+  if (result === "forbidden") return { error: "Not a member of this case." };
+  if ("conflict" in result) {
+    return {
+      error: "Duplicate content already in the library.",
+      existingId: result.existingId,
+    };
+  }
+  return {
+    documentId: result.id,
+    title: result.title,
+    filename: result.filename,
+    status: result.status,
+    mimeType: result.mimeType,
+    sizeBytes: result.sizeBytes,
+  };
+}
+
+function mediaTypeForLibraryPath(filename: string): string {
+  const fromAttachment = inferAttachmentMimeType(filename);
+  if (fromAttachment) return fromAttachment;
+  const ext = /\.([a-z0-9]+)$/i.exec(filename.trim())?.[1]?.toLowerCase() ?? "";
+  return LIBRARY_MIME_BY_EXT[ext] ?? "application/octet-stream";
 }
 
 async function readCaseDocument(

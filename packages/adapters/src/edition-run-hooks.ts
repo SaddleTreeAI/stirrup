@@ -2,12 +2,26 @@ import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 
 // Keep structurally identical to EditionRunHooks in editions/sdk/src/server.ts.
+
+/** Per-call capabilities for an edition tool (R5): read the bot computer and store artifacts. */
+export type EditionToolRun = {
+  /** Read a path from this bot's computer workspace. */
+  readComputerFile(path: string): Promise<Uint8Array>;
+  /** Store bytes as a space-scoped artifact with no bot owner. */
+  storeFile(input: {
+    filename: string;
+    mediaType: string;
+    bytes: Uint8Array;
+  }): Promise<{ artifactId: string; sizeBytes: number; mediaType: string }>;
+  maxBytes: number;
+};
+
 export type EditionTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
   readOnly?: boolean;
-  execute: (args: Record<string, unknown>) => Promise<unknown>;
+  execute: (args: Record<string, unknown>, run: EditionToolRun) => Promise<unknown>;
 };
 
 export type EditionRunHooks = {
