@@ -39,6 +39,33 @@ export function isPendingStatus(status: string | undefined): boolean {
   return status === "queued" || status === "processing";
 }
 
+/** How long a document may sit `queued` before the Library blames the media worker. */
+export const QUEUED_STUCK_MS = 60_000;
+
+/** True when a document has been queued longer than QUEUED_STUCK_MS. */
+export function isQueuedStuck(
+  doc: Pick<LawFileDoc, "status" | "createdAt">,
+  now: number = Date.now(),
+): boolean {
+  if (doc.status !== "queued" || !doc.createdAt) return false;
+  const created = Date.parse(doc.createdAt);
+  return Number.isFinite(created) && now - created >= QUEUED_STUCK_MS;
+}
+
+/**
+ * Subtitle for a library row that is still extracting. After a minute queued
+ * with no worker claim, tell the operator the sidecar is not running instead
+ * of leaving "Reading PDF" forever.
+ */
+export function libraryPendingDetail(
+  doc: Pick<LawFileDoc, "status" | "statusDetail" | "createdAt">,
+  now: number = Date.now(),
+): string | null {
+  if (!isPendingStatus(doc.status)) return null;
+  if (isQueuedStuck(doc, now)) return "extraction worker isn't running";
+  return doc.statusDetail?.trim() ? doc.statusDetail : null;
+}
+
 export function originalFileHref(caseId: string, docId: string): string {
   return `/api/law/cases/${caseId}/documents/${docId}/file`;
 }
@@ -163,6 +190,11 @@ export function LibraryFileRow({
   const ext = fileExtension(doc.filename);
   const sizeLabel = doc.sizeBytes ? formatLawFileSize(doc.sizeBytes) : "";
   const pending = isPendingStatus(doc.status);
+  const pendingLabel = isQueuedStuck(doc)
+    ? t`extraction worker isn't running`
+    : pending && doc.statusDetail
+      ? doc.statusDetail
+      : null;
 
   useEffect(() => {
     if (!renaming) return;
@@ -259,8 +291,8 @@ export function LibraryFileRow({
           >
             <span className="block truncate text-body-sm text-foreground">{doc.title}</span>
             <span className="block truncate text-label text-muted-foreground">
-              {pending && doc.statusDetail
-                ? doc.statusDetail
+              {pending && pendingLabel
+                ? pendingLabel
                 : doc.status === "failed" && doc.statusDetail
                   ? doc.statusDetail
                   : [
