@@ -598,4 +598,182 @@ describePostgres("law cases under row-level security", () => {
       expect.objectContaining({ text: "Bravo", startMs: 5000, endMs: 6500 }),
     ]);
   });
+
+  it("searches sealed text, page, segment, and frame rows by a unique word", async () => {
+    const { randomUUID } = await import("node:crypto");
+    const { sealLawText } = await import("./seal.js");
+    const caseId = caseIds[1]!;
+    const textId = randomUUID();
+    const pdfId = randomUUID();
+    const mediaId = randomUUID();
+    const pageId = randomUUID();
+    const segId = randomUUID();
+    const frameId = randomUUID();
+
+    const textBody = await sealLawText(
+      system,
+      {
+        table: "law_documents",
+        column: "body",
+        rowId: textId,
+        spaceId,
+        owner: caseId,
+      },
+      "Synthetic note mentioning SrchTextUnique once.",
+    );
+    await system.lawDocument.create({
+      data: {
+        id: textId,
+        caseId,
+        title: "Search note",
+        filename: "search-note.md",
+        body: textBody,
+        kind: "note",
+        version: 1,
+        source: "edit",
+        status: "ready",
+      },
+    });
+
+    const pdfBody = await sealLawText(
+      system,
+      {
+        table: "law_documents",
+        column: "body",
+        rowId: pdfId,
+        spaceId,
+        owner: caseId,
+      },
+      "",
+    );
+    await system.lawDocument.create({
+      data: {
+        id: pdfId,
+        caseId,
+        title: "Search PDF",
+        filename: "search.pdf",
+        body: pdfBody,
+        kind: "upload",
+        version: 1,
+        source: "upload",
+        mimeType: "application/pdf",
+        status: "ready",
+        pageCount: 1,
+      },
+    });
+    const pageText = await sealLawText(
+      system,
+      {
+        table: "law_document_pages",
+        column: "text",
+        rowId: pageId,
+        spaceId,
+        owner: pdfId,
+      },
+      "Page one holds SrchPageUnique for retrieval.",
+    );
+    await system.lawDocumentPage.create({
+      data: { id: pageId, documentId: pdfId, page: 1, text: pageText },
+    });
+
+    const mediaBody = await sealLawText(
+      system,
+      {
+        table: "law_documents",
+        column: "body",
+        rowId: mediaId,
+        spaceId,
+        owner: caseId,
+      },
+      "",
+    );
+    await system.lawDocument.create({
+      data: {
+        id: mediaId,
+        caseId,
+        title: "Search audio",
+        filename: "search.mp3",
+        body: mediaBody,
+        kind: "upload",
+        version: 1,
+        source: "upload",
+        mimeType: "audio/mpeg",
+        status: "ready",
+        durationMs: 12_000,
+      },
+    });
+    const segText = await sealLawText(
+      system,
+      {
+        table: "law_transcript_segments",
+        column: "text",
+        rowId: segId,
+        spaceId,
+        owner: mediaId,
+      },
+      "Speaker said SrchSegUnique on the record.",
+    );
+    await system.lawTranscriptSegment.create({
+      data: {
+        id: segId,
+        documentId: mediaId,
+        idx: 0,
+        startMs: 751_000,
+        endMs: 752_000,
+        text: segText,
+      },
+    });
+    const caption = await sealLawText(
+      system,
+      {
+        table: "law_media_frames",
+        column: "caption",
+        rowId: frameId,
+        spaceId,
+        owner: mediaId,
+      },
+      "Frame shows SrchFrameUnique clearly.",
+    );
+    await system.lawMediaFrame.create({
+      data: {
+        id: frameId,
+        documentId: mediaId,
+        tMs: 5_000,
+        caption,
+      },
+    });
+
+    async function search(q: string) {
+      const response = await app.request(
+        `/api/law/cases/${caseId}/search?q=${encodeURIComponent(q)}`,
+        { headers: { authorization: "Bearer test" } },
+      );
+      expect(response.status).toBe(200);
+      return (await response.json()) as {
+        hits: Array<{ kind: string; documentId: string; page?: number; startMs?: number }>;
+      };
+    }
+
+    const textHits = await search("SrchTextUnique");
+    expect(textHits.hits.some((h) => h.kind === "text" && h.documentId === textId)).toBe(true);
+
+    const pageHits = await search("SrchPageUnique");
+    expect(
+      pageHits.hits.some((h) => h.kind === "page" && h.documentId === pdfId && h.page === 1),
+    ).toBe(true);
+
+    const segHits = await search("SrchSegUnique");
+    expect(
+      segHits.hits.some(
+        (h) => h.kind === "segment" && h.documentId === mediaId && h.startMs === 751_000,
+      ),
+    ).toBe(true);
+
+    const frameHits = await search("SrchFrameUnique");
+    expect(
+      frameHits.hits.some(
+        (h) => h.kind === "frame" && h.documentId === mediaId && h.startMs === 5_000,
+      ),
+    ).toBe(true);
+  });
 });

@@ -15,11 +15,13 @@ import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER, lawCaseRetentionDays } from "./co
 import { mountLibraryRoutes, serializeDocument } from "./library-routes.js";
 import { preferredCasesSpaceId } from "./preferred-space.js";
 import { openLawText, sealLawText } from "./seal.js";
+import { mountSearchRoutes } from "./search.js";
 
 const ROLE_ORDER = ["manager", "documents", "transcripts", "generator"];
 
 export function mountLawRoutes(app: Hono, deps: EditionRouteDeps) {
   mountLibraryRoutes(app, deps);
+  mountSearchRoutes(app, deps);
   mountCaseRoutes(app, deps);
   app.get("/api/law/cases", async (c) => {
     try {
