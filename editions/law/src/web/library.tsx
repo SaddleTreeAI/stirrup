@@ -117,6 +117,8 @@ export function LawCaseDocuments({
   const [searchHits, setSearchHits] = useState<LibrarySearchHit[]>([]);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
+  const [searchPending, setSearchPending] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchIndex, setSearchIndex] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -275,10 +277,14 @@ export function LawCaseDocuments({
       setSearchHits([]);
       setSearchTruncated(false);
       setSearchActive(false);
+      setSearchPending(false);
+      setSearchError(null);
       setSearchIndex(0);
       return;
     }
     setSearchActive(true);
+    setSearchPending(true);
+    setSearchError(null);
     const abort = new AbortController();
     searchAbort.current?.abort();
     searchAbort.current = abort;
@@ -299,12 +305,16 @@ export function LawCaseDocuments({
           if (abort.signal.aborted) return;
           setSearchHits(body.hits);
           setSearchTruncated(Boolean(body.truncated));
+          setSearchPending(false);
+          setSearchError(null);
           setSearchIndex(0);
         })
         .catch(() => {
           if (abort.signal.aborted) return;
           setSearchHits([]);
           setSearchTruncated(false);
+          setSearchPending(false);
+          setSearchError(t`Couldn't search`);
         });
     }, SEARCH_DEBOUNCE_MS);
     return () => {
@@ -321,7 +331,8 @@ export function LawCaseDocuments({
   searchIndexRef.current = searchIndex;
   searchActiveRef.current = searchActive;
 
-  // "/" focuses search unless typing elsewhere; Escape clears an active query.
+  // "/" focuses search unless typing elsewhere. Result keys only when the
+  // event target is the search input or inside the library column.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
@@ -337,6 +348,11 @@ export function LawCaseDocuments({
         return;
       }
       if (!searchActiveRef.current) return;
+      const inSearchInput =
+        target instanceof Node &&
+        (target === searchInputRef.current || searchInputRef.current?.contains(target));
+      const inLibrary = target instanceof Node && Boolean(libraryRef.current?.contains(target));
+      if (!inSearchInput && !inLibrary) return;
       searchResultsKeyHandler(event, {
         hitCount: searchHitsRef.current.length,
         activeIndex: searchIndexRef.current,
@@ -602,6 +618,8 @@ export function LawCaseDocuments({
     setSearchHits([]);
     setSearchTruncated(false);
     setSearchActive(false);
+    setSearchPending(false);
+    setSearchError(null);
     setSearchIndex(0);
   }
 
@@ -736,6 +754,8 @@ export function LawCaseDocuments({
                 hits={searchHits}
                 activeIndex={searchIndex}
                 truncated={searchTruncated}
+                pending={searchPending}
+                error={searchError}
                 onActivate={openSearchHit}
                 onHover={setSearchIndex}
               />

@@ -184,6 +184,7 @@ Audio (`mp3`, `m4a`, `wav`, `aac`, `ogg`, `flac`, `opus`, `wma`) and video (`mp4
 | `HF_HUB_OFFLINE`                            | Set to `1` by the image / runner (no model download at runtime)                         |
 | `LAW_PURGE_SWEEP_MINUTES`                   | How often to enqueue due `purge_case` jobs (default `60`; disabled when retention is 0) |
 | `LAW_CASE_RETENTION_DAYS`                   | Soft-delete retention before purge (default `30`; `0` disables the sweeper)             |
+| `LAW_SEARCH_MAX_ROWS`                       | Max sealed rows scanned per Library search (default `20000`; API process)               |
 
 ### Compose overlay
 

@@ -134,6 +134,8 @@ export function LibrarySearchResults({
   hits,
   activeIndex,
   truncated,
+  pending = false,
+  error = null,
   onActivate,
   onHover,
   listRef,
@@ -141,6 +143,8 @@ export function LibrarySearchResults({
   hits: readonly LibrarySearchHit[];
   activeIndex: number;
   truncated: boolean;
+  pending?: boolean;
+  error?: string | null;
   onActivate: (hit: LibrarySearchHit) => void;
   onHover: (index: number) => void;
   listRef?: RefObject<HTMLUListElement | null>;
@@ -155,7 +159,21 @@ export function LibrarySearchResults({
           {t`Results may be incomplete`}
         </p>
       ) : null}
-      {hits.length === 0 ? (
+      {pending ? (
+        <p
+          className="px-1.5 py-2 text-body-sm text-muted-foreground"
+          data-testid="law-library-search-pending"
+        >
+          {t`Searching…`}
+        </p>
+      ) : error ? (
+        <p
+          className="px-1.5 py-2 text-body-sm text-destructive"
+          data-testid="law-library-search-error"
+        >
+          {error}
+        </p>
+      ) : hits.length === 0 ? (
         <p className="px-1.5 py-2 text-body-sm text-muted-foreground">{t`No results`}</p>
       ) : (
         <ul

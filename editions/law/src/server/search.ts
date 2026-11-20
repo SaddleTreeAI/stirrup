@@ -126,29 +126,38 @@ export function scoreSearchRow(query: string, title: string, text: string): Scor
   return { score, snippet: snippetBuilt.snippet, matches: snippetBuilt.matches };
 }
 
-export function rankSearchHits(query: string, rows: readonly SearchableRow[]): SearchHit[] {
-  const scored: Array<SearchHit & { createdAtMs: number }> = [];
-  for (const row of rows) {
-    const result = scoreSearchRow(query, row.title, row.text);
-    if (!result) continue;
-    scored.push({
-      kind: row.kind,
-      documentId: row.documentId,
-      title: row.title,
-      page: row.page,
-      startMs: row.startMs,
-      snippet: result.snippet,
-      matches: result.matches,
-      score: result.score,
-      createdAtMs: row.createdAtMs,
-    });
-  }
-  scored.sort((a, b) => {
+type RankedHit = SearchHit & { createdAtMs: number };
+
+/** Score one row; push a hit (snippet + ids only) when it matches. */
+export function collectHitIfMatch(query: string, row: SearchableRow, hits: RankedHit[]): void {
+  const result = scoreSearchRow(query, row.title, row.text);
+  if (!result) return;
+  hits.push({
+    kind: row.kind,
+    documentId: row.documentId,
+    title: row.title,
+    page: row.page,
+    startMs: row.startMs,
+    snippet: result.snippet,
+    matches: result.matches,
+    score: result.score,
+    createdAtMs: row.createdAtMs,
+  });
+}
+
+export function sortRankedHits(hits: RankedHit[]): SearchHit[] {
+  hits.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (b.createdAtMs !== a.createdAtMs) return b.createdAtMs - a.createdAtMs;
     return a.documentId.localeCompare(b.documentId) || a.kind.localeCompare(b.kind);
   });
-  return scored.map(({ createdAtMs: _createdAtMs, ...hit }) => hit);
+  return hits.map(({ createdAtMs: _createdAtMs, ...hit }) => hit);
+}
+
+export function rankSearchHits(query: string, rows: readonly SearchableRow[]): SearchHit[] {
+  const scored: RankedHit[] = [];
+  for (const row of rows) collectHitIfMatch(query, row, scored);
+  return sortRankedHits(scored);
 }
 
 function countOccurrences(haystack: string, needle: string): number {
@@ -289,7 +298,8 @@ export async function searchCaseLibrary(
   const limit = Math.min(Math.max(1, input.limit ?? DEFAULT_LIMIT), LIMIT_MAX);
   const offset = parseCursor(input.cursor);
 
-  const collected: SearchableRow[] = [];
+  // Keep only scored hits (snippet + ids), not decrypted bodies.
+  const hitsAcc: RankedHit[] = [];
   let scanned = 0;
   let truncated = false;
 
@@ -334,13 +344,17 @@ export async function searchCaseLibrary(
         },
         doc.body,
       );
-      collected.push({
-        kind: "text",
-        documentId: doc.id,
-        title: doc.title,
-        text: body,
-        createdAtMs: doc.createdAt.getTime(),
-      });
+      collectHitIfMatch(
+        input.query,
+        {
+          kind: "text",
+          documentId: doc.id,
+          title: doc.title,
+          text: body,
+          createdAtMs: doc.createdAt.getTime(),
+        },
+        hitsAcc,
+      );
       docCursor = doc.id;
       if (scanned >= maxRows) {
         truncated = true;
@@ -379,14 +393,18 @@ export async function searchCaseLibrary(
           },
           row.text,
         );
-        collected.push({
-          kind: "page",
-          documentId: row.documentId,
-          title: meta.title,
-          text,
-          page: row.page,
-          createdAtMs: meta.createdAtMs,
-        });
+        collectHitIfMatch(
+          input.query,
+          {
+            kind: "page",
+            documentId: row.documentId,
+            title: meta.title,
+            text,
+            page: row.page,
+            createdAtMs: meta.createdAtMs,
+          },
+          hitsAcc,
+        );
         pageCursor = row.id;
         if (scanned >= maxRows) {
           truncated = true;
@@ -426,14 +444,18 @@ export async function searchCaseLibrary(
           },
           row.text,
         );
-        collected.push({
-          kind: "segment",
-          documentId: row.documentId,
-          title: meta.title,
-          text,
-          startMs: row.startMs,
-          createdAtMs: meta.createdAtMs,
-        });
+        collectHitIfMatch(
+          input.query,
+          {
+            kind: "segment",
+            documentId: row.documentId,
+            title: meta.title,
+            text,
+            startMs: row.startMs,
+            createdAtMs: meta.createdAtMs,
+          },
+          hitsAcc,
+        );
         segCursor = row.id;
         if (scanned >= maxRows) {
           truncated = true;
@@ -474,14 +496,18 @@ export async function searchCaseLibrary(
           row.caption,
         );
         if (caption.trim()) {
-          collected.push({
-            kind: "frame",
-            documentId: row.documentId,
-            title: meta.title,
-            text: caption,
-            startMs: row.tMs,
-            createdAtMs: meta.createdAtMs,
-          });
+          collectHitIfMatch(
+            input.query,
+            {
+              kind: "frame",
+              documentId: row.documentId,
+              title: meta.title,
+              text: caption,
+              startMs: row.tMs,
+              createdAtMs: meta.createdAtMs,
+            },
+            hitsAcc,
+          );
         }
         frameCursor = row.id;
         if (scanned >= maxRows) {
@@ -493,7 +519,7 @@ export async function searchCaseLibrary(
     }
   }
 
-  const ranked = rankSearchHits(input.query, collected);
+  const ranked = sortRankedHits(hitsAcc);
   const pageHits = ranked.slice(offset, offset + limit);
   const nextOffset = offset + pageHits.length;
   const nextCursor = nextOffset < ranked.length ? String(nextOffset) : null;

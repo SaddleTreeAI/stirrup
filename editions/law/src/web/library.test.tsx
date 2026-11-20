@@ -672,29 +672,29 @@ describe("law library", () => {
       expect(container.querySelector('[data-testid="law-search-hit-0"]')).not.toBeNull();
     });
 
-    await act(async () => {
-      window.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
-      );
-    });
+    const searchInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Search library"]',
+    )!;
+    async function keyFromSearch(key: string) {
+      await act(async () => {
+        searchInput.focus();
+        searchInput.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        );
+      });
+    }
+
+    await keyFromSearch("ArrowDown");
     expect(
       container.querySelector('[data-testid="law-search-hit-1"]')?.getAttribute("data-active"),
     ).toBe("true");
 
-    await act(async () => {
-      window.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }),
-      );
-    });
+    await keyFromSearch("ArrowUp");
     expect(
       container.querySelector('[data-testid="law-search-hit-0"]')?.getAttribute("data-active"),
     ).toBe("true");
 
-    await act(async () => {
-      window.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
-      );
-    });
+    await keyFromSearch("Enter");
     await vi.waitFor(() => {
       expect(document.querySelector('[data-testid="law-search-text-viewer"]')).not.toBeNull();
       expect(document.querySelector('[data-testid="law-search-body-mark"]')?.textContent).toBe(
@@ -768,6 +768,98 @@ describe("law library", () => {
         document.querySelector('[data-testid="law-pdf-iframe"]')?.getAttribute("src"),
       ).toContain("#page=2");
     });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not open a hit when Enter is pressed in a textarea outside the library", async () => {
+    const doc = lawDoc({
+      id: "doc-outside",
+      title: "Outside Memo",
+      body: "Prefix OutsideEnterWord suffix.",
+    });
+    const { container, root, fetchMock } = await mountLibrary([doc]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [doc] });
+      }
+      if (url.includes("/search?")) {
+        return jsonResponse({
+          hits: [
+            {
+              kind: "text",
+              documentId: "doc-outside",
+              title: "Outside Memo",
+              snippet: "Prefix OutsideEnterWord suffix.",
+              matches: [{ start: 7, end: 23 }],
+              score: 9,
+            },
+          ],
+          truncated: false,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await typeLibrarySearch(container, "OutsideEnterWord");
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-search-hit-0"]')).not.toBeNull();
+    });
+
+    const composer = document.createElement("textarea");
+    composer.setAttribute("data-testid", "outside-composer");
+    document.body.appendChild(composer);
+    composer.focus();
+
+    const bubbled = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      composer.dispatchEvent(bubbled);
+    });
+    expect(bubbled.defaultPrevented).toBe(false);
+    expect(document.querySelector('[data-testid="law-search-text-viewer"]')).toBeNull();
+
+    composer.remove();
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("shows Searching… then Couldn't search on a failed request", async () => {
+    const doc = lawDoc({ id: "doc-err", title: "Err", body: "alpha" });
+    const { container, root, fetchMock } = await mountLibrary([doc]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [doc] });
+      }
+      if (url.includes("/search?")) {
+        return new Response("nope", { status: 500 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await typeLibrarySearch(container, "alpha");
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-library-search-pending"]')).not.toBeNull();
+    });
+    expect(container.querySelector('[data-testid="law-library-search-pending"]')?.textContent).toBe(
+      "Searching…",
+    );
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-library-search-error"]')?.textContent).toBe(
+        "Couldn't search",
+      );
+    });
+    expect(container.textContent).not.toContain("No results");
 
     await act(async () => {
       root.unmount();
