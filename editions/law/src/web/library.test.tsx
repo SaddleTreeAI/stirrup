@@ -344,6 +344,28 @@ describe("law library", () => {
     });
   });
 
+  it("shows extraction worker isn't running when queued over a minute", async () => {
+    const stuck = lawDoc({
+      id: "stuck-1",
+      title: "Stuck PDF",
+      filename: "stuck.pdf",
+      mimeType: "application/pdf",
+      status: "queued",
+      statusDetail: "Reading PDF",
+      kind: "upload",
+      source: "upload",
+      createdAt: new Date(Date.now() - 61_000).toISOString(),
+    });
+    const { container, root } = await mountLibrary([stuck]);
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("extraction worker isn't running");
+      expect(container.textContent).not.toContain("Reading PDF");
+    });
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("shows processing detail and polls only while visible", async () => {
     const processing = lawDoc({
       id: "proc-1",
@@ -446,6 +468,91 @@ describe("law library", () => {
       expect(
         document.querySelector('[data-testid="law-pdf-iframe"]')?.getAttribute("src"),
       ).toContain("#page=2");
+    });
+    await act(async () => {
+      root.unmount();
+    });
+    window.history.replaceState({}, "", `/app${previous}`);
+  });
+
+  it("opens media at a timestamp from ?doc=&t= deep link", async () => {
+    const media = lawDoc({
+      id: "media-deep",
+      title: "Deep Media",
+      filename: "clip.mp4",
+      mimeType: "video/mp4",
+      kind: "upload",
+      source: "upload",
+      hasOriginal: true,
+      durationMs: 10_000,
+      statusDetail: "Machine transcript. Not a certified transcript; check against the recording.",
+    });
+    const previous = window.location.search;
+    window.history.replaceState({}, "", "/app?doc=media-deep&t=4");
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(async () => undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    let currentTime = 0;
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      configurable: true,
+      get: () => currentTime,
+      set: (value: number) => {
+        currentTime = value;
+      },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "readyState", {
+      configurable: true,
+      get: () => 4,
+    });
+    class FakeResizeObserver {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [media] });
+      }
+      if (url.includes("/segments?")) {
+        return jsonResponse({
+          segments: [{ idx: 0, startMs: 0, endMs: 5000, speaker: null, text: "hello" }],
+          limit: 500,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(
+          TooltipProvider,
+          null,
+          createElement(LawCaseDocuments, {
+            caseId: "case-1",
+            spaceId: "space-1",
+            shellError: null,
+            reload: () => {},
+          }),
+        ),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-testid="law-media-viewer"]')).not.toBeNull();
+      expect(
+        document.querySelector<HTMLMediaElement>('[data-testid="law-media-element"]')?.currentTime,
+      ).toBe(4);
     });
     await act(async () => {
       root.unmount();
@@ -767,6 +874,105 @@ describe("law library", () => {
       expect(
         document.querySelector('[data-testid="law-pdf-iframe"]')?.getAttribute("src"),
       ).toContain("#page=2");
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("opens a segment hit in the media viewer at startMs", async () => {
+    const media = lawDoc({
+      id: "media-search",
+      title: "Hearing",
+      filename: "hearing.mp4",
+      mimeType: "video/mp4",
+      kind: "upload",
+      source: "upload",
+      hasOriginal: true,
+      durationMs: 20_000,
+      body: "",
+      statusDetail: "Machine transcript. Not a certified transcript; check against the recording.",
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn(async () => undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    let currentTime = 0;
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      configurable: true,
+      get: () => currentTime,
+      set: (value: number) => {
+        currentTime = value;
+      },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "readyState", {
+      configurable: true,
+      get: () => 4,
+    });
+    class FakeResizeObserver {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+
+    const { container, root, fetchMock } = await mountLibrary([media]);
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/law/cases/case-1/documents" && (!init?.method || init.method === "GET")) {
+        return jsonResponse({ documents: [media] });
+      }
+      if (url.includes("/search?")) {
+        return jsonResponse({
+          hits: [
+            {
+              kind: "segment",
+              documentId: "media-search",
+              title: "Hearing",
+              startMs: 751_000,
+              snippet: "said UniqueSegWord once",
+              matches: [{ start: 5, end: 18 }],
+              score: 8,
+            },
+          ],
+          truncated: false,
+        });
+      }
+      if (url.includes("/segments?")) {
+        return jsonResponse({
+          segments: [
+            {
+              idx: 0,
+              startMs: 751_000,
+              endMs: 752_000,
+              speaker: null,
+              text: "said UniqueSegWord once",
+            },
+          ],
+          limit: 500,
+        });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await typeLibrarySearch(container, "UniqueSegWord");
+    await waitForSearchDebounce();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-search-hit-0"]')).not.toBeNull();
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="law-search-hit-0"]')?.click();
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-testid="law-media-viewer"]')).not.toBeNull();
+      expect(
+        document.querySelector<HTMLMediaElement>('[data-testid="law-media-element"]')?.currentTime,
+      ).toBe(751);
     });
 
     await act(async () => {

@@ -24,13 +24,24 @@ export type DoctorLine = {
   required: boolean;
 };
 
+/**
+ * External tools each job kind needs. In-process kinds (import_docx, selftest,
+ * purge_case) need none. OCR tools stay off the default required set until an
+ * ocr_* handler is registered.
+ */
+export const TOOLS_BY_JOB_KIND: Readonly<Record<string, readonly string[]>> = {
+  extract_pdf: ["pdfinfo", "pdftotext"],
+  transcribe: ["ffmpeg", "ffprobe", "python3"],
+  ocr_pdf: ["ocrmypdf", "tesseract", "pdftotext"],
+  ocr_image: ["tesseract"],
+  import_docx: [],
+  selftest: [],
+  purge_case: [],
+};
+
+/** Required tools for the kinds the sidecar currently runs (no OCR until P2). */
 export const DEFAULT_REQUIRED_TOOLS = [
-  "ffmpeg",
-  "ffprobe",
-  "pdftotext",
-  "tesseract",
-  "ocrmypdf",
-  "python3",
+  ...new Set([...TOOLS_BY_JOB_KIND.extract_pdf!, ...TOOLS_BY_JOB_KIND.transcribe!]),
 ] as const;
 
 export const MEDIA_TOOLS: DoctorTool[] = [
@@ -45,6 +56,13 @@ export const MEDIA_TOOLS: DoctorTool[] = [
     command: "ffprobe",
     args: ["-version"],
     parseVersion: (out) => out.match(/ffprobe version\s+(\S+)/i)?.[1],
+  },
+  {
+    id: "pdfinfo",
+    command: "pdfinfo",
+    args: ["-v"],
+    parseVersion: (out) => out.match(/version\s+(\S+)/i)?.[1],
+    allowNonZero: true,
   },
   {
     id: "pdftotext",
@@ -90,6 +108,11 @@ export function requiredToolIds(env: NodeJS.ProcessEnv = process.env): Set<strin
       .map((value) => value.trim())
       .filter(Boolean),
   );
+}
+
+/** Tools required for one job kind (empty when the kind needs none or is unknown). */
+export function toolsForJobKind(kind: string): readonly string[] {
+  return TOOLS_BY_JOB_KIND[kind] ?? [];
 }
 
 export async function checkTool(
@@ -156,6 +179,8 @@ export async function checkCuda(runner: Runner): Promise<DoctorLine> {
 
 export type DoctorReport = {
   lines: DoctorLine[];
+  /** One line per job kind that needs tools: `extract_pdf pdfinfo,pdftotext`. */
+  kindLines: string[];
   ok: boolean;
 };
 
@@ -163,6 +188,8 @@ export async function runDoctor(options?: {
   runner?: Runner;
   env?: NodeJS.ProcessEnv;
   tools?: DoctorTool[];
+  /** Job kinds to summarize (defaults to keys in TOOLS_BY_JOB_KIND with tools). */
+  jobKinds?: string[];
 }): Promise<DoctorReport> {
   const runner = options?.runner ?? createProcessRunner();
   const env = options?.env ?? process.env;
@@ -176,13 +203,31 @@ export async function runDoctor(options?: {
   lines.push(await checkGpu(runner));
   lines.push(await checkCuda(runner));
   lines.push(await checkModels(env));
+
+  const byId = new Map(lines.map((line) => [line.id, line]));
+  const kinds =
+    options?.jobKinds ??
+    Object.keys(TOOLS_BY_JOB_KIND).filter((kind) => (TOOLS_BY_JOB_KIND[kind]?.length ?? 0) > 0);
+  const kindLines = kinds.map((kind) => {
+    const needed = toolsForJobKind(kind);
+    const parts = needed.map((id) => {
+      const line = byId.get(id);
+      if (line?.status !== "ok") return `${id}=MISSING`;
+      return id;
+    });
+    return `${kind} ${parts.join(",")}`;
+  });
+
   const ok = lines.every((line) => line.status === "ok" || !line.required);
-  return { lines, ok };
+  return { lines, kindLines, ok };
 }
 
-/** One printable line per tool: `ffmpeg 6.1.1` or `ffmpeg MISSING`. */
+/** One printable line per tool: `ffmpeg 6.1.1` or `ffmpeg MISSING`, then per-kind lines. */
 export function formatDoctorLines(report: DoctorReport): string[] {
-  return report.lines.map((line) =>
-    line.status === "ok" ? `${line.id} ${line.detail}` : `${line.id} MISSING`,
-  );
+  return [
+    ...report.lines.map((line) =>
+      line.status === "ok" ? `${line.id} ${line.detail}` : `${line.id} MISSING`,
+    ),
+    ...report.kindLines,
+  ];
 }

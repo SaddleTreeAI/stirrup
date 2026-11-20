@@ -475,6 +475,91 @@ describe("library routes", () => {
     expect(inlineAudio.headers.get("content-disposition")).toMatch(/^inline;/);
   });
 
+  it("answers Range requests with 206 and Content-Range", async () => {
+    const bytes = new Uint8Array(200);
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = i % 256;
+    const open = vi.fn(async () => ({
+      stream: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }),
+      size: bytes.length,
+      mediaType: "audio/mpeg",
+    }));
+    const findFirst = vi.fn(async () => ({
+      id: "doc-audio",
+      filename: "clip.mp3",
+      mimeType: "audio/mpeg",
+      artifactId: "artifact-audio",
+    }));
+    const prisma = memberPrisma({ lawDocument: { findFirst } });
+    const app = mount(prisma, { files: fakeFiles({ open }) });
+
+    const closed = await app.request("/api/law/cases/case-1/documents/doc-audio/file?inline=1", {
+      headers: { authorization: "Bearer test", range: "bytes=0-99" },
+    });
+    expect(closed.status).toBe(206);
+    expect(closed.headers.get("accept-ranges")).toBe("bytes");
+    expect(closed.headers.get("cache-control")).toBe("private, no-store");
+    expect(closed.headers.get("content-range")).toBe("bytes 0-99/200");
+    expect(closed.headers.get("content-length")).toBe("100");
+    await expect(closed.arrayBuffer()).resolves.toEqual(bytes.slice(0, 100).buffer);
+
+    open.mockImplementationOnce(async () => ({
+      stream: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }),
+      size: bytes.length,
+      mediaType: "audio/mpeg",
+    }));
+    const suffix = await app.request("/api/law/cases/case-1/documents/doc-audio/file?inline=1", {
+      headers: { authorization: "Bearer test", range: "bytes=-100" },
+    });
+    expect(suffix.status).toBe(206);
+    expect(suffix.headers.get("content-range")).toBe("bytes 100-199/200");
+    expect(suffix.headers.get("content-length")).toBe("100");
+    await expect(suffix.arrayBuffer()).resolves.toEqual(bytes.slice(100).buffer);
+
+    open.mockImplementationOnce(async () => ({
+      stream: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }),
+      size: bytes.length,
+      mediaType: "audio/mpeg",
+    }));
+    const openEnded = await app.request("/api/law/cases/case-1/documents/doc-audio/file?inline=1", {
+      headers: { authorization: "Bearer test", range: "bytes=150-" },
+    });
+    expect(openEnded.status).toBe(206);
+    expect(openEnded.headers.get("content-range")).toBe("bytes 150-199/200");
+    expect(openEnded.headers.get("content-length")).toBe("50");
+    await expect(openEnded.arrayBuffer()).resolves.toEqual(bytes.slice(150).buffer);
+
+    open.mockImplementationOnce(async () => ({
+      stream: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes);
+          controller.close();
+        },
+      }),
+      size: bytes.length,
+      mediaType: "audio/mpeg",
+    }));
+    const unsat = await app.request("/api/law/cases/case-1/documents/doc-audio/file?inline=1", {
+      headers: { authorization: "Bearer test", range: "bytes=500-600" },
+    });
+    expect(unsat.status).toBe(416);
+    expect(unsat.headers.get("content-range")).toBe("bytes */200");
+  });
+
   it("returns opened page text for members and rejects oversized ranges", async () => {
     const prisma = memberPrisma({
       lawDocument: {

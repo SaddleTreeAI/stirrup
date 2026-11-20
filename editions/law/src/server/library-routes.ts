@@ -151,13 +151,47 @@ export function mountLibraryRoutes(app: Hono, deps: LibraryDeps) {
       if (!opened) return c.json({ error: "Not found" }, 404);
 
       const disposition = contentDisposition(opened.filename, opened.mimeType, inline);
+      const contentType = safeContentType(opened.mimeType);
+      const size = opened.size;
+      const baseHeaders: Record<string, string> = {
+        "accept-ranges": "bytes",
+        "cache-control": "private, no-store",
+        "content-disposition": disposition,
+        "content-type": contentType,
+        "x-content-type-options": "nosniff",
+      };
+
+      const rangeHeader = c.req.header("range");
+      const range = parseBytesRange(rangeHeader, size);
+      if (range === "unsatisfiable") {
+        await opened.stream.cancel().catch(() => undefined);
+        return new Response(null, {
+          status: 416,
+          headers: {
+            ...baseHeaders,
+            "content-range": `bytes */${size}`,
+          },
+        });
+      }
+      if (range) {
+        // Skip-to-offset by reading the stream: fine for local disk; for object
+        // storage this discards prefix bytes per seek (prefer ranged GETs later).
+        const body = sliceByteStream(opened.stream, range.start, range.end);
+        const length = range.end - range.start + 1;
+        return new Response(body, {
+          status: 206,
+          headers: {
+            ...baseHeaders,
+            "content-length": String(length),
+            "content-range": `bytes ${range.start}-${range.end}/${size}`,
+          },
+        });
+      }
+
       return new Response(opened.stream, {
         headers: {
-          "cache-control": "no-store",
-          "content-disposition": disposition,
-          "content-length": String(opened.size),
-          "content-type": safeContentType(opened.mimeType),
-          "x-content-type-options": "nosniff",
+          ...baseHeaders,
+          "content-length": String(size),
         },
       });
     } catch (error) {
@@ -784,4 +818,83 @@ function allowsInline(mimeType: string): boolean {
 function safeContentType(value: string): string {
   const mediaType = value.split(";", 1)[0]?.trim() ?? "";
   return /^[\w.+-]+\/[\w.+-]+$/.test(mediaType) ? mediaType : "application/octet-stream";
+}
+
+/** Parse a single `bytes=` Range. Malformed headers are ignored (full body). */
+export function parseBytesRange(
+  header: string | undefined,
+  size: number,
+): { start: number; end: number } | "unsatisfiable" | null {
+  if (!header) return null;
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(header.trim());
+  if (!match) return null;
+  const startRaw = match[1] ?? "";
+  const endRaw = match[2] ?? "";
+  if (startRaw === "" && endRaw === "") return null;
+
+  if (startRaw === "") {
+    const suffix = Number(endRaw);
+    if (!Number.isFinite(suffix) || suffix <= 0) return null;
+    if (size === 0) return "unsatisfiable";
+    const length = Math.min(Math.floor(suffix), size);
+    return { start: size - length, end: size - 1 };
+  }
+
+  const start = Number(startRaw);
+  if (!Number.isFinite(start) || start < 0 || !Number.isInteger(start)) return null;
+  if (start >= size) return "unsatisfiable";
+
+  if (endRaw === "") {
+    return { start, end: size - 1 };
+  }
+  const end = Number(endRaw);
+  if (!Number.isFinite(end) || end < 0 || !Number.isInteger(end)) return null;
+  return { start, end: Math.min(end, size - 1) };
+}
+
+/** Emit only `[start, end]` inclusive from `source`, cancelling the rest. */
+export function sliceByteStream(
+  source: ReadableStream<Uint8Array>,
+  start: number,
+  end: number,
+): ReadableStream<Uint8Array> {
+  const length = Math.max(0, end - start + 1);
+  const reader = source.getReader();
+  let skipped = 0;
+  let emitted = 0;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      while (emitted < length) {
+        const { done, value } = await reader.read();
+        if (done || !value) {
+          controller.close();
+          return;
+        }
+        let chunk = value;
+        if (skipped < start) {
+          const need = start - skipped;
+          if (chunk.length <= need) {
+            skipped += chunk.length;
+            continue;
+          }
+          chunk = chunk.subarray(need);
+          skipped = start;
+        }
+        const remain = length - emitted;
+        if (chunk.length > remain) {
+          controller.enqueue(chunk.subarray(0, remain));
+          emitted = length;
+          await reader.cancel().catch(() => undefined);
+          controller.close();
+          return;
+        }
+        controller.enqueue(chunk);
+        emitted += chunk.length;
+      }
+      controller.close();
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
 }

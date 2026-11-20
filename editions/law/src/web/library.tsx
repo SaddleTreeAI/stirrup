@@ -97,7 +97,9 @@ export function LawCaseDocuments({
   const [documents, setDocuments] = useState<LawFileDoc[]>([]);
   const [docCaseId, setDocCaseId] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
-  const [viewer, setViewer] = useState<{ doc: LawFileDoc; page?: number } | null>(null);
+  const [viewer, setViewer] = useState<{ doc: LawFileDoc; page?: number; startMs?: number } | null>(
+    null,
+  );
   const [textHit, setTextHit] = useState<{
     doc: LawFileDoc;
     snippet: string;
@@ -165,14 +167,21 @@ export function LawCaseDocuments({
           const params = new URLSearchParams(window.location.search);
           const docId = params.get("doc");
           const pageRaw = params.get("page");
+          const tRaw = params.get("t");
           if (docId) {
             const match = body.documents.find((doc) => doc.id === docId);
             if (match) {
               const page = pageRaw ? Number(pageRaw) : undefined;
+              const tSec = tRaw !== null && tRaw !== "" ? Number(tRaw) : undefined;
+              const startMs =
+                tSec !== undefined && Number.isFinite(tSec) && tSec >= 0
+                  ? Math.floor(tSec * 1000)
+                  : undefined;
               setViewer({
                 doc: match,
                 page:
                   Number.isFinite(page) && (page as number) >= 1 ? Math.floor(page as number) : 1,
+                startMs,
               });
               deepLinkHandled.current = true;
             }
@@ -348,6 +357,15 @@ export function LawCaseDocuments({
         return;
       }
       if (!searchActiveRef.current) return;
+      // Media/PDF viewers are Dialog portals outside libraryRef; do not steal their keys.
+      if (
+        target instanceof Element &&
+        target.closest(
+          '[data-testid="law-file-overlay"], [data-testid="law-media-viewer"], [data-testid="law-pdf-viewer"], [data-testid="law-search-text-viewer"]',
+        )
+      ) {
+        return;
+      }
       const inSearchInput =
         target instanceof Node &&
         (target === searchInputRef.current || searchInputRef.current?.contains(target));
@@ -604,8 +622,11 @@ export function LawCaseDocuments({
       return;
     }
     if (hit.kind === "segment" || hit.kind === "frame") {
-      // V2 timestamp deep link (?doc=&t=) is not on main yet — open the document only.
-      setViewer({ doc });
+      setViewer({
+        doc,
+        startMs:
+          hit.startMs !== undefined && Number.isFinite(hit.startMs) ? hit.startMs : undefined,
+      });
       return;
     }
     // Text body: mark and scroll to the first match in a dedicated viewer.
@@ -923,6 +944,7 @@ export function LawCaseDocuments({
           caseId={caseId}
           spaceId={spaceId}
           page={viewer.page}
+          startMs={viewer.startMs}
           onClose={() => setViewer(null)}
           originalHref={
             viewer.doc.hasOriginal ? originalFileHref(caseId, viewer.doc.id) : undefined
