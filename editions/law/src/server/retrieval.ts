@@ -4,6 +4,8 @@
 export interface LawSnippetPage {
   page: number;
   text: string;
+  /** True when the page text came from OCR rather than embedded PDF text. */
+  ocr?: boolean;
 }
 
 export interface LawSnippetSource {
@@ -67,8 +69,11 @@ export function retrieveCaseSnippets(
     .slice(0, limit)
     .map(({ doc }) => {
       const excerpt = excerptAround(doc.body, terms);
-      const page = pageForHit(doc.pages, excerpt, terms);
-      const title = page !== undefined ? `${doc.title} (p. ${page})` : doc.title;
+      const hit = pageForHit(doc.pages, excerpt, terms);
+      let title = doc.title;
+      if (hit !== undefined) {
+        title = hit.ocr ? `${doc.title} (p. ${hit.page}) (OCR)` : `${doc.title} (p. ${hit.page})`;
+      }
       return { title, excerpt };
     });
 }
@@ -106,17 +111,21 @@ function pageForHit(
   pages: readonly LawSnippetPage[] | undefined,
   excerpt: string,
   terms: readonly string[],
-): number | undefined {
+): { page: number; ocr: boolean } | undefined {
   if (!pages || pages.length === 0) return undefined;
   const needle = excerpt.slice(0, 80).toLowerCase().trim();
   if (needle) {
     for (const row of pages) {
-      if (row.text.toLowerCase().includes(needle)) return row.page;
+      if (row.text.toLowerCase().includes(needle)) {
+        return { page: row.page, ocr: Boolean(row.ocr) };
+      }
     }
   }
   for (const term of terms) {
     for (const row of pages) {
-      if (row.text.toLowerCase().includes(term)) return row.page;
+      if (row.text.toLowerCase().includes(term)) {
+        return { page: row.page, ocr: Boolean(row.ocr) };
+      }
     }
   }
   return undefined;

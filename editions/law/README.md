@@ -150,7 +150,7 @@ pnpm --filter @rakazo/edition-law media:dev
 pnpm --filter @rakazo/edition-law media:models -- --yes
 ```
 
-`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `gpu …`, `cuda …`, `models …`, the optional `faster-whisper` version when installed, and a per-job-kind summary (`extract_pdf pdfinfo,pdftotext`). Exits 1 when a required tool is missing. Defaults require poppler (`pdfinfo`, `pdftotext`) for PDF extraction and ffmpeg/ffprobe/python3 for transcription — not OCR tools. Override with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
+`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `tesseract-langs …`, `gpu …`, `cuda …`, `models …`, the optional `faster-whisper` version when installed, and a per-job-kind summary (`extract_pdf pdfinfo,pdftotext`, `ocr_pdf ocrmypdf,tesseract,pdftotext`). Exits 1 when a required tool is missing. Defaults require poppler (`pdfinfo`, `pdftotext`) for PDF extraction, ffmpeg/ffprobe/python3 for transcription, and ocrmypdf/tesseract for OCR (now that `ocr_pdf` is registered). Override with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
 
 `media:models` downloads the CTranslate2 Whisper weights once (operator step; never CI or runtime). Requires `--yes`. Repositories match faster-whisper 1.2.1 `_MODELS`: `small` → `Systran/faster-whisper-small`, `large-v3-turbo` → `mobiuslabsgmbh/faster-whisper-large-v3-turbo`.
 
@@ -162,29 +162,33 @@ Audio (`mp3`, `m4a`, `wav`, `aac`, `ogg`, `flac`, `opus`, `wma`) and video (`mp4
 
 ### Env (sidecar only)
 
-| Variable                                    | Role                                                                                    |
-| ------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                              | Runtime Postgres role (same as api); claims use RLS bypass as a system worker           |
-| `DATA_DIR`                                  | Shared data volume with api (default `./data`)                                          |
-| `ENCRYPTION_KEY` / `ENCRYPTION_MASTER_KEYS` | Same content-encryption keys as api                                                     |
-| `OBJECT_STORAGE_*`                          | Same object-storage settings as api when artifacts are remote                           |
-| `LAW_MEDIA_CONCURRENCY`                     | Parallel jobs (default `1`; keep at 1 for GPU work)                                     |
-| `LAW_MEDIA_STALE_MINUTES`                   | Requeue running jobs whose heartbeat is older than this (default `120`)                 |
-| `LAW_MEDIA_TMP`                             | Per-job temp root (default `os.tmpdir()/law-media`)                                     |
-| `LAW_MEDIA_WORKER_ID`                       | Claim owner id (default `media-<hostname>`)                                             |
-| `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default pdfinfo,pdftotext,ffmpeg,ffprobe,python3)                 |
-| `LAW_MEDIA_MAX_MINUTES`                     | Reject media longer than this (default `360`)                                           |
-| `LAW_MODELS_DIR`                            | Whisper model root (default `/models`)                                                  |
-| `LAW_ASR_ENGINE`                            | `faster-whisper` (default) or `whisper-cpp`                                             |
-| `LAW_ASR_MODEL`                             | Model name or `auto` (large-v3-turbo on CUDA / ≥8 cores, else small)                    |
-| `LAW_ASR_DEVICE`                            | `auto` / `cpu` / `cuda`                                                                 |
-| `LAW_ASR_COMPUTE`                           | `auto` (float16 on CUDA, int8 on CPU) or a CTranslate2 compute type                     |
-| `LAW_ASR_LANGUAGE`                          | `auto` (default) or an ISO language code                                                |
-| `LAW_ASR_SCRIPT`                            | Path to `asr.py` (image default `/opt/law-media-tools/asr.py`)                          |
-| `HF_HUB_OFFLINE`                            | Set to `1` by the image / runner (no model download at runtime)                         |
-| `LAW_PURGE_SWEEP_MINUTES`                   | How often to enqueue due `purge_case` jobs (default `60`; disabled when retention is 0) |
-| `LAW_CASE_RETENTION_DAYS`                   | Soft-delete retention before purge (default `30`; `0` disables the sweeper)             |
-| `LAW_SEARCH_MAX_ROWS`                       | Max sealed rows scanned per Library search (default `20000`; API process)               |
+| Variable                                    | Role                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                              | Runtime Postgres role (same as api); claims use RLS bypass as a system worker              |
+| `DATA_DIR`                                  | Shared data volume with api (default `./data`)                                             |
+| `ENCRYPTION_KEY` / `ENCRYPTION_MASTER_KEYS` | Same content-encryption keys as api                                                        |
+| `OBJECT_STORAGE_*`                          | Same object-storage settings as api when artifacts are remote                              |
+| `LAW_MEDIA_CONCURRENCY`                     | Parallel jobs (default `1`; keep at 1 for GPU work)                                        |
+| `LAW_MEDIA_STALE_MINUTES`                   | Requeue running jobs whose heartbeat is older than this (default `120`)                    |
+| `LAW_MEDIA_TMP`                             | Per-job temp root (default `os.tmpdir()/law-media`)                                        |
+| `LAW_MEDIA_WORKER_ID`                       | Claim owner id (default `media-<hostname>`)                                                |
+| `LAW_MEDIA_REQUIRED_TOOLS`                  | Doctor required list (default pdfinfo,pdftotext,ffmpeg,ffprobe,python3,ocrmypdf,tesseract) |
+| `LAW_MEDIA_MAX_MINUTES`                     | Reject media longer than this (default `360`)                                              |
+| `LAW_MODELS_DIR`                            | Whisper model root (default `/models`)                                                     |
+| `LAW_ASR_ENGINE`                            | `faster-whisper` (default) or `whisper-cpp`                                                |
+| `LAW_ASR_MODEL`                             | Model name or `auto` (large-v3-turbo on CUDA / ≥8 cores, else small)                       |
+| `LAW_ASR_DEVICE`                            | `auto` / `cpu` / `cuda`                                                                    |
+| `LAW_ASR_COMPUTE`                           | `auto` (float16 on CUDA, int8 on CPU) or a CTranslate2 compute type                        |
+| `LAW_ASR_LANGUAGE`                          | `auto` (default) or an ISO language code                                                   |
+| `LAW_ASR_SCRIPT`                            | Path to `asr.py` (image default `/opt/law-media-tools/asr.py`)                             |
+| `HF_HUB_OFFLINE`                            | Set to `1` by the image / runner (no model download at runtime)                            |
+| `LAW_PURGE_SWEEP_MINUTES`                   | How often to enqueue due `purge_case` jobs (default `60`; disabled when retention is 0)    |
+| `LAW_CASE_RETENTION_DAYS`                   | Soft-delete retention before purge (default `30`; `0` disables the sweeper)                |
+| `LAW_SEARCH_MAX_ROWS`                       | Max sealed rows scanned per Library search (default `20000`; API process)                  |
+| `LAW_OCR_LANGS`                             | Tesseract languages, `eng` or `eng+spa` (default `eng`)                                    |
+| `LAW_OCR_JOBS`                              | ocrmypdf `--jobs` (default CPU count, capped at 4)                                         |
+| `LAW_OCR_MAX_PAGES`                         | Skip OCR above this page count (default `400`)                                             |
+| `LAW_OCR_TIMEOUT_MINUTES`                   | Kill ocrmypdf after this many minutes (default `120`)                                      |
 
 ### Compose overlay
 
@@ -195,7 +199,17 @@ docker compose -f infra/compose/docker-compose.yml \
 
 Builds `editions/law/docker/media.Dockerfile` with `SERVER_IMAGE` / `LAW_SERVER_IMAGE`, mounts the app data volume and a `law-models` volume (for later transcription models), and documents a commented NVIDIA device block for GPU hosts. A CI job that publishes the media image is a follow-up.
 
-Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `extract_pdf`, `import_docx`, `transcribe`, `purge_case`).
+Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `extract_pdf`, `ocr_pdf`, `import_docx`, `transcribe`, `purge_case`).
+
+### PDF extract and OCR (P1 / P2)
+
+`extract_pdf` runs `pdfinfo` + `pdftotext`. When at least half the pages look blank, it enqueues `ocr_pdf`. The OCR handler runs `ocrmypdf --skip-text` (never `--force-ocr`), writes a sidecar text file, replaces only blank page rows with `ocr=true`, stores a searchable PDF as `derivedArtifactId`, and sets status detail:
+
+> OCR complete (machine-read text; check against the original)
+
+`GET .../documents/:docId/file?variant=searchable` returns that derived PDF (404 when none). The PDF viewer shows an OCR badge and caveat on machine-read pages, and a Download searchable copy action when a derived PDF exists. Retrieval labels OCR hits `(OCR)` so bots can hedge. Sidecar skip placeholders (`[OCR skipped on page(s) N]` / `N-M`) are never stored; only blank pages with real OCR text are filled.
+
+Media image build arg `OCR_LANGS` (default `eng`; space-separated) installs `tesseract-ocr-<lang>` packages. Compose forwards `LAW_OCR_*` and the build arg. `media:doctor` prints `tesseract-langs eng,spa` (installed list).
 
 GPU image (documented, not built by default): base `nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04` (CUDA 12 + cuDNN 9, matching faster-whisper 1.2.1 / current ctranslate2), then uncomment the NVIDIA device block in `compose.media.yml`.
 

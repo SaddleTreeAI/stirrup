@@ -268,6 +268,7 @@ describe("mountLawRoutes auth and shapes", () => {
           pageCount: 3,
           durationMs: null,
           hasOriginal: true,
+          hasSearchable: false,
         },
         {
           id: "doc-2",
@@ -286,6 +287,7 @@ describe("mountLawRoutes auth and shapes", () => {
           pageCount: null,
           durationMs: null,
           hasOriginal: false,
+          hasSearchable: false,
         },
       ],
     });

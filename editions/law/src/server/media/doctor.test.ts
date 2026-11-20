@@ -76,6 +76,10 @@ describe("doctor version parsing", () => {
       runner: fakeRunner({
         "python3 --version": { code: 0, stdout: "Python 3.11.2" },
         "nvidia-smi --query-gpu=name --format=csv,noheader": { code: 127 },
+        "tesseract --list-langs": {
+          code: 0,
+          stdout: "List of available languages (2):\neng\nspa\n",
+        },
       }),
       env: { LAW_MEDIA_REQUIRED_TOOLS: "python3" },
       tools: MEDIA_TOOLS.filter((tool) => tool.id === "python3" || tool.id === "ffmpeg"),
@@ -83,6 +87,7 @@ describe("doctor version parsing", () => {
     });
     expect(report.ok).toBe(true);
     expect(formatDoctorLines(report).some((line) => line.startsWith("python3 "))).toBe(true);
+    expect(formatDoctorLines(report)).toContain("tesseract-langs eng,spa");
 
     const bad = await runDoctor({
       runner: fakeRunner({}),
@@ -94,14 +99,20 @@ describe("doctor version parsing", () => {
     expect(formatDoctorLines(bad)).toContain("ffmpeg MISSING");
   });
 
-  it("defaults the required set to PDF poppler + transcription tools (not OCR)", () => {
+  it("defaults the required set to PDF, transcription, and OCR tools", () => {
     expect([...requiredToolIds({})].sort()).toEqual(
-      ["ffmpeg", "ffprobe", "pdfinfo", "pdftotext", "python3"].sort(),
+      ["ffmpeg", "ffprobe", "ocrmypdf", "pdfinfo", "pdftotext", "python3", "tesseract"].sort(),
     );
   });
 
   it("lists only poppler tools for extract_pdf", () => {
     expect([...toolsForJobKind("extract_pdf")].sort()).toEqual(["pdfinfo", "pdftotext"].sort());
+  });
+
+  it("lists OCR tools for ocr_pdf", () => {
+    expect([...toolsForJobKind("ocr_pdf")].sort()).toEqual(
+      ["ocrmypdf", "pdftotext", "tesseract"].sort(),
+    );
   });
 
   it("prints a per-kind summary after tool lines", async () => {

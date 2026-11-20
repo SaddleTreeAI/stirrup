@@ -289,6 +289,7 @@ async function listDocuments(prisma: PrismaClient, userId: string, caseId: strin
       pageCount: true,
       durationMs: true,
       artifactId: true,
+      derivedArtifactId: true,
     },
   });
   return Promise.all(

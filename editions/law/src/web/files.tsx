@@ -42,6 +42,7 @@ export interface LawFileDoc {
   pageCount?: number | null;
   durationMs?: number | null;
   hasOriginal?: boolean;
+  hasSearchable?: boolean;
 }
 
 export function fileExtension(filename: string): string {

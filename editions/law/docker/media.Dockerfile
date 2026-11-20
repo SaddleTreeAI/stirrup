@@ -27,16 +27,20 @@ USER root
 ARG WITH_ASR=1
 # Pin after reading faster-whisper 1.2.1 release notes (CUDA 12 + cuDNN 9).
 ARG FASTER_WHISPER_VERSION=1.2.1
+# Space-separated Tesseract language packs (tesseract-ocr-<lang>).
+ARG OCR_LANGS="eng"
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ffmpeg \
     poppler-utils \
     tesseract-ocr \
-    tesseract-ocr-eng \
     ocrmypdf \
     python3 \
     python3-venv \
+  && for lang in ${OCR_LANGS}; do \
+       apt-get install -y --no-install-recommends "tesseract-ocr-${lang}"; \
+     done \
   && python3 -m venv /opt/law-venv \
   && if [ "$WITH_ASR" = "1" ]; then \
        /opt/law-venv/bin/pip install --no-cache-dir "faster-whisper==${FASTER_WHISPER_VERSION}"; \

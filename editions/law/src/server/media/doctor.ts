@@ -2,6 +2,7 @@
 // Copyright 2026 SaddleTree AI
 
 import { readdir } from "node:fs/promises";
+import { parseInstalledLangs } from "./handlers/ocr-pdf.js";
 import { createProcessRunner } from "./runner.js";
 import type { Runner } from "./types.js";
 
@@ -26,8 +27,8 @@ export type DoctorLine = {
 
 /**
  * External tools each job kind needs. In-process kinds (import_docx, selftest,
- * purge_case) need none. OCR tools stay off the default required set until an
- * ocr_* handler is registered.
+ * purge_case) need none. OCR tools join the default required set once an
+ * ocr_* handler is registered (ocr_pdf is registered).
  */
 export const TOOLS_BY_JOB_KIND: Readonly<Record<string, readonly string[]>> = {
   extract_pdf: ["pdfinfo", "pdftotext"],
@@ -39,9 +40,13 @@ export const TOOLS_BY_JOB_KIND: Readonly<Record<string, readonly string[]>> = {
   purge_case: [],
 };
 
-/** Required tools for the kinds the sidecar currently runs (no OCR until P2). */
+/** Required tools for the kinds the sidecar currently runs (includes OCR). */
 export const DEFAULT_REQUIRED_TOOLS = [
-  ...new Set([...TOOLS_BY_JOB_KIND.extract_pdf!, ...TOOLS_BY_JOB_KIND.transcribe!]),
+  ...new Set([
+    ...TOOLS_BY_JOB_KIND.extract_pdf!,
+    ...TOOLS_BY_JOB_KIND.transcribe!,
+    ...TOOLS_BY_JOB_KIND.ocr_pdf!,
+  ]),
 ] as const;
 
 export const MEDIA_TOOLS: DoctorTool[] = [
@@ -184,6 +189,18 @@ export type DoctorReport = {
   ok: boolean;
 };
 
+export async function checkTesseractLangs(runner: Runner): Promise<DoctorLine> {
+  const result = await runner.run("tesseract", ["--list-langs"], { timeoutMs: 15_000 });
+  if (result.code === null) {
+    return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
+  }
+  const langs = [...parseInstalledLangs(`${result.stdout}\n${result.stderr}`)].sort();
+  if (langs.length === 0) {
+    return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
+  }
+  return { id: "tesseract-langs", status: "ok", detail: langs.join(","), required: false };
+}
+
 export async function runDoctor(options?: {
   runner?: Runner;
   env?: NodeJS.ProcessEnv;
@@ -200,6 +217,7 @@ export async function runDoctor(options?: {
     const isRequired = tool.required === false ? false : required.has(tool.id);
     lines.push(await checkTool(tool, runner, isRequired));
   }
+  lines.push(await checkTesseractLangs(runner));
   lines.push(await checkGpu(runner));
   lines.push(await checkCuda(runner));
   lines.push(await checkModels(env));

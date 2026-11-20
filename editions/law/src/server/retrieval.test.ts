@@ -57,4 +57,17 @@ describe("keyword retrieval", () => {
     });
     expect(text).toContain("### Lab report (p. 2)");
   });
+
+  it("marks OCR page hits so a bot can hedge", () => {
+    const pdf = {
+      title: "Lab report",
+      body: "\n\n[page 2]\n\nItem W-4 was caffeine and acetaminophen.",
+      pages: [
+        { page: 1, text: "cover sheet only", ocr: false },
+        { page: 2, text: "Item W-4 was caffeine and acetaminophen.", ocr: true },
+      ],
+    };
+    const hits = retrieveCaseSnippets("Was item caffeine?", [pdf]);
+    expect(hits[0]?.title).toBe("Lab report (p. 2) (OCR)");
+  });
 });
