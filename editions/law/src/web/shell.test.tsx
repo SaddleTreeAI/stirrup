@@ -233,6 +233,52 @@ describe("law shell chrome", () => {
     });
   });
 
+  it("keeps case tabs in a horizontal scroll row with add fixed and recently deleted outside it", async () => {
+    const longName = "Commonwealth v. Someone With A Very Long Case Caption";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/law/cases") {
+          return new Response(
+            JSON.stringify({
+              cases: [
+                ...SYNTHETIC_CASES.cases,
+                caseWithRoles("case-long", "long", longName, "bot-long"),
+              ],
+              canViewDeleted: true,
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+    const { container, root } = await mountShell();
+    await act(async () => {});
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-case-tabs-scroll"]')).not.toBeNull();
+      expect(container.querySelector('[data-testid="law-case-add"]')).not.toBeNull();
+      expect(container.querySelector('[data-testid="law-recently-deleted"]')).not.toBeNull();
+      expect(container.querySelector('[data-testid="law-case-tab-long"]')).not.toBeNull();
+    });
+    const scroll = container.querySelector('[data-testid="law-case-tabs-scroll"]');
+    const add = container.querySelector('[data-testid="law-case-add"]');
+    const deleted = container.querySelector('[data-testid="law-recently-deleted"]');
+    const longTab = container.querySelector('[data-testid="law-case-tab-long"]');
+    expect(scroll?.contains(add)).toBe(false);
+    expect(scroll?.contains(deleted)).toBe(false);
+    expect(longTab?.getAttribute("title")).toBe(longName);
+    expect(longTab?.textContent).toBe("Someone With A Very Long Case Caption");
+    expect(container.querySelector(".law-case-bar")).not.toBeNull();
+    const css = container.querySelector('[data-testid="law-case-tabs"] style')?.textContent ?? "";
+    expect(css).toContain(".law-case-bar-scroll{");
+    expect(css).toContain("overflow-x:auto");
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("keeps the stored environment on its space and opens an empty space in general", async () => {
     sessionStorage.setItem("law-environment:space-a", "general");
     localStorage.setItem(SPACE_KEY, "space-a");
