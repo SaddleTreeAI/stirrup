@@ -140,6 +140,8 @@ describe("Model stream idle watchdog", () => {
     await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_TIMEOUT_MS * 2);
     expect(watchdog.signal.aborted).toBe(false);
 
+    // Headers land (onResponse ping). A bare start is keep-alive-like and does not re-arm.
+    watchdog.ping();
     inner.push({ type: "start", partial: assistantMessage() });
     await pending;
 
@@ -217,7 +219,8 @@ describe("Model stream idle watchdog", () => {
     await vi.advanceTimersByTimeAsync(MODEL_STREAM_TIMEOUT_MS + MODEL_STREAM_IDLE_TIMEOUT_MS);
     expect(watchdog.signal.aborted).toBe(false);
 
-    // The retried attempt's headers arrive: the first event arms the timer.
+    // The retried attempt's headers arrive; activity then keeps the stream alive.
+    watchdog.ping();
     inner.push({ type: "start", partial: assistantMessage() });
     expect((await pending).value).toMatchObject({ type: "start" });
     expect(watchdog.signal.aborted).toBe(false);
@@ -229,7 +232,7 @@ describe("Model stream idle watchdog", () => {
     await expect(stream.result()).resolves.toMatchObject({ stopReason: "stop" });
   });
 
-  it("re-arms on every delivered event so a busy stream never aborts", async () => {
+  it("re-arms on activity events so a busy stream never aborts", async () => {
     vi.useFakeTimers();
     const watchdog = modelStreamIdleWatchdog(undefined);
     const inner = new AssistantMessageEventStream();
@@ -238,6 +241,7 @@ describe("Model stream idle watchdog", () => {
 
     await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_TIMEOUT_MS - 1);
     let pending = iterator.next();
+    watchdog.ping();
     inner.push({ type: "start", partial: assistantMessage() });
     await pending;
 
@@ -252,6 +256,45 @@ describe("Model stream idle watchdog", () => {
     expect(watchdog.signal.aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(watchdog.signal.aborted).toBe(true);
+  });
+
+  it("treats keep-alive-only empty deltas as idle", async () => {
+    vi.useFakeTimers();
+    const watchdog = modelStreamIdleWatchdog(undefined);
+    const inner = new AssistantMessageEventStream();
+    const stream = watchdog.wrap(inner);
+    const iterator = stream[Symbol.asyncIterator]();
+
+    // Headers land, then only empty deltas arrive — they must not reset the idle bound.
+    watchdog.ping();
+    let pending = iterator.next();
+    inner.push({ type: "start", partial: assistantMessage() });
+    await pending;
+
+    const step = Math.floor(MODEL_STREAM_IDLE_TIMEOUT_MS / 3);
+    for (let elapsed = 0; elapsed < MODEL_STREAM_IDLE_TIMEOUT_MS - step; elapsed += step) {
+      await vi.advanceTimersByTimeAsync(step);
+      expect(watchdog.signal.aborted).toBe(false);
+      pending = iterator.next();
+      inner.push({
+        type: "text_delta",
+        contentIndex: 0,
+        delta: "",
+        partial: assistantMessage(),
+      });
+      await pending;
+    }
+
+    await vi.advanceTimersByTimeAsync(step + 1);
+    expect(watchdog.signal.aborted).toBe(true);
+    expect((watchdog.signal.reason as Error).message).toBe(MODEL_STREAM_IDLE_TIMEOUT_MESSAGE);
+
+    inner.push(abortedByPi());
+    inner.end();
+    await expect(stream.result()).resolves.toMatchObject({
+      stopReason: "error",
+      errorMessage: MODEL_STREAM_IDLE_TIMEOUT_MESSAGE,
+    });
   });
 
   it("propagates a caller abort without relabeling it", async () => {
@@ -345,14 +388,16 @@ describe.each([
     expect(guarded).not.toBe(inner);
     expect(guarded).toBeInstanceOf(AssistantMessageEventStream);
 
-    // Before the first event the idle budget stays unarmed, so a headers
+    // Before response headers the idle budget stays unarmed, so a headers
     // timeout leaves a retried attempt its own full timeoutMs.
     await vi.advanceTimersByTimeAsync(MODEL_STREAM_IDLE_TIMEOUT_MS * 2);
     expect(guardedOptions?.signal?.aborted).toBe(false);
     expect(caller.signal.aborted).toBe(false);
 
-    // Once events flow, silence is bounded — and the watchdog aborts only its
+    // A 2xx arms the watchdog; bare start / keep-alives do not re-arm it, so
+    // silence after headers is still bounded. The watchdog aborts only its
     // own request signal, never the caller's.
+    await guardedOptions?.onResponse?.({ status: 200, headers: {} }, model);
     const pending = guarded[Symbol.asyncIterator]().next();
     inner.push({ type: "start", partial: assistantMessage() });
     await pending;

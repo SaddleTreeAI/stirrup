@@ -1,6 +1,7 @@
 import type { AgentToolExecutionObserver } from "@rakazo/adapter-kit";
 import { BACKGROUND_HELPER_TRIGGER, toolResultTaintsRun } from "@rakazo/core";
 import { isTerminatingReplyResult } from "./approval-effect.js";
+import { editionToolRun } from "./edition-tool-run.js";
 import { IMAGE_RETURNING_COMPUTER_TOOLS } from "./model-vision.js";
 import { MODEL_CANNOT_SEE_MESSAGE } from "./model-vision.prompt.js";
 import type { RunContext } from "./run-context.js";
@@ -191,7 +192,11 @@ async function dispatchTool(
     try {
       // edition-seam:R5
       const editionExec = ctx.tools.edition?.get(gate.call.name);
-      if (editionExec) return await gate.call.finish(await editionExec(gate.call.args));
+      if (editionExec) {
+        return await gate.call.finish(
+          await editionExec(gate.call.args, editionToolRun(ctx, gate.call.name)),
+        );
+      }
       return await toolHandler(gate.call.name)(ctx, gate.call);
     } finally {
       // Editing its own profile returns only what this run wrote; a child's profile is another

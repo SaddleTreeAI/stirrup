@@ -115,6 +115,7 @@ export * from "./decision-models.js";
 export * from "./deployment-model.js";
 export * from "./destination-emulator.js";
 export * from "./dub-partner-program.js";
+export * from "./edition-artifacts.js";
 export * from "./email-emulator.js";
 export * from "./email-provider.js";
 export * from "./executor.js";

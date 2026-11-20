@@ -11,6 +11,7 @@ import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import type { PrismaClient } from "@rakazo/db";
 import { asSystem, createDb, createOrganizationWithDefaultSpace, createRepos } from "@rakazo/db";
 import { lawRoleAvatar } from "../../shared/avatars.js";
+import { CASE_ROLES } from "../cases.js";
 import { LAW_CHAT_MODEL_ID, LAW_CHAT_PROVIDER } from "../constants.js";
 import { sealLawText } from "../seal.js";
 
@@ -35,37 +36,6 @@ const GENERAL_BOTS = [
     description: "Catch-all helper for the firm workspace.",
     instructions:
       "You are Something for Demonstration Defense. Handle small firm workspace tasks that are not tied to one open case. Do not give legal advice. When a question belongs to a specific matter, say which case bot should take it.",
-  },
-] as const;
-
-const ROLES = [
-  {
-    role: "manager",
-    name: "Case Manager",
-    description: "Keeps this case's questions and next steps.",
-    instructions: (brief: string) =>
-      `You are the Case Manager for one criminal defense matter. Answer only from this case's brief and the retrieved documents. Do not give legal advice. Do not use facts from any other case. If the record does not say it, say so.\n\nCase brief:\n${brief}`,
-  },
-  {
-    role: "documents",
-    name: "Documents Expert",
-    description: "Reads this case's files.",
-    instructions: (brief: string) =>
-      `You are the Documents Expert. Answer from the retrieved case documents and quote short phrases from them. Do not give legal advice. Do not use another case.\n\nCase brief:\n${brief}`,
-  },
-  {
-    role: "transcripts",
-    name: "Transcripts Expert",
-    description: "Reads this case's transcripts.",
-    instructions: (brief: string) =>
-      `You are the Transcripts Expert. Work from transcripts and recorded statements in this case. Quote short phrases. Do not give legal advice. Do not use another case.\n\nCase brief:\n${brief}`,
-  },
-  {
-    role: "generator",
-    name: "Legal Doc Generator",
-    description: "Drafts documents for review.",
-    instructions: (brief: string) =>
-      `You are the Legal Doc Generator. Draft from this case only. Begin every draft with the line: SYNTHETIC DRAFT — NOT FOR FILING. Do not give legal advice. Do not cite a rule that is not in the record. Where authority is missing, write [counsel to add].\n\nCase brief:\n${brief}`,
   },
 ] as const;
 
@@ -145,7 +115,7 @@ export async function seedLawPlatform(input: {
         create: { caseId: lawCase.id, userId },
         update: {},
       });
-      for (const role of ROLES) {
+      for (const role of CASE_ROLES) {
         const spawnKey = `law:${slug}:${role.role}`;
         const bot = await repos.createBot(actor, {
           name: role.name,
@@ -158,7 +128,7 @@ export async function seedLawPlatform(input: {
           spawnKey,
           modelProvider: LAW_CHAT_PROVIDER,
           modelId: LAW_CHAT_MODEL_ID,
-          thinkingLevel: "medium",
+          thinkingLevel: role.thinkingLevel,
         });
         await db.lawCaseBot.upsert({
           where: { caseId_role: { caseId: lawCase.id, role: role.role } },

@@ -344,6 +344,7 @@ describe("mountLawRoutes auth and shapes", () => {
         expect.objectContaining({
           color: LAW_ROLE_AVATARS[role],
           spawnKey: `law:commonwealth-v-demo:${role}`,
+          thinkingLevel: "low",
         }),
       );
     }

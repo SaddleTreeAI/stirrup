@@ -5,6 +5,7 @@ export {
   type EditionRouteDeps,
   type EditionRunHooks,
   type EditionTool,
+  type EditionToolRun,
   resolveEdition,
   type ServerEdition,
 } from "./server.js";

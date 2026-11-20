@@ -8,13 +8,34 @@ vi.mock("./search.js", () => ({
   searchCaseLibrary: vi.fn(),
 }));
 
+vi.mock("./library-upload.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./library-upload.js")>();
+  return {
+    ...actual,
+    uploadLibraryDocument: vi.fn(),
+  };
+});
+
+vi.mock("./seal.js", () => ({
+  openLawText: vi.fn(async (_p: unknown, _m: unknown, text: string) => text),
+  sealLawText: vi.fn(async (_p: unknown, _m: unknown, text: string) => text),
+}));
+
+import { uploadLibraryDocument } from "./library-upload.js";
 import { searchCaseLibrary } from "./search.js";
 
 const actor = { userId: "user-1", spaceId: "space-1" };
 
+const unusedRun = {
+  maxBytes: 1024,
+  readComputerFile: vi.fn(),
+  storeFile: vi.fn(),
+};
+
 describe("lawCaseTools", () => {
   beforeEach(() => {
     vi.mocked(searchCaseLibrary).mockReset();
+    vi.mocked(uploadLibraryDocument).mockReset();
   });
 
   it("returns undefined for ordinary bots", async () => {
@@ -105,14 +126,20 @@ describe("lawCaseTools", () => {
     });
 
     const tools = await lawCaseTools(prisma as never, "bot-1", actor);
-    expect(tools?.map((tool) => tool.name)).toEqual(["search_case_library", "read_case_document"]);
+    expect(tools?.map((tool) => tool.name)).toEqual([
+      "search_case_library",
+      "read_case_document",
+      "save_to_case_library",
+    ]);
 
     const search = tools?.find((tool) => tool.name === "search_case_library");
     const read = tools?.find((tool) => tool.name === "read_case_document");
+    const save = tools?.find((tool) => tool.name === "save_to_case_library");
     expect(search?.readOnly).toBe(true);
     expect(read?.readOnly).toBe(true);
+    expect(save?.readOnly).toBeUndefined();
 
-    const searchResult = (await search!.execute({ query: "arrest" })) as {
+    const searchResult = (await search!.execute({ query: "arrest" }, unusedRun)) as {
       hits: Array<{ documentId: string; kind: string }>;
     };
     expect(searchCaseLibrary).toHaveBeenCalledWith(
@@ -122,7 +149,7 @@ describe("lawCaseTools", () => {
     );
     expect(searchResult.hits.map((hit) => hit.documentId)).toEqual(["pdf-1", "note-1"]);
 
-    const page = (await read!.execute({ documentId: "pdf-1", page: 2 })) as {
+    const page = (await read!.execute({ documentId: "pdf-1", page: 2 }, unusedRun)) as {
       text: string;
       page: number;
     };
@@ -132,11 +159,74 @@ describe("lawCaseTools", () => {
       text: "Arrest narrative on page two.",
     });
 
-    const note = (await read!.execute({ documentId: "note-1" })) as { text: string };
+    const note = (await read!.execute({ documentId: "note-1" }, unusedRun)) as { text: string };
     expect(note.text).toContain("Saw the car leave at noon.");
     expect(note).toMatchObject({
       documentId: "note-1",
       filename: "witness.txt",
+    });
+  });
+
+  it("saves a computer file into the case library as an upload", async () => {
+    const prisma = {
+      lawCaseBot: { findUnique: vi.fn(async () => ({ caseId: "case-1" })) },
+      lawCase: {
+        findUnique: vi.fn(async () => ({
+          id: "case-1",
+          spaceId: "space-1",
+          deletedAt: null,
+        })),
+      },
+    };
+    const bytes = new TextEncoder().encode("PK fake docx");
+    const run = {
+      maxBytes: 1024 * 1024,
+      readComputerFile: vi.fn(async () => bytes),
+      storeFile: vi.fn(async () => ({
+        artifactId: "artifact-1",
+        sizeBytes: bytes.byteLength,
+        mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      })),
+    };
+    vi.mocked(uploadLibraryDocument).mockResolvedValue({
+      id: "doc-1",
+      caseId: "case-1",
+      title: "Motion to Suppress",
+      filename: "motion.docx",
+      kind: "upload",
+      status: "queued",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      sizeBytes: bytes.byteLength,
+      artifactId: "artifact-1",
+      body: "",
+    } as Awaited<ReturnType<typeof uploadLibraryDocument>>);
+
+    const tools = await lawCaseTools(prisma as never, "bot-1", actor);
+    const save = tools?.find((tool) => tool.name === "save_to_case_library");
+    const result = await save!.execute(
+      { path: "drafts/motion.docx", title: "Motion to Suppress" },
+      run,
+    );
+
+    expect(run.readComputerFile).toHaveBeenCalledWith("drafts/motion.docx");
+    expect(uploadLibraryDocument).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ store: expect.any(Function) }),
+      expect.objectContaining({ userId: "user-1", spaceId: "space-1" }),
+      expect.objectContaining({
+        caseId: "case-1",
+        filename: "motion.docx",
+        titleOverride: "Motion to Suppress",
+        bytes,
+      }),
+    );
+    expect(result).toEqual({
+      documentId: "doc-1",
+      title: "Motion to Suppress",
+      filename: "motion.docx",
+      status: "queued",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      sizeBytes: bytes.byteLength,
     });
   });
 });

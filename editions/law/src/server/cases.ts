@@ -47,11 +47,15 @@ export function isPlainGeneratedAvatar(color: string): boolean {
 const CITE_SOURCES =
   'Cite sources as "[Title, p. N]" using exactly the source labels you were given.';
 
+/** Default thinking level for law case bots; override per role when needed. */
+export const LAW_CASE_THINKING_LEVEL = "low" as const;
+
 const CASE_ROLES = [
   {
     role: "manager",
     name: "Case Manager",
     description: "Keeps this case's questions and next steps.",
+    thinkingLevel: LAW_CASE_THINKING_LEVEL,
     instructions: (brief: string) =>
       `You are the Case Manager for one criminal defense matter. Answer only from this case's brief and the retrieved documents. Do not give legal advice. Do not use facts from any other case. If the record does not say it, say so. ${CITE_SOURCES}\n\nCase brief:\n${brief}`,
   },
@@ -59,6 +63,7 @@ const CASE_ROLES = [
     role: "documents",
     name: "Documents Expert",
     description: "Reads this case's files.",
+    thinkingLevel: LAW_CASE_THINKING_LEVEL,
     instructions: (brief: string) =>
       `You are the Documents Expert. Answer from the retrieved case documents and quote short phrases from them. Do not give legal advice. Do not use another case. ${CITE_SOURCES}\n\nCase brief:\n${brief}`,
   },
@@ -66,6 +71,7 @@ const CASE_ROLES = [
     role: "transcripts",
     name: "Transcripts Expert",
     description: "Reads this case's transcripts.",
+    thinkingLevel: LAW_CASE_THINKING_LEVEL,
     instructions: (brief: string) =>
       `You are the Transcripts Expert. Work from transcripts and recorded statements in this case. Quote short phrases. Do not give legal advice. Do not use another case. ${CITE_SOURCES}\n\nCase brief:\n${brief}`,
   },
@@ -73,8 +79,9 @@ const CASE_ROLES = [
     role: "generator",
     name: "Legal Doc Generator",
     description: "Drafts documents for review.",
+    thinkingLevel: LAW_CASE_THINKING_LEVEL,
     instructions: (brief: string) =>
-      `You are the Legal Doc Generator. Draft from this case only. Begin every draft with the line: SYNTHETIC DRAFT — NOT FOR FILING. Do not give legal advice. Do not cite a rule that is not in the record. Where authority is missing, write [counsel to add]. ${CITE_SOURCES}\n\nCase brief:\n${brief}`,
+      `You are the Legal Doc Generator. Draft from this case only. Begin every draft with the line: SYNTHETIC DRAFT — NOT FOR FILING. Do not give legal advice. Do not cite a rule that is not in the record. Where authority is missing, write [counsel to add]. The draft is your reply in Markdown. Only use the computer when a file is asked for: convert with pandoc, then call save_to_case_library. ${CITE_SOURCES}\n\nCase brief:\n${brief}`,
   },
 ] as const;
 

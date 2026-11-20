@@ -1,6 +1,9 @@
 # The bot browser: chromium by default, or BROWSER=chrome (Google Chrome, amd64
 # only) or BROWSER=brave (installed below).
 ARG BROWSER=chromium
+# Optional office tools for law/docx workflows: OFFICE_TOOLS=1 installs
+# libreoffice-writer and python3-docx (off by default to keep the image lean).
+ARG OFFICE_TOOLS=0
 FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS capture-builder
 COPY apt-security.sh /tmp/apt-security.sh
 RUN /tmp/apt-security.sh && rm -f /tmp/apt-security.sh
@@ -109,6 +112,16 @@ RUN apt-get update && apt-get upgrade -y --no-install-recommends && apt-get inst
   && printf '%s\n' '#!/bin/sh' 'exec xsetroot -solid "#111113" "$@"' > /usr/bin/fbsetbg \
   && chmod +x /usr/bin/fbsetbg \
   && ln -sfn /bin/true /usr/bin/xmessage
+# Optional Writer + python-docx for converting or editing .docx on the computer.
+# Pandoc alone covers Markdown→docx; these packages are for LibreOffice round-trips.
+ARG OFFICE_TOOLS
+RUN set -eux; \
+  [ "$OFFICE_TOOLS" = 1 ] || [ "$OFFICE_TOOLS" = true ] || exit 0; \
+  apt-get update && apt-get upgrade -y --no-install-recommends; \
+  apt-get install -y --no-install-recommends libreoffice-writer python3-docx; \
+  rm -rf /var/lib/apt/lists/*; \
+  soffice --version; \
+  python3 -c 'import docx; print(docx.__version__)'
 # Google Chrome or Brave replaces Chromium only when built with BROWSER=chrome
 # or BROWSER=brave. The default build installs Chromium above, so this step does
 # nothing for it. repo_add_once=false keeps Chrome's package from adding a

@@ -97,13 +97,17 @@ function FileTypeIcon({ filename }: { filename: string }) {
   return <File {...props} className="text-muted-foreground" />;
 }
 
-function downloadLawFile(doc: LawFileDoc) {
+function downloadLawFile(doc: LawFileDoc, asDocx = false) {
   const ext = fileExtension(doc.filename);
+  const wantDocx = asDocx || ext === "docx" || doc.kind === "review";
   let blob: Blob;
-  if (ext === "docx") {
+  let downloadName = doc.filename || `${doc.title}.${ext}`;
+  if (wantDocx) {
     blob = new Blob([wordHtmlDocument(doc.title, doc.body)], {
-      type: "application/msword",
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
+    downloadName = downloadName.replace(/\.(md|markdown)$/i, ".docx");
+    if (!/\.docx$/i.test(downloadName)) downloadName = `${doc.title || "draft"}.docx`;
   } else if (ext === "md" || ext === "markdown") {
     blob = new Blob([doc.body], { type: "text/markdown;charset=utf-8" });
   } else if (ext === "pdf") {
@@ -114,7 +118,7 @@ function downloadLawFile(doc: LawFileDoc) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = doc.filename || `${doc.title}.${ext}`;
+  anchor.download = downloadName;
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -166,7 +170,9 @@ export function LawFileCard({
           variant="ghost"
           size="icon-sm"
           className="size-7 shrink-0 text-muted-foreground focus-visible:ring-inset focus-visible:ring-foreground/50"
-          aria-label={t`Download ${doc.filename}`}
+          aria-label={
+            doc.kind === "review" ? t`Download ${doc.title} as Word` : t`Download ${doc.filename}`
+          }
           data-testid={`law-file-download-${doc.id}`}
           onClick={(event) => {
             event.stopPropagation();
@@ -251,7 +257,11 @@ export function LawFileViewer({
               onClick={download}
               data-testid="law-viewer-download"
             >
-              {originalHref ? t`Download original` : t`Download`}
+              {originalHref
+                ? t`Download original`
+                : doc.kind === "review"
+                  ? t`Download as Word`
+                  : t`Download`}
             </Button>
             {onEdit && textView ? (
               <Button type="button" size="sm" onClick={onEdit} data-testid="law-viewer-edit">
