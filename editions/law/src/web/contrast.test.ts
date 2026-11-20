@@ -276,6 +276,12 @@ export const LAW_CONTRAST_PAIRS: ContrastPair[] = [
     foreground: (t) => withOpacity(t.foreground, 0.5),
     background: (t) => t.sidebar,
   },
+  {
+    id: "active transcript border-foreground on muted/40 over background",
+    kind: "ui",
+    foreground: (t) => t.foreground,
+    background: (t) => mutedOverBackground(t),
+  },
 ];
 
 function thresholdFor(kind: PairKind): number {

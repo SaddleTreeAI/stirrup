@@ -89,7 +89,9 @@ export function LawCaseDocuments({
   const [documents, setDocuments] = useState<LawFileDoc[]>([]);
   const [docCaseId, setDocCaseId] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
-  const [viewer, setViewer] = useState<{ doc: LawFileDoc; page?: number } | null>(null);
+  const [viewer, setViewer] = useState<{ doc: LawFileDoc; page?: number; startMs?: number } | null>(
+    null,
+  );
   const [editor, setEditor] = useState<{ doc: LawFileDoc; caseId: string } | null>(null);
   const deepLinkHandled = useRef(false);
   const [pending, setPending] = useState<PendingUpload[]>([]);
@@ -143,14 +145,21 @@ export function LawCaseDocuments({
           const params = new URLSearchParams(window.location.search);
           const docId = params.get("doc");
           const pageRaw = params.get("page");
+          const tRaw = params.get("t");
           if (docId) {
             const match = body.documents.find((doc) => doc.id === docId);
             if (match) {
               const page = pageRaw ? Number(pageRaw) : undefined;
+              const tSec = tRaw !== null && tRaw !== "" ? Number(tRaw) : undefined;
+              const startMs =
+                tSec !== undefined && Number.isFinite(tSec) && tSec >= 0
+                  ? Math.floor(tSec * 1000)
+                  : undefined;
               setViewer({
                 doc: match,
                 page:
                   Number.isFinite(page) && (page as number) >= 1 ? Math.floor(page as number) : 1,
+                startMs,
               });
               deepLinkHandled.current = true;
             }
@@ -736,6 +745,7 @@ export function LawCaseDocuments({
           caseId={caseId}
           spaceId={spaceId}
           page={viewer.page}
+          startMs={viewer.startMs}
           onClose={() => setViewer(null)}
           originalHref={
             viewer.doc.hasOriginal ? originalFileHref(caseId, viewer.doc.id) : undefined
