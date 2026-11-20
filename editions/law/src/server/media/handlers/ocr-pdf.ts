@@ -226,7 +226,7 @@ export function mapOcrExitCode(code: number | null): string {
     case 2:
       return "PDF could not be read";
     case 3:
-      return "OCR language pack missing";
+      return "OCR dependency missing";
     case 6:
       return "PDF already has text";
     case 8:
@@ -244,6 +244,9 @@ export function parseOcrProgressPage(chunk: string): number | null {
   return Math.floor(page);
 }
 
+/** ocrmypdf --skip-text writes one of these for pages that already had text. */
+export const OCR_SKIPPED_PLACEHOLDER = /^\[OCR skipped on page\(s\) (\d+)(?:-(\d+))?\]$/;
+
 /** Split sidecar on form feed; drop a trailing empty segment. */
 export function splitSidecarSegments(raw: string): string[] {
   const split = raw.replace(/\r\n/g, "\n").split("\f");
@@ -254,9 +257,33 @@ export function splitSidecarSegments(raw: string): string[] {
 }
 
 /**
- * Keep pages that already had real text; fill blank pages from the sidecar.
- * When the sidecar length matches the page count, align by index (skipped pages
- * are empty). Otherwise assign sidecar segments to blank pages in order.
+ * Map sidecar segments onto physical pages.
+ * Skip-text placeholders may cover a range in one segment; never keep that text.
+ */
+export function alignSidecarToPages(segments: readonly string[], pageCount: number): string[] {
+  const pages = Array.from({ length: Math.max(pageCount, 0) }, () => "");
+  let cursor = 1;
+  for (const raw of segments) {
+    const segment = raw.trim();
+    const skipped = OCR_SKIPPED_PLACEHOLDER.exec(segment);
+    if (skipped) {
+      const end = Number(skipped[2] ?? skipped[1]);
+      if (Number.isFinite(end) && end >= 1) cursor = Math.floor(end) + 1;
+      continue;
+    }
+    if (cursor < 1 || cursor > pages.length) {
+      cursor += 1;
+      continue;
+    }
+    pages[cursor - 1] = raw.replace(/\f/g, "");
+    cursor += 1;
+  }
+  return pages;
+}
+
+/**
+ * Keep pages that already had real text; fill blank pages from aligned OCR only.
+ * Never stores skip placeholders; never overwrites real text.
  */
 export function mergeOcrPages(
   existing: readonly ExistingPage[],
@@ -265,45 +292,37 @@ export function mergeOcrPages(
 ): Array<{ id?: string; page: number; text: string; ocr: boolean; dirty: boolean }> {
   const byPage = new Map(existing.map((row) => [row.page, row]));
   const count = Math.max(pageCount, existing.length, 1);
-  const blankIndexes: number[] = [];
-  const base: Array<{ id?: string; page: number; text: string; ocr: boolean }> = [];
+  const aligned = alignSidecarToPages(ocrSegments, count);
 
+  const out: Array<{ id?: string; page: number; text: string; ocr: boolean; dirty: boolean }> = [];
   for (let i = 0; i < count; i += 1) {
     const page = i + 1;
     const prior = byPage.get(page);
-    const text = prior?.text ?? "";
-    base.push({ id: prior?.id, page, text, ocr: prior?.ocr ?? false });
-    if (!prior || isBlankPage(text)) blankIndexes.push(i);
-  }
-
-  const aligned =
-    ocrSegments.length === count
-      ? ocrSegments
-      : alignSegmentsToBlanks(count, blankIndexes, ocrSegments);
-
-  return base.map((row, i) => {
-    if (!isBlankPage(row.text)) {
-      return { ...row, dirty: false };
+    const current = prior?.text ?? "";
+    if (!isBlankPage(current)) {
+      out.push({
+        id: prior?.id,
+        page,
+        text: current,
+        ocr: prior?.ocr ?? false,
+        dirty: false,
+      });
+      continue;
     }
     const ocrText = aligned[i] ?? "";
-    if (!ocrText) {
-      return { ...row, dirty: false };
+    if (!ocrText || OCR_SKIPPED_PLACEHOLDER.test(ocrText.trim())) {
+      out.push({
+        id: prior?.id,
+        page,
+        text: current,
+        ocr: prior?.ocr ?? false,
+        dirty: false,
+      });
+      continue;
     }
-    return { id: row.id, page: row.page, text: ocrText, ocr: true, dirty: true };
-  });
-}
-
-function alignSegmentsToBlanks(
-  count: number,
-  blankIndexes: readonly number[],
-  segments: readonly string[],
-): string[] {
-  const aligned = Array.from({ length: count }, () => "");
-  for (let i = 0; i < blankIndexes.length; i += 1) {
-    const at = blankIndexes[i]!;
-    aligned[at] = segments[i] ?? "";
+    out.push({ id: prior?.id, page, text: ocrText, ocr: true, dirty: true });
   }
-  return aligned;
+  return out;
 }
 
 async function resolveOcrLangs(runner: Runner, cwd: string): Promise<string> {

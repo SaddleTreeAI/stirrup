@@ -184,6 +184,10 @@ Audio (`mp3`, `m4a`, `wav`, `aac`, `ogg`, `flac`, `opus`, `wma`) and video (`mp4
 | `HF_HUB_OFFLINE`                            | Set to `1` by the image / runner (no model download at runtime)                         |
 | `LAW_PURGE_SWEEP_MINUTES`                   | How often to enqueue due `purge_case` jobs (default `60`; disabled when retention is 0) |
 | `LAW_CASE_RETENTION_DAYS`                   | Soft-delete retention before purge (default `30`; `0` disables the sweeper)             |
+| `LAW_OCR_LANGS`                             | Tesseract languages, `eng` or `eng+spa` (default `eng`)                                 |
+| `LAW_OCR_JOBS`                              | ocrmypdf `--jobs` (default CPU count, capped at 4)                                      |
+| `LAW_OCR_MAX_PAGES`                         | Skip OCR above this page count (default `400`)                                          |
+| `LAW_OCR_TIMEOUT_MINUTES`                   | Kill ocrmypdf after this many minutes (default `120`)                                   |
 
 ### Compose overlay
 
@@ -202,16 +206,9 @@ Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per
 
 > OCR complete (machine-read text; check against the original)
 
-`GET .../documents/:docId/file?variant=searchable` returns that derived PDF (404 when none). The PDF viewer shows an OCR badge and caveat on machine-read pages, and a Download searchable copy action when a derived PDF exists. Retrieval labels OCR hits `(OCR)` so bots can hedge.
+`GET .../documents/:docId/file?variant=searchable` returns that derived PDF (404 when none). The PDF viewer shows an OCR badge and caveat on machine-read pages, and a Download searchable copy action when a derived PDF exists. Retrieval labels OCR hits `(OCR)` so bots can hedge. Sidecar skip placeholders (`[OCR skipped on page(s) N]` / `N-M`) are never stored; only blank pages with real OCR text are filled.
 
-| Variable                  | Role                                                    |
-| ------------------------- | ------------------------------------------------------- |
-| `LAW_OCR_LANGS`           | Tesseract languages, `eng` or `eng+spa` (default `eng`) |
-| `LAW_OCR_JOBS`            | ocrmypdf `--jobs` (default CPU count, capped at 4)      |
-| `LAW_OCR_MAX_PAGES`       | Skip OCR above this page count (default `400`)          |
-| `LAW_OCR_TIMEOUT_MINUTES` | Kill ocrmypdf after this many minutes (default `120`)   |
-
-Media image build arg `OCR_LANGS="eng spa"` installs `tesseract-ocr-<lang>` packages. `media:doctor` prints `tesseract-langs eng+spa` (installed list).
+Media image build arg `OCR_LANGS` (default `eng`; space-separated) installs `tesseract-ocr-<lang>` packages. Compose forwards `LAW_OCR_*` and the build arg. `media:doctor` prints `tesseract-langs eng,spa` (installed list).
 
 GPU image (documented, not built by default): base `nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04` (CUDA 12 + cuDNN 9, matching faster-whisper 1.2.1 / current ctranslate2), then uncomment the NVIDIA device block in `compose.media.yml`.
 

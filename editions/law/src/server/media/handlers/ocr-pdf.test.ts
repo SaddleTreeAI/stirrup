@@ -7,6 +7,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HandlerContext, Runner, RunResult } from "../types.js";
 import {
+  alignSidecarToPages,
   DEFAULT_OCR_MAX_PAGES,
   mapOcrExitCode,
   mergeOcrPages,
@@ -178,7 +179,7 @@ describe("ocr helpers", () => {
   it("maps exit codes to short generic errors", () => {
     expect(mapOcrExitCode(null)).toBe("OCR timed out");
     expect(mapOcrExitCode(2)).toBe("PDF could not be read");
-    expect(mapOcrExitCode(3)).toBe("OCR language pack missing");
+    expect(mapOcrExitCode(3)).toBe("OCR dependency missing");
     expect(mapOcrExitCode(6)).toBe("PDF already has text");
     expect(mapOcrExitCode(8)).toBe("PDF is password protected");
     expect(mapOcrExitCode(99)).toBe("OCR could not finish");
@@ -204,6 +205,66 @@ describe("ocr helpers", () => {
     });
     expect(merged[2]).toMatchObject({ text: "ocr three", ocr: true, dirty: true });
     expect(splitSidecarSegments("a\fb\f")).toEqual(["a", "b"]);
+  });
+
+  it("aligns a leading skipped range so OCR text lands on the scanned pages", () => {
+    const segments = splitSidecarSegments("[OCR skipped on page(s) 1-5]\fA\fB\fC");
+    expect(alignSidecarToPages(segments, 8)).toEqual(["", "", "", "", "", "A", "B", "C"]);
+    const existing = Array.from({ length: 8 }, (_, i) => ({
+      id: `p${i + 1}`,
+      page: i + 1,
+      text: i < 5 ? "enough native text already present on this page" : "",
+      ocr: false,
+    }));
+    const merged = mergeOcrPages(existing, segments, 8);
+    expect(merged.slice(0, 5).every((row) => row.dirty === false && row.ocr === false)).toBe(true);
+    expect(merged[0]?.text).toContain("enough native text");
+    expect(merged[5]).toMatchObject({ text: "A", ocr: true, dirty: true });
+    expect(merged[6]).toMatchObject({ text: "B", ocr: true, dirty: true });
+    expect(merged[7]).toMatchObject({ text: "C", ocr: true, dirty: true });
+  });
+
+  it("aligns a single skipped page without storing the placeholder", () => {
+    const segments = splitSidecarSegments("ocr one\f[OCR skipped on page(s) 2]\focr three");
+    expect(alignSidecarToPages(segments, 3)).toEqual(["ocr one", "", "ocr three"]);
+    const merged = mergeOcrPages(
+      [
+        { id: "p1", page: 1, text: "", ocr: false },
+        { id: "p2", page: 2, text: "born digital text that is long enough", ocr: false },
+        { id: "p3", page: 3, text: "", ocr: false },
+      ],
+      segments,
+      3,
+    );
+    expect(merged[0]).toMatchObject({ text: "ocr one", ocr: true, dirty: true });
+    expect(merged[1]).toMatchObject({
+      text: "born digital text that is long enough",
+      ocr: false,
+      dirty: false,
+    });
+    expect(merged[2]).toMatchObject({ text: "ocr three", ocr: true, dirty: true });
+    expect(merged.every((row) => !/OCR skipped/.test(row.text))).toBe(true);
+  });
+
+  it("aligns a skipped range in the middle of the sidecar", () => {
+    const segments = splitSidecarSegments("A\f[OCR skipped on page(s) 2-4]\fE");
+    expect(alignSidecarToPages(segments, 5)).toEqual(["A", "", "", "", "E"]);
+    const merged = mergeOcrPages(
+      [
+        { id: "p1", page: 1, text: "", ocr: false },
+        { id: "p2", page: 2, text: "enough native text already present here two", ocr: false },
+        { id: "p3", page: 3, text: "enough native text already present here three", ocr: false },
+        { id: "p4", page: 4, text: "enough native text already present here four", ocr: false },
+        { id: "p5", page: 5, text: "", ocr: false },
+      ],
+      segments,
+      5,
+    );
+    expect(merged[0]).toMatchObject({ text: "A", ocr: true, dirty: true });
+    expect(merged[1]?.dirty).toBe(false);
+    expect(merged[2]?.dirty).toBe(false);
+    expect(merged[3]?.dirty).toBe(false);
+    expect(merged[4]).toMatchObject({ text: "E", ocr: true, dirty: true });
   });
 });
 

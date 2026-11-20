@@ -28,7 +28,7 @@ ARG WITH_ASR=1
 # Pin after reading faster-whisper 1.2.1 release notes (CUDA 12 + cuDNN 9).
 ARG FASTER_WHISPER_VERSION=1.2.1
 # Space-separated Tesseract language packs (tesseract-ocr-<lang>).
-ARG OCR_LANGS="eng spa"
+ARG OCR_LANGS="eng"
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \

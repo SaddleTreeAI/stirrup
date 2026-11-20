@@ -13,6 +13,7 @@ services:
       dockerfile: editions/law/docker/media.Dockerfile
       args:
         SERVER_IMAGE: ${LAW_SERVER_IMAGE:-stirrup-law:local}
+        OCR_LANGS: ${OCR_LANGS:-eng}
     image: ${LAW_MEDIA_IMAGE:-stirrup-law-media:local}
     restart: unless-stopped
     env_file:
@@ -43,6 +44,10 @@ services:
       LAW_ASR_LANGUAGE: ${LAW_ASR_LANGUAGE:-auto}
       LAW_MEDIA_MAX_MINUTES: ${LAW_MEDIA_MAX_MINUTES:-360}
       LAW_ASR_SCRIPT: ${LAW_ASR_SCRIPT:-/opt/law-media-tools/asr.py}
+      LAW_OCR_LANGS: ${LAW_OCR_LANGS:-eng}
+      LAW_OCR_JOBS: ${LAW_OCR_JOBS:-}
+      LAW_OCR_MAX_PAGES: ${LAW_OCR_MAX_PAGES:-400}
+      LAW_OCR_TIMEOUT_MINUTES: ${LAW_OCR_TIMEOUT_MINUTES:-120}
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
     volumes:
