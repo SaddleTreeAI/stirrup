@@ -159,6 +159,25 @@ export type DoctorReport = {
   ok: boolean;
 };
 
+export async function checkTesseractLangs(runner: Runner): Promise<DoctorLine> {
+  const result = await runner.run("tesseract", ["--list-langs"], { timeoutMs: 15_000 });
+  if (result.code !== 0 && result.code !== null) {
+    return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
+  }
+  if (result.code === null) {
+    return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
+  }
+  const langs = `${result.stdout}\n${result.stderr}`
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.toLowerCase().startsWith("list of"))
+    .sort();
+  if (langs.length === 0) {
+    return { id: "tesseract-langs", status: "MISSING", detail: "MISSING", required: false };
+  }
+  return { id: "tesseract-langs", status: "ok", detail: langs.join("+"), required: false };
+}
+
 export async function runDoctor(options?: {
   runner?: Runner;
   env?: NodeJS.ProcessEnv;
@@ -173,6 +192,7 @@ export async function runDoctor(options?: {
     const isRequired = tool.required === false ? false : required.has(tool.id);
     lines.push(await checkTool(tool, runner, isRequired));
   }
+  lines.push(await checkTesseractLangs(runner));
   lines.push(await checkGpu(runner));
   lines.push(await checkCuda(runner));
   lines.push(await checkModels(env));

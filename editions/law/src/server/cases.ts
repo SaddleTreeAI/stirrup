@@ -154,13 +154,14 @@ export async function lawTurnNote(
         typeof prisma.lawDocumentPage?.findMany === "function"
           ? await prisma.lawDocumentPage.findMany({
               where: { documentId: doc.id },
-              select: { id: true, page: true, text: true },
+              select: { id: true, page: true, text: true, ocr: true },
               orderBy: { page: "asc" },
             })
           : [];
       const pages = await Promise.all(
         pageRows.map(async (row) => ({
           page: row.page,
+          ocr: row.ocr,
           text: await openLawText(
             prisma,
             {

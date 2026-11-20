@@ -38,6 +38,8 @@ export type Runner = {
       env?: NodeJS.ProcessEnv;
       /** Streaming stdout chunks (for ASR progress lines). */
       onStdout?: (chunk: string) => void | Promise<void>;
+      /** Streaming stderr chunks (for OCR progress lines). */
+      onStderr?: (chunk: string) => void | Promise<void>;
     },
   ): Promise<RunResult>;
 };

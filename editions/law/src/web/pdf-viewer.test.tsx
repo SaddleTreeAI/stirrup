@@ -103,4 +103,57 @@ describe("LawPdfViewer", () => {
     });
     expect(revoke).toHaveBeenCalledWith("blob:mock-pdf");
   });
+
+  it("shows an OCR badge and caveat on machine-read extracted text", async () => {
+    vi.stubGlobal("URL", {
+      createObjectURL: () => "blob:mock-pdf",
+      revokeObjectURL: () => {},
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/file?inline=1")) {
+        return new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "application/pdf" },
+        });
+      }
+      if (url.includes("/pages?")) {
+        return Response.json({ pages: [{ page: 1, text: "machine text", ocr: true }] });
+      }
+      return new Response("not found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(LawPdfViewer, {
+          doc: { ...DOC, hasSearchable: true },
+          caseId: "case-1",
+          spaceId: "space-1",
+          page: 1,
+        }),
+      );
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="law-pdf-extracted-toggle"]')?.click();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="law-pdf-ocr-badge"]')?.textContent).toBe("OCR");
+      expect(container.querySelector('[data-testid="law-pdf-ocr-caveat"]')?.textContent).toBe(
+        "Text was read by OCR and may contain errors.",
+      );
+      expect(container.querySelector('[data-testid="law-pdf-extracted-text"]')?.textContent).toBe(
+        "machine text",
+      );
+    });
+    expect(
+      container.querySelector('[data-testid="law-pdf-download-searchable"]')?.textContent,
+    ).toBe("Download searchable copy");
+    await act(async () => {
+      root.unmount();
+    });
+  });
 });

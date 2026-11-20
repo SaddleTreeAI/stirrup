@@ -7,8 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import type { LawFileDoc } from "./files.js";
 import { withSpaceHeaders } from "./lib.js";
 
-function fileHref(caseId: string, docId: string): string {
-  return `/api/law/cases/${caseId}/documents/${docId}/file`;
+function fileHref(caseId: string, docId: string, variant?: "searchable"): string {
+  const base = `/api/law/cases/${caseId}/documents/${docId}/file`;
+  return variant === "searchable" ? `${base}?variant=searchable` : base;
 }
 
 export type LawPdfViewerProps = {
@@ -30,6 +31,7 @@ export function LawPdfViewer({ doc, caseId, spaceId, page = 1 }: LawPdfViewerPro
   const [pageInput, setPageInput] = useState(String(Math.max(1, page)));
   const [showText, setShowText] = useState(false);
   const [pageText, setPageText] = useState<string | null>(null);
+  const [pageOcr, setPageOcr] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -76,6 +78,7 @@ export function LawPdfViewer({ doc, caseId, spaceId, page = 1 }: LawPdfViewerPro
   useEffect(() => {
     if (!showText) {
       setPageText(null);
+      setPageOcr(false);
       return;
     }
     let cancelled = false;
@@ -91,11 +94,17 @@ export function LawPdfViewer({ doc, caseId, spaceId, page = 1 }: LawPdfViewerPro
           },
         );
         if (!response.ok) throw new Error(String(response.status));
-        const body = (await response.json()) as { pages: Array<{ page: number; text: string }> };
+        const body = (await response.json()) as {
+          pages: Array<{ page: number; text: string; ocr?: boolean }>;
+        };
         if (cancelled) return;
         setPageText(body.pages[0]?.text ?? "");
+        setPageOcr(Boolean(body.pages[0]?.ocr));
       } catch {
-        if (!cancelled && !controller.signal.aborted) setPageText("");
+        if (!cancelled && !controller.signal.aborted) {
+          setPageText("");
+          setPageOcr(false);
+        }
       }
     })();
     return () => {
@@ -127,7 +136,16 @@ export function LawPdfViewer({ doc, caseId, spaceId, page = 1 }: LawPdfViewerPro
     anchor.click();
   }
 
+  function downloadSearchable() {
+    const anchor = document.createElement("a");
+    anchor.href = fileHref(caseId, doc.id, "searchable");
+    anchor.download = `${(doc.filename || doc.title).replace(/\.[^.]+$/, "")}-searchable.pdf`;
+    anchor.rel = "noopener";
+    anchor.click();
+  }
+
   const iframeSrc = blobUrl ? `${blobUrl}#page=${currentPage}&toolbar=1` : undefined;
+  const showSearchable = Boolean(doc.hasSearchable);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="law-pdf-viewer">
@@ -181,6 +199,17 @@ export function LawPdfViewer({ doc, caseId, spaceId, page = 1 }: LawPdfViewerPro
         >
           {t`Download original`}
         </Button>
+        {showSearchable ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            data-testid="law-pdf-download-searchable"
+            onClick={downloadSearchable}
+          >
+            {t`Download searchable copy`}
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="sm"
@@ -198,12 +227,27 @@ export function LawPdfViewer({ doc, caseId, spaceId, page = 1 }: LawPdfViewerPro
         <p className="px-6 py-10 text-center text-body-sm text-destructive">{t`Couldn't open PDF`}</p>
       ) : null}
       {showText ? (
-        <pre
-          data-testid="law-pdf-extracted-text"
-          className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-6 py-4 text-body text-foreground"
-        >
-          {pageText ?? ""}
-        </pre>
+        <div className="flex min-h-0 flex-1 flex-col overflow-auto px-6 py-4">
+          {pageOcr ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span
+                data-testid="law-pdf-ocr-badge"
+                className="rounded-sm border border-border px-1.5 py-0.5 text-label text-muted-foreground"
+              >
+                {t`OCR`}
+              </span>
+              <p data-testid="law-pdf-ocr-caveat" className="text-body-sm text-muted-foreground">
+                {t`Text was read by OCR and may contain errors.`}
+              </p>
+            </div>
+          ) : null}
+          <pre
+            data-testid="law-pdf-extracted-text"
+            className="whitespace-pre-wrap text-body text-foreground"
+          >
+            {pageText ?? ""}
+          </pre>
+        </div>
       ) : iframeSrc ? (
         <iframe
           key={`${blobUrl}-${currentPage}`}

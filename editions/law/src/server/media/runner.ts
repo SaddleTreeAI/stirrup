@@ -40,7 +40,9 @@ export function createProcessRunner(): Runner {
           if (options.onStdout) void Promise.resolve(options.onStdout(text));
         });
         child.stderr?.on("data", (chunk: Buffer) => {
-          if (stderr.length < RUNNER_OUTPUT_LIMIT * 2) stderr += chunk.toString("utf8");
+          const text = chunk.toString("utf8");
+          if (stderr.length < RUNNER_OUTPUT_LIMIT * 2) stderr += text;
+          if (options.onStderr) void Promise.resolve(options.onStderr(text));
         });
         let timer: ReturnType<typeof setTimeout> | undefined;
         if (options.timeoutMs !== undefined && options.timeoutMs > 0) {

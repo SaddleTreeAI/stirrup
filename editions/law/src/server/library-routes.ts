@@ -144,9 +144,10 @@ export function mountLibraryRoutes(app: Hono, deps: LibraryDeps) {
       const caseId = c.req.param("id");
       const docId = c.req.param("docId");
       const inline = c.req.query("inline") === "1";
+      const variant = c.req.query("variant") === "searchable" ? "searchable" : "original";
 
       const opened = await runAsTenant(actor, () =>
-        openDocumentFile(deps.prisma, files, actor, { caseId, docId }),
+        openDocumentFile(deps.prisma, files, actor, { caseId, docId, variant }),
       );
       if (!opened) return c.json({ error: "Not found" }, 404);
 
@@ -496,22 +497,39 @@ async function openDocumentFile(
   prisma: PrismaClient,
   files: EditionFiles,
   actor: Actor,
-  input: { caseId: string; docId: string },
+  input: { caseId: string; docId: string; variant?: "original" | "searchable" },
 ) {
   if (!(await requireMember(prisma, actor.userId, input.caseId))) return null;
   const doc = await prisma.lawDocument.findFirst({
     where: { id: input.docId, caseId: input.caseId, deletedAt: null },
-    select: { id: true, filename: true, mimeType: true, artifactId: true },
+    select: {
+      id: true,
+      filename: true,
+      mimeType: true,
+      artifactId: true,
+      derivedArtifactId: true,
+    },
   });
-  if (!doc?.artifactId) return null;
-  const opened = await files.open({ spaceId: actor.spaceId, artifactId: doc.artifactId });
+  if (!doc) return null;
+  const searchable = input.variant === "searchable";
+  const artifactId = searchable ? doc.derivedArtifactId : doc.artifactId;
+  if (!artifactId) return null;
+  const opened = await files.open({ spaceId: actor.spaceId, artifactId });
   if (!opened) return null;
+  const filename = searchable
+    ? searchableFilename(doc.filename || "download")
+    : doc.filename || "download";
   return {
     stream: opened.stream,
     size: opened.size,
-    mimeType: doc.mimeType || opened.mediaType,
-    filename: doc.filename || "download",
+    mimeType: searchable ? "application/pdf" : doc.mimeType || opened.mediaType,
+    filename,
   };
+}
+
+function searchableFilename(filename: string): string {
+  const base = filename.replace(/\.[^.]+$/, "") || "document";
+  return `${base}-searchable.pdf`;
 }
 
 async function listDocumentPages(
@@ -535,12 +553,13 @@ async function listDocumentPages(
       documentId: input.docId,
       page: { gte: input.from, lte: input.to },
     },
-    select: { id: true, page: true, text: true },
+    select: { id: true, page: true, text: true, ocr: true },
     orderBy: { page: "asc" },
   });
   return Promise.all(
     rows.map(async (row) => ({
       page: row.page,
+      ocr: row.ocr,
       text: await openLawText(
         prisma,
         {
@@ -691,6 +710,7 @@ export type ListedDocument = {
   pageCount: number | null;
   durationMs: number | null;
   hasOriginal: boolean;
+  hasSearchable: boolean;
 };
 
 export function serializeDocument(doc: {
@@ -710,6 +730,7 @@ export function serializeDocument(doc: {
   pageCount?: number | null;
   durationMs?: number | null;
   artifactId?: string | null;
+  derivedArtifactId?: string | null;
 }): ListedDocument {
   return {
     id: doc.id,
@@ -728,6 +749,7 @@ export function serializeDocument(doc: {
     pageCount: doc.pageCount ?? null,
     durationMs: doc.durationMs ?? null,
     hasOriginal: Boolean(doc.artifactId),
+    hasSearchable: Boolean(doc.derivedArtifactId),
   };
 }
 

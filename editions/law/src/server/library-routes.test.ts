@@ -482,8 +482,8 @@ describe("library routes", () => {
       },
       lawDocumentPage: {
         findMany: vi.fn(async () => [
-          { id: "p1", page: 1, text: "page one" },
-          { id: "p2", page: 2, text: "page two" },
+          { id: "p1", page: 1, text: "page one", ocr: false },
+          { id: "p2", page: 2, text: "page two", ocr: true },
         ]),
       },
     });
@@ -494,8 +494,8 @@ describe("library routes", () => {
     expect(ok.status).toBe(200);
     await expect(ok.json()).resolves.toEqual({
       pages: [
-        { page: 1, text: "page one" },
-        { page: 2, text: "page two" },
+        { page: 1, ocr: false, text: "page one" },
+        { page: 2, ocr: true, text: "page two" },
       ],
     });
 
@@ -508,6 +508,53 @@ describe("library routes", () => {
       headers: { authorization: "Bearer test" },
     });
     expect(backwards.status).toBe(400);
+  });
+
+  it("serves the searchable derived PDF and 404s when none exists", async () => {
+    const open = vi.fn(async ({ artifactId }: { artifactId: string }) => ({
+      stream: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(artifactId));
+          controller.close();
+        },
+      }),
+      size: artifactId.length,
+      mediaType: "application/pdf",
+    }));
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce({
+        id: "doc-1",
+        filename: "scan.pdf",
+        mimeType: "application/pdf",
+        artifactId: "original-1",
+        derivedArtifactId: "derived-1",
+      })
+      .mockResolvedValueOnce({
+        id: "doc-2",
+        filename: "plain.pdf",
+        mimeType: "application/pdf",
+        artifactId: "original-2",
+        derivedArtifactId: null,
+      });
+    const prisma = memberPrisma({
+      lawDocument: { findFirst },
+    });
+    const app = mount(prisma, { files: fakeFiles({ open }) });
+
+    const ok = await app.request("/api/law/cases/case-1/documents/doc-1/file?variant=searchable", {
+      headers: { authorization: "Bearer test" },
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get("content-disposition")).toContain("scan-searchable.pdf");
+    expect(open).toHaveBeenCalledWith({ spaceId: actor.spaceId, artifactId: "derived-1" });
+    await expect(ok.text()).resolves.toBe("derived-1");
+
+    const missing = await app.request(
+      "/api/law/cases/case-1/documents/doc-2/file?variant=searchable",
+      { headers: { authorization: "Bearer test" } },
+    );
+    expect(missing.status).toBe(404);
   });
 
   it("rejects empty or overlong rename titles with 400", async () => {

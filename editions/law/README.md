@@ -150,7 +150,7 @@ pnpm --filter @rakazo/edition-law media:dev
 pnpm --filter @rakazo/edition-law media:models -- --yes
 ```
 
-`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `gpu …`, `cuda …`, `models …`, and the optional `faster-whisper` version when installed. Exits 1 when a required tool is missing. Override the required set with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
+`media:doctor` prints one line per tool (`ffmpeg 6.1.1` or `ffmpeg MISSING`) plus `tesseract-langs …`, `gpu …`, `cuda …`, `models …`, and the optional `faster-whisper` version when installed. Exits 1 when a required tool is missing. Override the required set with `LAW_MEDIA_REQUIRED_TOOLS` (comma-separated).
 
 `media:models` downloads the CTranslate2 Whisper weights once (operator step; never CI or runtime). Requires `--yes`. Repositories match faster-whisper 1.2.1 `_MODELS`: `small` → `Systran/faster-whisper-small`, `large-v3-turbo` → `mobiuslabsgmbh/faster-whisper-large-v3-turbo`.
 
@@ -194,7 +194,24 @@ docker compose -f infra/compose/docker-compose.yml \
 
 Builds `editions/law/docker/media.Dockerfile` with `SERVER_IMAGE` / `LAW_SERVER_IMAGE`, mounts the app data volume and a `law-models` volume (for later transcription models), and documents a commented NVIDIA device block for GPU hosts. A CI job that publishes the media image is a follow-up.
 
-Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `import_docx`, `transcribe`, `purge_case`).
+Enqueue from ingest with `enqueueExtraction` → `enqueueLawJob` (idempotent per document+kind while queued or running). Handlers register in `src/server/media/handlers/index.ts` (`selftest`, `extract_pdf`, `ocr_pdf`, `import_docx`, `transcribe`, `purge_case`).
+
+### PDF extract and OCR (P1 / P2)
+
+`extract_pdf` runs `pdfinfo` + `pdftotext`. When at least half the pages look blank, it enqueues `ocr_pdf`. The OCR handler runs `ocrmypdf --skip-text` (never `--force-ocr`), writes a sidecar text file, replaces only blank page rows with `ocr=true`, stores a searchable PDF as `derivedArtifactId`, and sets status detail:
+
+> OCR complete (machine-read text; check against the original)
+
+`GET .../documents/:docId/file?variant=searchable` returns that derived PDF (404 when none). The PDF viewer shows an OCR badge and caveat on machine-read pages, and a Download searchable copy action when a derived PDF exists. Retrieval labels OCR hits `(OCR)` so bots can hedge.
+
+| Variable                  | Role                                                    |
+| ------------------------- | ------------------------------------------------------- |
+| `LAW_OCR_LANGS`           | Tesseract languages, `eng` or `eng+spa` (default `eng`) |
+| `LAW_OCR_JOBS`            | ocrmypdf `--jobs` (default CPU count, capped at 4)      |
+| `LAW_OCR_MAX_PAGES`       | Skip OCR above this page count (default `400`)          |
+| `LAW_OCR_TIMEOUT_MINUTES` | Kill ocrmypdf after this many minutes (default `120`)   |
+
+Media image build arg `OCR_LANGS="eng spa"` installs `tesseract-ocr-<lang>` packages. `media:doctor` prints `tesseract-langs eng+spa` (installed list).
 
 GPU image (documented, not built by default): base `nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04` (CUDA 12 + cuDNN 9, matching faster-whisper 1.2.1 / current ctranslate2), then uncomment the NVIDIA device block in `compose.media.yml`.
 
